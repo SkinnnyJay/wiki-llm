@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.tmp/
+# Local dev / scratch scripts (not part of the published plugin)
+scripts/.tmp/
+.cursor/
+.claude/settings.local.json
+.venv-*/
