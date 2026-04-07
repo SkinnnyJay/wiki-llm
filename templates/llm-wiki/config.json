@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "wiki_root": "llm-wiki",
+  "persona": {
+    "name": "Gennie"
+  },
+  "viewer": {
+    "enabled": true,
+    "og_base_url": "",
+    "open_file_scheme": "file"
+  },
+  "integrations": {},
+  "git": {
+    "enabled": false,
+    "init_on_setup": false,
+    "snapshot_after_ingest": false,
+    "snapshot_after_build": false,
+    "snapshot_message_prefix": "[ingest]",
+    "include_diff_in_skill_context": false,
+    "tracked_globs": ["wiki/", "raw/", "CLAUDE.md", "config.json"],
+    "lifecycle": {
+      "phases": {
+        "ingest": "[ingest]",
+        "prepare": "[prepare]",
+        "wiki": "[wiki]",
+        "build": "[build]",
+        "graph": "[graph]",
+        "research": "[research]",
+        "config": "[config]"
+      }
+    }
+  },
+  "research_loop": {
+    "enabled": false,
+    "max_items_per_run": 8,
+    "tasks_file": "research-tasks.json",
+    "delay_seconds_between_fetches": 1.0
+  },
+  "ingestion_security": {
+    "enabled": true,
+    "block_on_suspected": false,
+    "log_to_raw_frontmatter": true,
+    "llm_triage": false
+  },
+  "hooks": {
+    "sound": {
+      "enabled": false,
+      "command": ["afplay", "/System/Library/Sounds/Glass.aiff"],
+      "on_ingest": true,
+      "on_research_loop": true,
+      "timeout_seconds": 30
+    }
+  }
+}

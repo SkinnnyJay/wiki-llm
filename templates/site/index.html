@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLM Wiki viewer</title>
+  <meta property="og:title" content="LLM Wiki viewer" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="Interactive graph of your vault wiki" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="flex flex-col h-screen">
+    <header class="border-b border-slate-800 px-4 py-3 flex justify-between items-center">
+      <h1 class="text-lg font-semibold tracking-tight">LLM Wiki</h1>
+      <p class="text-xs text-slate-500">Graph + reader · serve via <code class="bg-slate-900 px-1 rounded">python3 -m http.server</code></p>
+    </header>
+    <div class="flex flex-1 min-h-0">
+      <div id="graph-pane" class="flex-1 border-r border-slate-800 relative bg-slate-900/50">
+        <svg id="graph" class="w-full h-full"></svg>
+      </div>
+      <div class="w-[min(480px,42vw)] flex flex-col min-h-0">
+        <div id="reader" class="flex-1 overflow-auto p-4 prose prose-invert prose-sm max-w-none">
+          <p class="text-slate-500">Select a node to read.</p>
+        </div>
+        <div id="ledger" class="border-t border-slate-800 p-3 max-h-40 overflow-auto text-xs text-slate-400 hidden"></div>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Declarative research tasks (same shape as research-tasks.json).
+# Point research_loop.tasks_file here if you prefer YAML (requires: pip install pyyaml).
+tasks:
+  - id: hn-top
+    run: false
+    source: hackernews_top
+    depth: stories
+    output_prefix: research/hn
+    schedule_note: Run manually or via external cron + Claude CLI
+  - id: weekly-links
+    run: false
+    source: fetch_urls
+    output_prefix: research/links
+    urls:
+      - https://example.com

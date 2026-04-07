@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Resolve plugin root when invoked from PATH (Claude sets CLAUDE_PLUGIN_ROOT).
+ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$ROOT" ]; then
+  # Fallback: this script lives at <plugin>/bin/llm-wiki
+  ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+fi
+exec python3 "$ROOT/scripts/llm_wiki.py" "$@"

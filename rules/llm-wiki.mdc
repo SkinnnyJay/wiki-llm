@@ -1,0 +1,14 @@
+---
+description: wiki-llm plugin — CLI, commands/, skills, and vault workflows for Cursor
+alwaysApply: true
+---
+
+# wiki-llm (this repo)
+
+- **CLI:** `bin/llm-wiki` (absolute path works from any cwd) or `python3 scripts/llm_wiki.py` from **repo root** for ingest, `raw validate` / `raw record` / `raw finish`, build-site, validate, graph, git, etc. (Avoid `PYTHONPATH=scripts`—relative PYTHONPATH can fatal-error Python 3.14+; `llm_wiki.py` fixes up `sys.path` itself.)
+- **Slash commands (Claude Code):** Same prompts as files in **`commands/`** — open the matching **`.md`** when you need the full workflow text without the plugin.
+- **Skills:** **`skills/*/SKILL.md`** — wiki-maintainer, wiki-ingest, wiki-raw-prepare, wiki-query, wiki-lint, wiki-research (ad-hoc topic), wiki-research-loop (batch from `research-tasks.json`).
+- **Canonical docs:** **`WORKFLOWS.md`**, **`ETHOS.md`**, **`prompts/PERSONA.md`**. Root **`AGENTS.md`** is the portable summary for Codex/Cursor and other agents.
+- **Python:** Match existing style in **`scripts/`**; run tests or **`python3 -m compileall`** if you touch CLI code. Personal/demo scripts belong in **`scripts/.tmp/`** (gitignored), not tracked **`scripts/`**.
+
+When editing the **vault template** under **`templates/llm-wiki/`**, keep **`llm-wiki/CLAUDE.md`** and **`config.json`** schema consistent with **`README.md`** and **`WORKFLOWS.md`**.

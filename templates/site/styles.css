@@ -1,0 +1,21 @@
+/* Complements Tailwind */
+#graph-pane svg {
+  cursor: grab;
+}
+#graph-pane svg:active {
+  cursor: grabbing;
+}
+.node circle {
+  fill: #38bdf8;
+  stroke: #0c4a6e;
+  stroke-width: 1.5px;
+}
+.node text {
+  fill: #e2e8f0;
+  font-size: 10px;
+  pointer-events: none;
+}
+.link {
+  stroke: #475569;
+  stroke-opacity: 0.5;
+}

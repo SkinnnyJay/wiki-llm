@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLM Wiki graph</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <link rel="stylesheet" href="graph-styles.css" />
+</head>
+<body class="gh-canvas text-fg min-h-screen flex flex-col">
+  <header class="gh-header border-b border-border px-4 py-3 flex flex-wrap gap-3 items-center justify-between">
+    <div>
+      <h1 id="graph-title" class="text-base font-semibold tracking-tight">Wiki graph</h1>
+      <p id="graph-sub" class="text-xs text-muted mt-0.5"></p>
+    </div>
+    <div class="text-xs text-muted font-mono">
+      Serve folder: <code class="bg-elev px-1.5 py-0.5 rounded border border-border">python3 -m http.server 8890</code>
+    </div>
+  </header>
+  <div class="flex flex-1 min-h-0">
+    <aside id="legend" class="w-56 shrink-0 border-r border-border p-3 overflow-auto text-xs hidden">
+      <div class="font-semibold text-fg mb-2">Clusters</div>
+      <div id="legend-items" class="space-y-2 text-muted"></div>
+    </aside>
+    <div class="flex-1 relative min-h-0">
+      <svg id="graph-svg" class="w-full h-full block"></svg>
+      <div id="tooltip" class="tooltip hidden"></div>
+    </div>
+    <aside class="w-64 shrink-0 border-l border-border p-3 text-xs overflow-auto">
+      <div class="font-semibold text-fg mb-2">Selected</div>
+      <div id="detail" class="text-muted">Click a node.</div>
+    </aside>
+  </div>
+  <script src="graph-app.js"></script>
+</body>
+</html>

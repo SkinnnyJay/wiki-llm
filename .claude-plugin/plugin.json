@@ -1,0 +1,11 @@
+{
+  "name": "llm-wiki",
+  "version": "0.1.13",
+  "description": "LLM Wiki pattern for Claude Code: vault (raw + wiki), ingest adapters, static viewer + on-demand D3 graphs (.tmp), optional vault Git ledger, research loop, ingestion security.",
+  "author": {
+    "name": "wiki-llm contributors"
+  },
+  "license": "MIT",
+  "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian"],
+  "repository": "https://github.com/wiki-llm/wiki-llm"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "llm-wiki-local",
+  "owner": {
+    "name": "local"
+  },
+  "plugins": [
+    {
+      "name": "llm-wiki",
+      "source": "./",
+      "description": "LLM Wiki vault plugin (develop from repo root)"
+    }
+  ]
+}

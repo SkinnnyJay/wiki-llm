@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    {
+      "id": "hn-top",
+      "run": false,
+      "source": "hackernews_top",
+      "depth": "stories",
+      "output_prefix": "research/hn",
+      "schedule_note": "Run manually or via external cron + claude CLI"
+    },
+    {
+      "id": "weekly-links",
+      "run": false,
+      "source": "fetch_urls",
+      "output_prefix": "research/links",
+      "urls": ["https://example.com"]
+    }
+  ]
+}

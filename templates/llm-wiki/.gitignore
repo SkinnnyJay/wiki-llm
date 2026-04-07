@@ -1,0 +1,5 @@
+wiki/.og/
+.secrets.env
+*.security.json
+__pycache__/
+.venv/

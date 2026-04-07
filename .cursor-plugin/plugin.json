@@ -1,0 +1,20 @@
+{
+  "name": "llm-wiki",
+  "displayName": "llm-wiki",
+  "version": "0.1.13",
+  "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, on-demand graphs, optional vault Git, research loop, ingestion security. Same repo as the Claude Code plugin.",
+  "author": {
+    "name": "wiki-llm contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "wiki",
+    "knowledge-base",
+    "ingest",
+    "markdown",
+    "obsidian",
+    "llm",
+    "vault"
+  ],
+  "logo": "docs/assets/logo-square.png"
+}

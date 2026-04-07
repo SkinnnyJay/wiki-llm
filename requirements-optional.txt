@@ -1,0 +1,9 @@
+# Optional pip deps for llm-wiki CLI (use a venv: python3 -m venv .venv && .venv/bin/pip install -r requirements-optional.txt)
+# Format-specific deps are lazy — only install what you need.
+# Each format has a reference file under skills/references/ingest-<format>.md
+
+# PDF (scanned or text): Claude Vision via Anthropic API
+# Also requires poppler on PATH (macOS: brew install poppler)
+# API key: ANTHROPIC_API_KEY in env or .claude/settings.local.json
+pdf2image
+anthropic
