@@ -1,23 +1,59 @@
 ---
 name: wiki-query
 description: Answers questions using llm-wiki/wiki pages with citations. Use when the user asks about vault content or synthesized knowledge.
+allowed-tools: Read Grep Glob
+argument-hint: "<question about vault content>"
 ---
 
-# Wiki query
+# Wiki query — Reader
 
-**Layered recall protocol (L0 → L3):**
+Answer questions **from curated wiki pages** with **inline citations** to `wiki/` paths. Use when the user wants facts, summaries, or navigation help inside the vault (not when they need new research from the web).
 
-1. **L0+L1** — Read `## Memory Stack` in `llm-wiki/CLAUDE.md` (or run `llm-wiki wake-up`).
-   This gives you the vault name, topic list with wiki coverage, and recent log entries in ~170 tokens.
-2. **L2** — If the query matches a known topic, open `wiki/**/*.md` pages whose filename or
-   content matches that topic. Check `raw/.tags.json` to find all raw files tagged with that topic.
-3. **L3** — If wiki/ pages don't fully answer the question, open the tagged `raw/` files directly.
-   Prefer `raw/` files whose `llm_wiki_tags` frontmatter includes the query topic.
-4. **Answer** with inline citations (file paths). If the answer is durable knowledge, offer to
-   promote it to `wiki/` (linked from `wiki/index.md`). If it's a one-off report, file under `outputs/`.
+## Pre-flight
 
-**Graceful degradation:** If `## Memory Stack` is missing or tags don't exist yet,
-fall back to reading `wiki/index.md` directly (previous behaviour).
+1. Confirm `llm-wiki/config.json` exists (vault root). If missing, offer **wiki-setup**.
+2. Read **`wiki/index.md`** to orient; open the most relevant `wiki/**/*.md` files for the question.
 
-Optional: `skills/references/context-persona.md` for tool-calling tone;
-vault name from `persona.name` in `config.json` (default **Gennie**).
+## Steps
+
+### Step 1 — Scope the question
+
+- If the question is vague, narrow it or list candidate pages from `wiki/index.md`.
+- If the answer is not in the wiki, say so and offer **wiki-research** or **wiki-fetch** instead of inventing sources.
+
+### Step 2 — Answer with citations
+
+- Cite paths inline, e.g. `` `wiki/topics/foo.md` `` or `` [[Topic]] `` when listing sources.
+- Prefer quoting short spans; for long passages, point to the file and section.
+
+### Step 3 — Optional persistence
+
+- If the answer should live in the vault, offer to save as a new **`wiki/`** page (linked from the index) or under **`outputs/`** as a draft to verify before promoting to wiki.
+
+## Done looks like
+
+- The user’s question is answered using **only** (or primarily) **`wiki/`** content, with **at least one citation** per non-obvious claim.
+- If nothing relevant exists in the wiki, you **state the gap** and suggest **wiki-research** / **wiki-fetch** / **wiki-ingest** as next steps.
+- If you created or updated a page, **`wiki/index.md`** and **`wiki/log.md`** are updated when appropriate.
+
+## Artifacts
+
+| Reads | Writes |
+|-------|--------|
+| `wiki/index.md`, `wiki/**/*.md` | Optional new `wiki/**/*.md` or `outputs/**/*.md` |
+
+Downstream: **wiki-maintainer** if many pages change; **wiki-lint** for a health pass.
+
+## Related skills
+
+- **wiki-research** — add new sources and merge into wiki when the vault lacks an answer.
+- **wiki-fetch** — quick single-URL ingest into `raw/` without full research orchestration.
+- **wiki-ingest** / **wiki-maintainer** — merge curated content after new material lands in `raw/`.
+- **wiki-lint** — audit wiki coherence after bulk edits.
+
+## Smoke check
+
+- **CLI:** `llm-wiki validate` from the vault root.
+- **Prompt:** Invoke this skill with a sample question; confirm answers cite paths under `wiki/`.
+
+Optional: `skills/references/context-persona.md`; vault display name: `persona.name` in `llm-wiki/config.json` (default **Gennie**).

@@ -30,6 +30,16 @@ python3 -m venv .venv-marker
 
 **No API key required. Main venv remains unaffected.**
 
+### Secrets (optional `--use-llm`)
+
+For LLM-assisted Marker mode, set keys in the **environment** — not on the shell command line (avoids exposing secrets in `ps` / process listings):
+
+- Claude: `ANTHROPIC_API_KEY`
+- Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+- OpenAI: `OPENAI_API_KEY`
+
+Deprecated CLI flags `--claude-api-key`, `--gemini-api-key`, and `--openai-api-key` still work for one release but print a warning and only copy the value into the subprocess environment (they are never passed as argv to the Marker worker).
+
 ## Run
 
 ```bash
