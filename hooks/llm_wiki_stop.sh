@@ -22,6 +22,16 @@ _llm_wiki_find_vault() {
 VAULT=$(_llm_wiki_find_vault || true)
 if [ -z "$VAULT" ]; then exit 0; fi
 
+LLM_WIKI_BIN="${CLAUDE_PLUGIN_ROOT:-}/bin/llm-wiki"
+if [ ! -x "$LLM_WIKI_BIN" ]; then
+  if command -v llm-wiki >/dev/null 2>&1; then
+    LLM_WIKI_BIN="llm-wiki"
+  else
+    echo "llm-wiki: not found via plugin or PATH; hook skipped" >&2
+    exit 0
+  fi
+fi
+
 LAST_STOP="$HOME/.llm-wiki/last-stop"
 WIKI_DIR="$VAULT/wiki"
 
@@ -33,7 +43,7 @@ if [ -d "$WIKI_DIR" ] && [ -f "$LAST_STOP" ]; then
     fi
 fi
 
-llm-wiki --vault "$VAULT" wake-up --update-claude 2>/dev/null || true
+"$LLM_WIKI_BIN" --vault "$VAULT" wake-up --update-claude || true
 
 # Update last-stop atomically
 mkdir -p "$HOME/.llm-wiki"

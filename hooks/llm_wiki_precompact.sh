@@ -26,7 +26,18 @@ _llm_wiki_find_vault() {
 VAULT=$(_llm_wiki_find_vault || true)
 if [ -z "$VAULT" ]; then exit 0; fi
 
-llm-wiki --vault "$VAULT" wake-up --update-claude 2>/dev/null || true
-llm-wiki --vault "$VAULT" git snapshot --phase wiki -m "pre-compact checkpoint" 2>/dev/null || true
+LLM_WIKI_BIN="${CLAUDE_PLUGIN_ROOT:-}/bin/llm-wiki"
+if [ ! -x "$LLM_WIKI_BIN" ]; then
+  # Fallback to PATH (standalone install or dev clone)
+  if command -v llm-wiki >/dev/null 2>&1; then
+    LLM_WIKI_BIN="llm-wiki"
+  else
+    echo "llm-wiki: not found via plugin or PATH; hook skipped" >&2
+    exit 0
+  fi
+fi
+
+"$LLM_WIKI_BIN" --vault "$VAULT" wake-up --update-claude || true
+"$LLM_WIKI_BIN" --vault "$VAULT" git snapshot --phase wiki -m "pre-compact checkpoint" || true
 
 exit 0
