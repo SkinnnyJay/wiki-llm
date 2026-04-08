@@ -506,6 +506,53 @@ def cmd_security(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_wakeup(args: argparse.Namespace) -> int:
+    from lib.layers import build_wake_up, update_claude_md
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    blob = build_wake_up(vault, cfg)
+    print(blob)
+    if args.update_claude:
+        update_claude_md(vault, cfg)
+        print("Updated CLAUDE.md ## Memory Stack.", file=sys.stderr)
+    return 0
+
+
+def cmd_list_topics(args: argparse.Namespace) -> int:
+    import json
+
+    from lib.layers import _wiki_page_for_tag
+
+    vault = resolve_vault(override=args.vault)
+    p = vault / "raw" / ".tags.json"
+    for candidate in [vault / "raw" / ".tags.json", vault / "llm-wiki" / "raw" / ".tags.json"]:
+        if candidate.exists():
+            p = candidate
+            break
+    if not p.exists():
+        print("No tag index found. Run: llm-wiki ingest ... --tags <topics>")
+        return 0
+    index = json.loads(p.read_text(encoding="utf-8"))
+    rows = sorted(index.items(), key=lambda kv: -len(kv[1]))
+    for tag, files in rows:
+        wp = _wiki_page_for_tag(vault, tag)
+        coverage = f"→ {wp} ✓" if wp else "⚠ no wiki page"
+        print(f"  {tag:<20} {len(files):>4} raw files   {coverage}")
+    return 0
+
+
+def cmd_raw_rebuild_index(args: argparse.Namespace) -> int:
+    from ingest.dedup import rebuild_index
+    from ingest.tagger import rebuild_tag_index
+
+    vault = resolve_vault(override=args.vault)
+    h = rebuild_index(vault)
+    t = rebuild_tag_index(vault)
+    print(f"Rebuilt: {h} hashes, {t} tag entries")
+    return 0
+
+
 def cmd_interactive_configure() -> int:
     vault = resolve_vault()
     cfg = load_config(vault)
@@ -649,6 +696,17 @@ def main() -> int:
     pgk.add_argument("--out", type=Path, help="Output directory (default: ./.tmp/llm-wiki-graph)")
     pgk.set_defaults(func=cmd_graph_knowledge)
 
+    pwakeup = sub.add_parser("wake-up", help="Print L0+L1 context blob")
+    pwakeup.add_argument(
+        "--update-claude",
+        action="store_true",
+        help="Refresh ## Memory Stack in llm-wiki/CLAUDE.md",
+    )
+    pwakeup.set_defaults(func=cmd_wakeup)
+
+    pltopics = sub.add_parser("list-topics", help="Show tag index with wiki coverage")
+    pltopics.set_defaults(func=cmd_list_topics)
+
     psec = sub.add_parser("security", help="Security scan")
     psec_sub = psec.add_subparsers(dest="sec_cmd", required=True)
     pscan = psec_sub.add_parser("scan")
@@ -723,6 +781,11 @@ def main() -> int:
         help="Append preparation log only; do not commit",
     )
     praw_fin.set_defaults(func=cmd_raw_finish, autofix=True)
+    praw_rebuild = praw_sub.add_parser(
+        "rebuild-index",
+        help="Rebuild .hashes.json and .tags.json from raw/ frontmatter",
+    )
+    praw_rebuild.set_defaults(func=cmd_raw_rebuild_index)
 
     args = p.parse_args()
     return args.func(args)
