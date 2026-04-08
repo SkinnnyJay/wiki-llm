@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -13,6 +14,19 @@ from lib.ingest_finish import post_ingest
 from ingest.registry import run_ingest
 
 
+def _yaml_load(text: str, *, path: Path, explicit_suffix: bool) -> Any:
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError as e:
+        msg = (
+            "YAML task files require: pip install pyyaml"
+            if explicit_suffix
+            else f"Unrecognized tasks file {path.name}: use .json or install pyyaml for YAML."
+        )
+        raise SystemExit(msg) from e
+    return yaml.safe_load(text)
+
+
 def load_tasks_file(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     suf = path.suffix.lower()
@@ -20,27 +34,57 @@ def load_tasks_file(path: Path) -> dict[str, Any]:
     if suf == ".json":
         data = json.loads(text)
     elif suf in (".yaml", ".yml"):
-        try:
-            import yaml  # type: ignore[import-untyped]
-        except ImportError as e:
-            raise SystemExit("YAML task files require: pip install pyyaml") from e
-        data = yaml.safe_load(text)
+        data = _yaml_load(text, path=path, explicit_suffix=True)
     else:
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
-            try:
-                import yaml  # type: ignore[import-untyped]
-            except ImportError as e:
-                raise SystemExit(
-                    f"Unrecognized tasks file {path.name}: use .json or install pyyaml for YAML."
-                ) from e
-            data = yaml.safe_load(text)
+            data = _yaml_load(text, path=path, explicit_suffix=False)
     if data is None:
         return {}
     if not isinstance(data, dict):
         raise SystemExit(f"Tasks file must be a mapping at root: {path}")
     return data
+
+
+def _post_ingest_quiet(vault: Path, cfg: dict, path: Path, force: bool) -> int:
+    return post_ingest(vault, cfg, path, force=force, force_security=False, suppress_sound=True)
+
+
+def _run_task_ingest(
+    vault: Path,
+    cfg: dict,
+    adapter: str,
+    argv: list[str],
+    force_adapter: bool,
+) -> int:
+    result = run_ingest(vault, cfg, adapter, argv, force_adapter=force_adapter)
+    print(result.message)
+    return _post_ingest_quiet(vault, cfg, result.output_path, force_adapter)
+
+
+# Search adapters that support the `search_multi` fan-out, in priority order.
+# Each entry: (adapter_id, env_var_or_empty)
+_SEARCH_PROVIDERS: list[tuple[str, str]] = [
+    ("brave", "BRAVE_SEARCH_API_KEY"),
+    ("perplexity", "PERPLEXITY_API_KEY"),
+    ("hackernews", ""),   # no key needed; query maps to top-stories fetch
+]
+
+
+def _available_search_providers(cfg: dict) -> list[str]:
+    """Return provider ids that are enabled and have a key (or need no key)."""
+    available = []
+    integrations = cfg.get("integrations") or {}
+    for pid, env_var in _SEARCH_PROVIDERS:
+        slice_ = integrations.get(pid) or {}
+        enabled = slice_.get("enabled", True)
+        if not enabled:
+            continue
+        if env_var and not os.environ.get(slice_.get("api_key_env") or env_var):
+            continue
+        available.append(pid)
+    return available
 
 
 def run_research_loop(
@@ -91,18 +135,10 @@ def run_research_loop(
                 prefix = str(t.get("output_prefix") or "research/hn")
                 out = f"{prefix}-top.md"
                 argv = ["--limit", str(max_n), "--depth", depth, "--out", out]
-                result = run_ingest(vault, cfg, "hackernews", argv, force_adapter=force_adapter)
-                print(result.message)
-                code = post_ingest(
-                    vault,
-                    cfg,
-                    result.output_path,
-                    force=force_adapter,
-                    force_security=False,
-                    suppress_sound=True,
-                )
+                code = _run_task_ingest(vault, cfg, "hackernews", argv, force_adapter)
                 if code != 0:
                     exit_code = code
+
             elif source == "fetch_urls":
                 urls = t.get("urls") or []
                 if not isinstance(urls, list):
@@ -114,22 +150,79 @@ def run_research_loop(
                 batch = [u.strip() for u in urls if isinstance(u, str) and u.strip()][:max_n]
                 for i, u in enumerate(batch):
                     out = f"{base_out}-{i}.md"
-                    result = run_ingest(vault, cfg, "url", [u, "--out", out], force_adapter=force_adapter)
-                    print(result.message)
-                    code = post_ingest(
-                        vault,
-                        cfg,
-                        result.output_path,
-                        force=force_adapter,
-                        force_security=False,
-                        suppress_sound=True,
-                    )
+                    code = _run_task_ingest(vault, cfg, "url", [u, "--out", out], force_adapter)
                     if code != 0:
                         exit_code = code
                     if delay and i < len(batch) - 1:
                         time.sleep(delay)
+
+            elif source == "brave_search":
+                # Single Brave Search query → raw/
+                query = str(t.get("query") or "")
+                if not query:
+                    print(f"task {tid}: brave_search requires 'query'", file=sys.stderr)
+                    exit_code = 1
+                    ran += 1
+                    continue
+                mode = str(t.get("mode") or "llm-context")
+                count = int(t.get("count") or max_n)
+                prefix = str(t.get("output_prefix") or "research/brave")
+                slug = query.lower().replace(" ", "_")[:40]
+                out = f"{prefix}_{mode}_{slug}.md"
+                argv = [query, "--mode", mode, "--count", str(count), "--out", out]
+                if t.get("freshness"):
+                    argv += ["--freshness", str(t["freshness"])]
+                if t.get("goggles"):
+                    argv += ["--goggles", str(t["goggles"])]
+                code = _run_task_ingest(vault, cfg, "brave", argv, force_adapter)
+                if code != 0:
+                    exit_code = code
+
+            elif source == "search_multi":
+                # Fan out the same query to ALL available search providers and save
+                # separate files — agents aggregate after all writes complete.
+                query = str(t.get("query") or "")
+                if not query:
+                    print(f"task {tid}: search_multi requires 'query'", file=sys.stderr)
+                    exit_code = 1
+                    ran += 1
+                    continue
+                providers = t.get("providers") or _available_search_providers(cfg)
+                count = int(t.get("count") or max_n)
+                prefix = str(t.get("output_prefix") or "research/multi")
+                slug = query.lower().replace(" ", "_")[:40]
+
+                print(f"search_multi: dispatching {len(providers)} providers for: {query!r}")
+                for pid in providers:
+                    if pid == "brave":
+                        mode = str(t.get("brave_mode") or "llm-context")
+                        out = f"{prefix}/brave_{mode}_{slug}.md"
+                        argv = [query, "--mode", mode, "--count", str(count), "--out", out]
+                    elif pid == "perplexity":
+                        out = f"{prefix}/perplexity_{slug}.md"
+                        argv = [query, "--out", out]
+                    elif pid == "hackernews":
+                        out = f"{prefix}/hn_{slug}.md"
+                        argv = ["--limit", str(min(count, 10)), "--out", out]
+                    else:
+                        print(f"  skip unknown provider {pid!r}", file=sys.stderr)
+                        continue
+                    try:
+                        code = _run_task_ingest(vault, cfg, pid, argv, force_adapter)
+                        if code != 0:
+                            exit_code = code
+                    except SystemExit as e:
+                        print(f"  {pid}: {e}", file=sys.stderr)
+                        exit_code = 1
+                    if delay:
+                        time.sleep(delay)
+
             else:
-                print(f"Unknown research task source {source!r} for task {tid!r} — extend lib/research_loop.py", file=sys.stderr)
+                print(
+                    f"Unknown research task source {source!r} for task {tid!r} — "
+                    "extend lib/research_loop.py",
+                    file=sys.stderr,
+                )
                 exit_code = 1
                 ran += 1
                 continue

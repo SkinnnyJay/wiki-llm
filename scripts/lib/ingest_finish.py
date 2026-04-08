@@ -136,7 +136,7 @@ def post_ingest(
         merged = merge_tags(
             auto=auto_tags,
             manual=manual_tags or [],
-            llm=[],
+            llm=[],  # LLM-suggested tags are not wired through post_ingest (only auto + manual)
         )
         tags = merged.tags
         tags_source = merged.source

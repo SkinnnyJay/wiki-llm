@@ -1,0 +1,2 @@
+# Development / CI — plugin tests (see pytest.ini)
+pytest>=8.0

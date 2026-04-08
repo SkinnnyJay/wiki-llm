@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -23,6 +24,8 @@ from lib.raw_markdown import append_preparation_log, autofix_raw_markdown, raw_f
 from lib.research_loop import run_research_loop
 from ingest.registry import adapter_map, run_ingest
 from ingest import security as secscan
+from lib.self_check import cmd_check, cmd_smoke_test
+from lib.test_report import cmd_test_report
 
 
 def cmd_configure(args: argparse.Namespace) -> int:
@@ -351,11 +354,12 @@ def cmd_integrations(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
     sub = args.integrations_cmd
+    integrations = cfg.get("integrations") or {}
 
     if sub == "status":
         for cls in adapter_map().values():
-            slice_ = (cfg.get("integrations") or {}).get(cls.id) or {}
-            en = slice_.get("enabled", True) if cls.id in (cfg.get("integrations") or {}) else True
+            slice_ = integrations.get(cls.id) or {}
+            en = slice_.get("enabled", True) if cls.id in integrations else True
             warns = cls.setup_checks(slice_)
             w = "; ".join(warns) if warns else "ok"
             print(f"{cls.id:14} enabled={str(en):<5}  {w}")
@@ -364,7 +368,7 @@ def cmd_integrations(args: argparse.Namespace) -> int:
     if sub == "validate":
         bad = False
         for cls in adapter_map().values():
-            slice_ = (cfg.get("integrations") or {}).get(cls.id) or {}
+            slice_ = integrations.get(cls.id) or {}
             for w in cls.setup_checks(slice_):
                 print(f"{cls.id}: {w}")
                 bad = True
@@ -391,7 +395,7 @@ def cmd_integrations(args: argparse.Namespace) -> int:
         print()
         changed = False
         for cls in sorted(adapter_map().values(), key=lambda c: c.id):
-            slice_ = (cfg.get("integrations") or {}).get(cls.id) or {}
+            slice_ = integrations.get(cls.id) or {}
             warns = cls.setup_checks(slice_)
             status = "✓ ok" if not warns else "✗ " + warns[0]
             env_var = _INTEGRATION_ENV.get(cls.id, "")
@@ -522,17 +526,15 @@ def cmd_wakeup(args: argparse.Namespace) -> int:
 
 
 def cmd_list_topics(args: argparse.Namespace) -> int:
-    import json
-
     from lib.layers import _wiki_page_for_tag
 
     vault = resolve_vault(override=args.vault)
-    p = vault / "raw" / ".tags.json"
-    for candidate in [vault / "raw" / ".tags.json", vault / "llm-wiki" / "raw" / ".tags.json"]:
+    p: Path | None = None
+    for candidate in (vault / "raw" / ".tags.json", vault / "llm-wiki" / "raw" / ".tags.json"):
         if candidate.exists():
             p = candidate
             break
-    if not p.exists():
+    if p is None or not p.exists():
         print("No tag index found. Run: llm-wiki ingest ... --tags <topics>")
         return 0
     index = json.loads(p.read_text(encoding="utf-8"))
@@ -582,7 +584,7 @@ def cmd_interactive_configure() -> int:
     return 0
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="llm-wiki")
     p.add_argument("--vault", help="Path to vault directory (default: ./llm-wiki or LLM_WIKI_VAULT)")
 
@@ -789,7 +791,75 @@ def main() -> int:
     )
     praw_rebuild.set_defaults(func=cmd_raw_rebuild_index)
 
-    args = p.parse_args()
+    pch = sub.add_parser(
+        "check",
+        help="Fast vault/plugin sanity checks (config, optional compileall); hints for smoke-test",
+    )
+    pch.add_argument(
+        "--plugin-repo",
+        action="store_true",
+        help="When run from the plugin repo: compileall scripts/ for syntax errors",
+    )
+    pch.add_argument(
+        "--claude-validate",
+        action="store_true",
+        help="If `claude` is on PATH, run: claude plugin validate",
+    )
+    pch.set_defaults(func=cmd_check)
+
+    pst = sub.add_parser(
+        "smoke-test",
+        help="Run full pytest suite (contracts, CLI help, vault flow, adapters) from plugin root",
+    )
+    pst.add_argument("-v", "--verbose", action="store_true", help="pytest -v")
+    pst.add_argument(
+        "--network",
+        action="store_true",
+        help="Enable network tests (sets RUN_NETWORK_TESTS=1 for tests marked @pytest.mark.network)",
+    )
+    pst.add_argument(
+        "--claude",
+        action="store_true",
+        help="Enable Claude CLI tests (sets RUN_CLAUDE_TESTS=1; e.g. claude plugin validate)",
+    )
+    pst.add_argument(
+        "--only-contracts",
+        action="store_true",
+        help="Run only tests/plugin_contracts.test.py",
+    )
+    pst.add_argument(
+        "pytest_args",
+        nargs=argparse.REMAINDER,
+        help="Extra args passed to pytest (use -- before them)",
+    )
+    pst.set_defaults(func=cmd_smoke_test)
+
+    ptr = sub.add_parser(
+        "test-report",
+        help="Run executable CLI/doc checks and print a PASS/FAIL table (skills: frontmatter only; no LLM)",
+    )
+    ptr.add_argument(
+        "--network",
+        action="store_true",
+        help="Run harvested network-requiring llm-wiki lines and probe https://example.com",
+    )
+    ptr.add_argument(
+        "--json",
+        metavar="FILE",
+        help="Write machine-readable report (JSON) to FILE",
+    )
+    ptr.add_argument(
+        "--plain",
+        action="store_true",
+        help="Plain text output instead of Markdown",
+    )
+    ptr.set_defaults(func=cmd_test_report)
+
+    return p
+
+
+def main() -> int:
+    args = build_parser().parse_args()
     return args.func(args)
 
 

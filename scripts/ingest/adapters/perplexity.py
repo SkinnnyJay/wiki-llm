@@ -9,7 +9,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from lib.paths import raw_destination
+from lib.url_safety import validate_https_api_host
 from ingest.base import Adapter, IngestResult
+
+_PERPLEXITY_API_HOSTS = frozenset({"api.perplexity.ai"})
 
 
 class PerplexityAdapter(Adapter):
@@ -34,7 +37,12 @@ class PerplexityAdapter(Adapter):
         api_key = os.environ.get(env_name)
         if not api_key:
             raise SystemExit(f"Missing {env_name}")
-        base = (slice_.get("api_base_url") or "https://api.perplexity.ai").rstrip("/")
+        base = validate_https_api_host(
+            slice_.get("api_base_url"),
+            default_host="api.perplexity.ai",
+            allowed_hosts=_PERPLEXITY_API_HOSTS,
+            integration_name="integrations.perplexity",
+        ).rstrip("/")
         default_model = slice_.get("model") or "sonar"
 
         p = ArgumentParser(prog="llm-wiki ingest perplexity")

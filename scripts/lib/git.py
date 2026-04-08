@@ -178,9 +178,7 @@ def git_snapshot(vault: Path, cfg: dict[str, Any], message: str) -> str:
     globs = cfg.get("git", {}).get("tracked_globs") or ["wiki/", "raw/", "CLAUDE.md", "config.json"]
     for g in globs:
         path = vault / g.rstrip("/")
-        if path.is_file():
-            _run(vault, ["add", "--", g], check=False)
-        elif path.is_dir():
+        if path.is_file() or path.is_dir():
             _run(vault, ["add", "--", g], check=False)
     p = _run(vault, ["commit", "-m", message], check=False)
     if p.returncode != 0:

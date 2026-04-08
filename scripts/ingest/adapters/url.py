@@ -9,6 +9,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from lib.paths import raw_destination
+from lib.url_safety import validate_public_http_url
 from ingest.base import Adapter, IngestResult
 
 
@@ -32,6 +33,7 @@ class UrlAdapter(Adapter):
         p.add_argument("url")
         p.add_argument("--out", type=Path, help="Relative path under raw/ e.g. clips/page.md")
         ns = p.parse_args(argv)
+        validate_public_http_url(ns.url, context="ingest url")
         req = Request(ns.url, headers={"User-Agent": "llm-wiki/0.1 (+https://github.com/wiki-llm/wiki-llm)"})
         try:
             with urlopen(req, timeout=60) as resp:
