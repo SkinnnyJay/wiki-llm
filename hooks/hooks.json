@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/llm_wiki_precompact.sh",
+            "statusMessage": "llm-wiki: saving vault state before compaction…"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/llm_wiki_stop.sh",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

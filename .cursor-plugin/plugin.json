@@ -1,7 +1,7 @@
 {
   "name": "llm-wiki",
-  "displayName": "llm-wiki",
-  "version": "0.1.13",
+  "displayName": "LLM Wiki",
+  "version": "0.2.0",
   "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, on-demand graphs, optional vault Git, research loop, ingestion security. Same repo as the Claude Code plugin.",
   "author": {
     "name": "wiki-llm contributors"

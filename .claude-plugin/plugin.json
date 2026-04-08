@@ -1,11 +1,27 @@
 {
   "name": "llm-wiki",
-  "version": "0.1.13",
-  "description": "LLM Wiki pattern for Claude Code: vault (raw + wiki), ingest adapters, static viewer + on-demand D3 graphs (.tmp), optional vault Git ledger, research loop, ingestion security.",
+  "version": "0.2.0",
+  "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, D3 graphs, optional vault Git, research loop, ingestion security.",
   "author": {
-    "name": "wiki-llm contributors"
+    "name": "wiki-llm contributors",
+    "url": "https://github.com/wiki-llm"
   },
+  "homepage": "https://github.com/wiki-llm/wiki-llm#readme",
+  "repository": "https://github.com/wiki-llm/wiki-llm",
   "license": "MIT",
-  "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian"],
-  "repository": "https://github.com/wiki-llm/wiki-llm"
+  "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian", "vault", "research"],
+  "userConfig": {
+    "firecrawl_api_key": {
+      "description": "Firecrawl API key for web extraction (optional)",
+      "sensitive": true
+    },
+    "brave_search_api_key": {
+      "description": "Brave Search API key (optional)",
+      "sensitive": true
+    },
+    "perplexity_api_key": {
+      "description": "Perplexity API key for news/current events research (optional)",
+      "sensitive": true
+    }
+  }
 }
