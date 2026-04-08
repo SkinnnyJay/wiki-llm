@@ -8,3 +8,5 @@ scripts/.tmp/
 .cursor/
 .claude/settings.local.json
 .venv-*/
+# Local vault (created by `llm-wiki setup`); tracked by its own git repo
+llm-wiki/

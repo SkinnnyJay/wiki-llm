@@ -11,13 +11,18 @@
   },
   "integrations": {},
   "git": {
-    "enabled": false,
-    "init_on_setup": false,
+    "enabled": true,
+    "init_on_setup": true,
     "snapshot_after_ingest": false,
     "snapshot_after_build": false,
     "snapshot_message_prefix": "[ingest]",
     "include_diff_in_skill_context": false,
-    "tracked_globs": ["wiki/", "raw/", "CLAUDE.md", "config.json"],
+    "tracked_globs": [
+      "wiki/",
+      "raw/",
+      "CLAUDE.md",
+      "config.json"
+    ],
     "lifecycle": {
       "phases": {
         "ingest": "[ingest]",
@@ -45,10 +50,16 @@
   "hooks": {
     "sound": {
       "enabled": false,
-      "command": ["afplay", "/System/Library/Sounds/Glass.aiff"],
+      "command": [
+        "afplay",
+        "/System/Library/Sounds/Glass.aiff"
+      ],
       "on_ingest": true,
       "on_research_loop": true,
       "timeout_seconds": 30
     }
+  },
+  "pdf": {
+    "max_cost_usd": 1.00
   }
 }
