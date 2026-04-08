@@ -88,6 +88,61 @@ def _cluster_metadata(
     return node_cluster, summaries
 
 
+def _collect_tag_edges(vault: Path, cfg: dict) -> tuple[list[dict], list[dict]]:
+    """
+    Build extra nodes and edges from raw/.tags.json.
+    Respects graph config: tag_edges, include_raw_nodes, curated_by_edges.
+    Returns (raw_nodes, tag_edges) — both empty if tag_edges disabled.
+    """
+    import json as _json
+
+    graph_cfg = cfg.get("graph") or {}
+    if not graph_cfg.get("tag_edges", True):
+        return [], []
+
+    include_raw = graph_cfg.get("include_raw_nodes", True)
+    include_curated = graph_cfg.get("curated_by_edges", True)
+
+    tags_path = vault / "raw" / ".tags.json"
+    if not tags_path.exists():
+        return [], []
+    try:
+        index = _json.loads(tags_path.read_text(encoding="utf-8"))
+    except Exception:
+        return [], []
+
+    all_raw: set[str] = set()
+    for paths in index.values():
+        all_raw.update(paths)
+
+    raw_nodes = (
+        [{"id": p, "path": p, "title": Path(p).stem, "kind": "raw"} for p in sorted(all_raw)]
+        if include_raw
+        else []
+    )
+
+    edges: list[dict] = []
+    # Tag co-occurrence
+    for tag, paths in index.items():
+        for i, a in enumerate(paths):
+            for b in paths[i + 1 :]:
+                edges.append({"source": a, "target": b, "kind": f"tag:{tag}"})
+
+    # curated_by: raw/ → wiki/ page for matching tag
+    if include_curated:
+        wiki_dir = vault / "wiki"
+        if wiki_dir.exists():
+            for tag, paths in index.items():
+                for candidate in [wiki_dir / f"{tag}.md", wiki_dir / "topics" / f"{tag}.md"]:
+                    if candidate.exists():
+                        wiki_id = candidate.relative_to(wiki_dir).as_posix()
+                        for raw_path in paths:
+                            edges.append({"source": raw_path, "target": wiki_id, "kind": "curated_by"})
+                        break
+
+    return raw_nodes, edges
+
+
 def build_graph_bundle(vault: Path, cfg: dict[str, Any], out_dir: Path, mode: str) -> Path:
     """
     Write graph-data.json + static D3 assets to out_dir.
@@ -97,7 +152,14 @@ def build_graph_bundle(vault: Path, cfg: dict[str, Any], out_dir: Path, mode: st
         raise ValueError(mode)
     raw = collect_wiki(vault, cfg)
     nodes_full = raw.get("nodes") or []
-    edges = _valid_edges(nodes_full, raw.get("edges") or [])
+
+    # Merge raw/ nodes from tag index (before id_to_title so tag edges survive _valid_edges)
+    tag_raw_nodes, tag_edges = _collect_tag_edges(vault, cfg)
+    existing_ids = {n["id"] for n in nodes_full}
+    nodes_full = nodes_full + [n for n in tag_raw_nodes if n["id"] not in existing_ids]
+
+    all_wiki_edges = (raw.get("edges") or []) + tag_edges
+    edges = _valid_edges(nodes_full, all_wiki_edges)
 
     id_to_title = {n["id"]: str(n.get("title") or n["id"]) for n in nodes_full}
     slim: list[dict[str, Any]] = [
