@@ -4,6 +4,32 @@ Canonical paths through the vault. Voice and epistemics: [`prompts/PERSONA.md`](
 
 **Cursor / OpenAI Codex (no Claude Code plugin):** [`AGENTS.md`](AGENTS.md) (how each tool loads this repo) — use **`bin/llm-wiki`** from a terminal, **`rules/llm-wiki.mdc`** / **`.cursor/rules/`** in Cursor, and **`commands/*.md`** for the same prompts as **`/llm-wiki:…`** slash commands.
 
+**Quick install (plugin repo):** `./setup` from this repository prints next steps and verifies the CLI.
+
+## Vault pipeline (orchestrated)
+
+Optional **wiki-pipeline** skill chains the standard vault workflow with optional user gates: **status → research/fetch → raw prepare → wiki ingest → lint → build-site → validate**. See [`skills/wiki-pipeline/SKILL.md`](skills/wiki-pipeline/SKILL.md). Feed-forward artifacts between stages: [`skills/references/pipeline-artifacts.md`](skills/references/pipeline-artifacts.md).
+
+- **wiki-retro** — periodic activity/health report to `outputs/retro-YYYY-MM-DD.md`.
+- **wiki-learn** — cross-session notes in `llm-wiki/.agent-memory.md`.
+- **wiki-upgrade** — `git pull` + re-run `./setup` in the plugin repo.
+
+## Plugin development / testing
+
+From a clone of this repo:
+
+1. **`pip install -r requirements-dev.txt`** (pytest).
+2. **`llm-wiki smoke-test`** — same as pytest against the repo root (sets `PYTHONPATH` for you).
+3. Alternatively, **`PYTHONPATH=scripts python3 -m pytest tests/`** — contract tests for commands/skills, every subcommand **`--help`**, ingest registry parity, and a temp-vault ingest → build → graph flow.
+4. **`llm-wiki check`** — quick vault `config.json` read + next-step hints; **`--plugin-repo`** adds `compileall` on `scripts/`.
+5. Optional: **`llm-wiki check --claude-validate`** if the **`claude`** CLI is installed.
+6. Optional integration: **`llm-wiki smoke-test --network`** (HTTPS reachability) and **`llm-wiki smoke-test --claude`** (`claude plugin validate`). Same via env: **`RUN_NETWORK_TESTS=1`**, **`RUN_CLAUDE_TESTS=1`** with pytest.
+7. **Executable report (no LLM):** **`llm-wiki test-report`** prints a table of subprocess checks (CLI `--help`, temp vault flow, safe `llm-wiki` lines from **`commands/*.md`**, skill frontmatter). **`--json FILE`** for CI artifacts. Not a substitute for trying slash commands in Claude Code.
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidance on PR scope and splitting large changes.
+
+Slash commands and skills document a per-surface **`## Smoke check`** (CLI + agent prompt) for manual runs in Claude Code.
+
 ## Green path (first-time vault)
 
 1. **Install the plugin** (development): `claude --plugin-dir /path/to/wiki-llm` then `/reload-plugins`.
@@ -13,7 +39,7 @@ Canonical paths through the vault. Voice and epistemics: [`prompts/PERSONA.md`](
 5. **Ingest:** `llm-wiki ingest <adapter> …` (see `llm-wiki ingest --list`) → material lands in `raw/`.
 6. **Prepare raw (optional):** For HTML/PDF/OCR captures, use **wiki-raw-prepare** (LLM cleanup in the editor/chat), then **`llm-wiki raw finish <path> -m "what changed"`** to autofix + validate + append **`raw/.preparation-log.jsonl`** + **`[prepare]`** git commit (or run **`raw validate` / `raw record` / `git snapshot --phase prepare`** separately).
 7. **Merge into wiki:** In Claude, use **wiki-ingest** / **wiki-maintainer** (or `/llm-wiki:ingest`) so topics, `wiki/index.md`, and `wiki/log.md` stay coherent.
-8. **Publish viewer:** `llm-wiki build-site` → `llm-wiki/wiki/.og/`. Serve over HTTP: `cd llm-wiki/wiki/.og && python3 -m http.server 8765`.
+8. **Publish viewer:** `llm-wiki build-site` → `llm-wiki/wiki/.og/`. Serve over HTTP: `cd llm-wiki/wiki/.og && python3 -m http.server` (port from `viewer.port` in config, default `8765`). URL: `http://127.0.0.1:<viewer.port>/`.
 9. **Optional graphs:** `llm-wiki graph` or `graph-knowledge` → `.tmp/llm-wiki-graph/`, then `python3 -m http.server` from that folder.
 10. **Optional vault git:** Enable `git.enabled`, then `llm-wiki git snapshot -m "…"` after meaningful changes. Use **phase-tagged messages** so history is auditable:
    - `git.lifecycle.phases` in config maps phases (`ingest`, `prepare`, `wiki`, `build`, …) to prefixes like `[ingest]`, `[prepare]`, `[wiki]` (defaults ship with the template).
@@ -79,4 +105,4 @@ python3 scripts/.tmp/demo_full_flow.py
 
 - Slash commands: [`commands/`](commands/)
 - CLI reference: [README.md#cli-binllm-wiki](README.md)
-- Optional pairing with [gstack](https://github.com/garrytan/gstack): [README.md#using-llm-wiki-with-gstack](README.md#using-llm-wiki-with-gstack)
+- Optional pairing with [gstack](https://github.com/garrytan/gstack) for browser QA / ship workflows: [README.md#using-llm-wiki-with-gstack](README.md#using-llm-wiki-with-gstack)

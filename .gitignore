@@ -5,8 +5,12 @@ __pycache__/
 .tmp/
 # Local dev / scratch scripts (not part of the published plugin)
 scripts/.tmp/
+.pytest_cache/
 .cursor/
 .claude/settings.local.json
 .venv-*/
 # Local vault (created by `llm-wiki setup`); tracked by its own git repo
 llm-wiki/
+# Local secrets — never commit
+.env.local
+.env

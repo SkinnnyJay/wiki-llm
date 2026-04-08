@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# llm-wiki plugin — quick setup (repo root). No extra language runtimes required.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+echo "== llm-wiki setup ($ROOT) =="
+
+if [[ ! -f "$ROOT/scripts/llm_wiki.py" ]] || [[ ! -f "$ROOT/bin/llm-wiki" ]]; then
+  echo "Error: run this script from the wiki-llm plugin repository root." >&2
+  exit 1
+fi
+
+chmod +x "$ROOT/bin/llm-wiki" 2>/dev/null || true
+
+detected=()
+[[ -d "$ROOT/.claude" ]] && detected+=("claude")
+[[ -d "$ROOT/.cursor" ]] && detected+=("cursor")
+[[ -n "${HOME:-}" ]] && [[ -d "${HOME}/.codex" ]] && detected+=("codex")
+
+if [[ ${#detected[@]} -gt 0 ]]; then
+  echo "Detected (this tree or home): ${detected[*]}"
+else
+  echo "No .claude/ in repo, no ~/.codex — generic install."
+fi
+
+if [[ -f "$ROOT/.cursor/rules/llm-wiki.mdc" ]] || [[ -L "$ROOT/.cursor/rules/llm-wiki.mdc" ]]; then
+  echo "Cursor rules: .cursor/rules/llm-wiki.mdc present"
+else
+  echo "Note: Cursor rules may live at rules/llm-wiki.mdc — copy or symlink to .cursor/rules/ if needed."
+fi
+
+if [[ -f "$ROOT/AGENTS.md" ]]; then
+  echo "Codex: AGENTS.md present at repo root"
+fi
+
+echo ""
+echo "CLI check:"
+"$ROOT/bin/llm-wiki" --version 2>/dev/null || python3 "$ROOT/scripts/llm_wiki.py" --help >/dev/null
+
+echo ""
+echo "Next steps:"
+echo "  1. Claude Code:  claude --plugin-dir \"$ROOT\"  then /reload-plugins"
+echo "  2. Scaffold vault:  \"$ROOT/bin/llm-wiki\" setup --root ."
+echo "  3. Or follow wiki-setup skill / WORKFLOWS.md"
+echo ""
+echo "Done."

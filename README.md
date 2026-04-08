@@ -21,6 +21,7 @@ Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/cl
 | Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
 | Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
 | Builder principles (raw vs wiki, evidence) | [`ETHOS.md`](ETHOS.md) |
+| Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
 ---
 
@@ -72,7 +73,7 @@ Security note for **wiki-ingest**: when `ingestion_security` flags content, foll
 | Agent | Role |
 |-------|------|
 | **wiki-librarian** | Large multi-file wiki edits, batch cross-links; prefers `llm-wiki git *` when `git.enabled`. |
-| **wiki-raw-prepare** | Cleans and validates **`raw/`** before wiki merge; see [`agents/wiki-raw-prepare.md`](agents/wiki-raw-prepare.md). |
+| **wiki-raw-prepare** | Cleans and validates **`raw/`** before wiki merge; see [`agents/wiki-raw-prepare/AGENT.md`](agents/wiki-raw-prepare/AGENT.md). |
 | **research-runner** | Long research passes (many URLs/HN items); uses ingest + wiki-ingest patterns. |
 
 ---
@@ -103,6 +104,9 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 | `graph-knowledge` | Alias for `graph --mode knowledge`. |
 | `git` | `init`, `status`, `log`, `diff`, `snapshot`, `query`, **`lifecycle`** (audit by phase; `--json`, `--phase`, `--since`). `snapshot -m "…" --phase wiki` prepends `[wiki]`. Optional **`snapshot_after_build`** after `build-site`. |
 | `security scan <file>` | Print heuristic scan JSON (does not mutate the file). |
+| `check` | Fast vault/config sanity; **`--plugin-repo`** runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
+| `smoke-test` | Run **`pytest tests/`** from the plugin root. Default is **offline** (skips optional suites). **`--network`** enables **`@pytest.mark.network`** tests; **`--claude`** enables **`claude plugin validate`**. Also **`-v`**, **`--only-contracts`**, then pytest args after **`--`**. |
+| `test-report` | **Integration report:** runs real **`llm-wiki`** subprocesses (help matrix, temp vault pipeline, harvested safe lines from **`commands/*.md`**, skill frontmatter checks, optional **`--network`**, **`claude plugin validate`** if on `PATH`). Prints a **Markdown** table; **`--json FILE`** for machine output. Does **not** invoke an LLM or execute slash commands in chat. |
 
 **Optional APIs:** set env vars as needed — e.g. `FIRECRAWL_API_KEY`, `PERPLEXITY_API_KEY` (see `llm-wiki integrations status`). Perplexity: `llm-wiki ingest perplexity "your question"` or `--prompt-file`.
 
@@ -156,6 +160,14 @@ Update the marketplace after upstream changes: `/plugin marketplace update`. See
 
 ## Install (development — clone)
 
+From the cloned repo (optional sanity check):
+
+```bash
+./setup
+```
+
+Load the plugin in Claude Code:
+
 ```bash
 claude --plugin-dir /path/to/wiki-llm
 ```
@@ -163,16 +175,47 @@ claude --plugin-dir /path/to/wiki-llm
 Reload plugins after changes: `/reload-plugins`
 
 ```bash
-claude plugin validate
-# or
+claude plugin validate /path/to/wiki-llm   # or `.` from inside the repo
+# or in Claude Code:
 /plugin validate
 ```
+
+## Testing (plugin repo)
+
+Contract tests, CLI `--help` coverage, and a deterministic vault flow live under **`tests/`** (files named **`*.test.py`**; **`pytest.ini`** sets `--import-mode=importlib` so those names collect correctly).
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+PYTHONPATH=scripts python3 -m pytest tests/
+```
+
+Prefer **`llm-wiki smoke-test`** (sets `PYTHONPATH` for you) or CI; manual `PYTHONPATH=scripts` is for contributors who need raw pytest and understand the Python 3.14+ notes in [`rules/llm-wiki.mdc`](rules/llm-wiki.mdc) (use an absolute path if you set `PYTHONPATH`).
+
+Shortcuts from the repo root (after `pip install` as above):
+
+```bash
+llm-wiki smoke-test               # full pytest (offline; optional tests skipped)
+llm-wiki smoke-test --network     # include HTTPS reachability test
+llm-wiki smoke-test --claude      # include `claude plugin validate` (needs `claude` on PATH)
+llm-wiki smoke-test --network --claude
+llm-wiki smoke-test --only-contracts
+llm-wiki test-report               # PASS/FAIL table: CLI + vault + commands + skills (frontmatter)
+llm-wiki test-report --network --json /tmp/report.json
+# Or: RUN_NETWORK_TESTS=1 RUN_CLAUDE_TESTS=1 PYTHONPATH=scripts python3 -m pytest tests/
+llm-wiki check                    # fast: vault config + hints
+llm-wiki check --plugin-repo      # also compileall scripts/
+llm-wiki check --claude-validate  # if `claude` is on PATH: plugin validate
+```
+
+Each **`commands/*.md`** and **`skills/*/SKILL.md`** includes a **`## Smoke check`** section (CLI snippet + pasteable agent prompt) for manual verification.
 
 ## Configuration
 
 All toggles live in **`llm-wiki/config.json`**: `viewer` (including `open_file_scheme`, `og_base_url`), `integrations`, `git`, `research_loop`, `ingestion_security`, **`hooks.sound`**, and **`persona.name`** — the wiki’s display name (default **Gennie**), surfaced in the static viewer / graph titles and in skill prompts when using `skills/references/context-persona.md`.
 
-**Sound hook (optional):** Set `hooks.sound.enabled` to `true` and `hooks.sound.command` to a JSON array of argv (e.g. macOS `["afplay", "/System/Library/Sounds/Glass.aiff"]`, or a wrapper script path as the first element). When enabled, the CLI runs the command after a successful **`llm-wiki ingest`** (`on_ingest`) and after a successful **`llm-wiki research-loop`** run that executed at least one task (`on_research_loop`). Inner ingests during a research loop do not repeat the ingest hook; use `on_research_loop` for one notification per batch. Failures in the hook are logged to stderr and do not fail the main command.
+**Sound hook (optional):** Set `hooks.sound.enabled` to `true` and `hooks.sound.command` to a JSON array of argv (e.g. macOS `["afplay", "/System/Library/Sounds/Glass.aiff"]`, or a wrapper script path as the first element). By default (`hooks.sound.allow_arbitrary_command` false), the first argv must be an **absolute path** to an executable or a short **allowlisted** player name (`afplay`, `say`, `aplay`, …). Set `allow_arbitrary_command` to `true` only if you fully trust `config.json`. When enabled, the CLI runs the command after a successful **`llm-wiki ingest`** (`on_ingest`) and after a successful **`llm-wiki research-loop`** run that executed at least one task (`on_research_loop`). Inner ingests during a research loop do not repeat the ingest hook; use `on_research_loop` for one notification per batch. Failures in the hook are logged to stderr and do not fail the main command.
+
+**Ingest URLs:** `ingest url` and `ingest firecrawl` only allow **http(s)** targets that resolve to **public** addresses (not `file://`, loopback, or RFC1918). Integration API calls use **allowlisted hosts** for Firecrawl and Perplexity (`api_base_url` cannot point credentials at arbitrary servers).
 
 **Persona:** The plugin ships **[`prompts/PERSONA.md`](prompts/PERSONA.md)** (warm, evidence-first librarian-robot; no fluff; verify don’t trust; iterate). Each agent adds **[`agents/wiki-librarian/persona.md`](agents/wiki-librarian/persona.md)** and **[`agents/research-runner/persona.md`](agents/research-runner/persona.md)**. Skills may optionally inject **`skills/references/context-persona.md`** when invoking tools.
 

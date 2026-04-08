@@ -1,5 +1,7 @@
 # AGENTS — wiki-llm
 
+**Mirror:** same content as **[`AGENTS.md`](AGENTS.md)** (canonical for Codex); keep them in sync when updating this overview.
+
 This repo is the **llm-wiki** plugin: a **Python CLI** (`bin/llm-wiki`), **slash-command prompts** (`commands/`), **skills** (`skills/*/SKILL.md`), and **agent personas** (`agents/`, **`prompts/PERSONA.md`**). Vault layout is **`raw/`** (sources) → **`wiki/`** (curated markdown) + optional **`outputs/`** (drafts/reports); see **`ETHOS.md`** and **`WORKFLOWS.md`**.
 
 ## How each tool uses this repository
@@ -31,7 +33,7 @@ Codex loads **`AGENTS.md`** before tasks ([discovery order](https://developers.o
 
 1. **CLI** — `bin/llm-wiki` (works from any cwd if invoked by absolute path) or `python3 scripts/llm_wiki.py` **from the repo root** for `setup`, `ingest`, `validate`, `raw validate` / `raw record` / **`raw finish`** (validate + log + `[prepare]` commit), `build-site`, `graph`, `git`, `research-loop`, etc. (Do not use `PYTHONPATH=scripts`—relative `PYTHONPATH` can crash Python 3.14+ at startup; the script adds `scripts/` to `sys.path` automatically.)
 2. **Commands as prompts** — Open **`commands/<name>.md`**; same text as **`/llm-wiki:…`**.
-3. **Skills** — **wiki-maintainer**, **wiki-ingest**, **wiki-raw-prepare**, **wiki-query**, **wiki-lint**, **wiki-research** (ad-hoc topic), **wiki-research-loop** (batch tasks file) in **`skills/*/SKILL.md`**.
+3. **Skills** — **wiki-pipeline** (end-to-end vault flow), **wiki-maintainer**, **wiki-ingest**, **wiki-raw-prepare**, **wiki-query**, **wiki-lint**, **wiki-status**, **wiki-setup**, **wiki-research** (ad-hoc topic), **wiki-research-loop** (batch tasks), **wiki-retro**, **wiki-learn** (`.agent-memory.md`), **wiki-upgrade** (plugin repo pull) in **`skills/*/SKILL.md`**. Pipeline artifacts: **`skills/references/pipeline-artifacts.md`**.
 4. **Context** — **`WORKFLOWS.md`**, **`ETHOS.md`**, **`prompts/PERSONA.md`**.
 
 **Static viewer “Open file”:** In **`llm-wiki/config.json`**, set **`viewer.open_file_scheme`** to **`cursor`** or **`vscode`** when you want wiki links to open the editor.

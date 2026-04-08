@@ -10,6 +10,15 @@ You maintain **wiki/** (LLM-owned markdown). **raw/** holds ingested sources; **
 
 - **Topic / question (ad-hoc):** **`/llm-wiki:research`** — **wiki-research** skill (ingest → wiki merge, log the session).
 - **Recurring batch (HN, fixed URLs):** **`/llm-wiki:research-loop`** when **`research_loop.enabled`** — **wiki-research-loop** skill.
+- **End-to-end vault flow:** **wiki-pipeline** skill (status → fetch/research → prepare → wiki merge → lint → build-site → validate). Artifacts between stages: **`skills/references/pipeline-artifacts.md`** (plugin repo).
+
+## Agent memory (optional)
+
+If **`.agent-memory.md`** exists at the vault root, use **wiki-learn** to append **patterns / preferences / pitfalls / next steps**. This is **not** canonical wiki content — it is assistant-facing notes (edit freely).
+
+## Retrospective (optional)
+
+**wiki-retro** writes **`outputs/retro-YYYY-MM-DD.md`** summarizing activity, source mix, and wiki health from logs and git.
 
 ## On ingest
 
