@@ -22,6 +22,14 @@ You maintain **wiki/** (LLM-owned markdown). **raw/** holds ingested sources; **
 
 Answer from wiki pages with citations (paths). Offer to file the answer into **wiki/** when it should become durable knowledge, or into **outputs/** when it is a report or draft to review first.
 
+## Memory Stack
+
+<!-- Auto-updated by: llm-wiki wake-up --update-claude -->
+**L0** Vault: {{persona.name}} | raw/ → wiki/ + outputs/
+**L1** Topics: (run `llm-wiki wake-up --update-claude` to populate)
+**L2** Open wiki/ pages tagged for the current topic (see raw/.tags.json).
+**L3** Search raw/ and outputs/ only when wiki/ answer is insufficient.
+
 ## On lint
 
 Check contradictions, orphans, stale claims; suggest follow-ups.

@@ -51,6 +51,20 @@ DEFAULTS: dict[str, Any] = {
         "log_to_raw_frontmatter": True,
         "llm_triage": False,
     },
+    "ingestion_tagging": {
+        "enabled": True,
+        "auto_detect": True,
+        "llm_detect": False,
+    },
+    "ingestion_dedup": {
+        "enabled": True,
+        "block_on_duplicate": False,
+    },
+    "graph": {
+        "tag_edges": True,
+        "include_raw_nodes": True,
+        "curated_by_edges": True,
+    },
     "hooks": {
         "sound": {
             "enabled": False,

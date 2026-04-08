@@ -1,15 +1,59 @@
 {
   "version": 1,
   "wiki_root": "llm-wiki",
+  "_meta": {
+    "setup_completed": false,
+    "setup_date": null,
+    "setup_version": null,
+    "_comment": "Set by wiki-setup wizard. When setup_completed=true, skills skip the 'run setup first' warning."
+  },
   "persona": {
     "name": "Gennie"
   },
   "viewer": {
     "enabled": true,
+    "port": 8765,
     "og_base_url": "",
     "open_file_scheme": "file"
   },
-  "integrations": {},
+  "graph": {
+    "port": 8890,
+    "tag_edges": true,
+    "include_raw_nodes": true,
+    "curated_by_edges": true
+  },
+  "integrations": {
+    "firecrawl": {
+      "enabled": true,
+      "api_key_env": "FIRECRAWL_API_KEY",
+      "api_base_url": "https://api.firecrawl.dev",
+      "_comment": "Clean markdown from any URL. Get key: https://firecrawl.dev/app/api-keys"
+    },
+    "perplexity": {
+      "enabled": true,
+      "api_key_env": "PERPLEXITY_API_KEY",
+      "model": "sonar",
+      "_comment": "AI-powered research queries. Get key: https://www.perplexity.ai/settings/api"
+    },
+    "twitter": {
+      "enabled": false,
+      "api_key_env": "TWITTER_AUTH_TOKEN",
+      "prefer_cli": true,
+      "_comment": "Fetch tweets/threads/search. Install bird CLI: npm install -g @steipete/bird — zero config for public tweets via FxTwitter API (no token needed). Get auth_token from browser DevTools → Application → Cookies."
+    },
+    "brave": {
+      "enabled": true,
+      "api_key_env": "BRAVE_SEARCH_API_KEY",
+      "default_mode": "llm-context",
+      "default_count": 10,
+      "_comment": "Brave Search API — best for RAG grounding. Modes: web | news | llm-context | answers. Free key: https://api.search.brave.com"
+    },
+    "annas_archive": {
+      "enabled": false,
+      "api_key_env": "ANNAS_ARCHIVE_KEY",
+      "_comment": "Anna's Archive — fast ebook/paper downloads. Requires membership. https://annas-archive.org/account"
+    }
+  },
   "git": {
     "enabled": true,
     "init_on_setup": true,
@@ -46,6 +90,15 @@
     "block_on_suspected": false,
     "log_to_raw_frontmatter": true,
     "llm_triage": false
+  },
+  "ingestion_tagging": {
+    "enabled": true,
+    "auto_detect": true,
+    "llm_detect": false
+  },
+  "ingestion_dedup": {
+    "enabled": true,
+    "block_on_duplicate": false
   },
   "hooks": {
     "sound": {
