@@ -273,6 +273,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         c = e.code
         return int(c) if isinstance(c, int) else 1
     print(result.message)
+    manual_tags = [t.strip() for t in args.tags.split(",") if t.strip()] if getattr(args, "tags", "") else []
     return post_ingest(
         vault,
         cfg,
@@ -280,6 +281,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         force=args.force,
         force_security=args.force_security,
         commit_body=result.commit_body,
+        manual_tags=manual_tags,
     )
 
 
@@ -295,18 +297,68 @@ def cmd_deps(args: argparse.Namespace) -> int:
     return 0
 
 
+def _claude_settings_path() -> Path:
+    return Path.home() / ".claude" / "settings.json"
+
+
+def _read_claude_settings() -> dict:
+    p = _claude_settings_path()
+    if p.exists():
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def _write_claude_settings(data: dict) -> None:
+    p = _claude_settings_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def _set_integration_key(env_var: str, key_value: str) -> None:
+    """Persist an API key in ~/.claude/settings.json env block."""
+    data = _read_claude_settings()
+    data.setdefault("env", {})[env_var] = key_value
+    _write_claude_settings(data)
+    # Also export for current process so subsequent checks pass
+    os.environ[env_var] = key_value
+
+
+# Map adapter id → the env var name it uses (for the wizard)
+_INTEGRATION_ENV: dict[str, str] = {
+    "firecrawl": "FIRECRAWL_API_KEY",
+    "perplexity": "PERPLEXITY_API_KEY",
+    "hackernews": "",          # no key needed
+    "url": "",                 # no key needed
+    "youtube": "",             # no key needed
+    "twitter": "TWITTER_AUTH_TOKEN",
+    "brave": "BRAVE_SEARCH_API_KEY",
+}
+
+_INTEGRATION_HINT: dict[str, str] = {
+    "firecrawl": "Get key: https://firecrawl.dev/app/api-keys  |  Or: npm install -g firecrawl-cli && firecrawl login",
+    "perplexity": "Get key: https://www.perplexity.ai/settings/api",
+    "twitter": "Get auth_token cookie from browser DevTools → Application → Cookies → auth_token  |  Install: npm install -g @steipete/bird  |  Zero-config for public tweets (no token needed)",
+    "brave": "Get free key: https://api.search.brave.com  |  Modes: web | news | llm-context (RAG) | answers",
+}
+
+
 def cmd_integrations(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
     sub = args.integrations_cmd
+
     if sub == "status":
         for cls in adapter_map().values():
             slice_ = (cfg.get("integrations") or {}).get(cls.id) or {}
             en = slice_.get("enabled", True) if cls.id in (cfg.get("integrations") or {}) else True
             warns = cls.setup_checks(slice_)
             w = "; ".join(warns) if warns else "ok"
-            print(f"{cls.id:14} enabled={en}  checks={w}")
+            print(f"{cls.id:14} enabled={str(en):<5}  {w}")
         return 0
+
     if sub == "validate":
         bad = False
         for cls in adapter_map().values():
@@ -315,22 +367,66 @@ def cmd_integrations(args: argparse.Namespace) -> int:
                 print(f"{cls.id}: {w}")
                 bad = True
         return 1 if bad else 0
-    if sub == "wizard":
-        print("Integrations — edit llm-wiki/config.json → \"integrations\"\n")
-        print("Each adapter: set \"<id>\": { \"enabled\": true, ... } per CONFIG_SCHEMA below.\n")
-        for cls in sorted(adapter_map().values(), key=lambda c: c.id):
-            sch = getattr(cls, "CONFIG_SCHEMA", None) or {}
-            print(f"{cls.id}")
-            print(f"  label: {cls.label}")
-            print(f"  CONFIG_SCHEMA: {json.dumps(sch)}")
-            warns = cls.setup_checks((cfg.get("integrations") or {}).get(cls.id) or {})
-            if warns:
-                print(f"  current checks: {'; '.join(warns)}")
-            print()
-        print("Next: llm-wiki deps check  →  llm-wiki integrations validate  →  llm-wiki ingest <adapter> …")
-        print("See scripts/ingest/README.md and main README for env vars (FIRECRAWL_API_KEY, etc.).")
+
+    if sub == "set-key":
+        adapter_id = args.adapter
+        key_value = args.key_value
+        env_var = _INTEGRATION_ENV.get(adapter_id)
+        if not env_var:
+            print(f"No env var known for '{adapter_id}'. Known: {[k for k,v in _INTEGRATION_ENV.items() if v]}")
+            return 1
+        _set_integration_key(env_var, key_value)
+        # Also enable in config.json
+        cfg.setdefault("integrations", {}).setdefault(adapter_id, {})["enabled"] = True
+        save_config(vault, cfg)
+        print(f"Set {env_var} in ~/.claude/settings.json and enabled {adapter_id} in config.json.")
         return 0
-    print("Use: llm-wiki integrations status|validate|wizard")
+
+    if sub == "wizard":
+        print("╔═══════════════════════════════════════════════════════╗")
+        print("║         llm-wiki  Integrations Setup Wizard           ║")
+        print("╚═══════════════════════════════════════════════════════╝")
+        print()
+        changed = False
+        for cls in sorted(adapter_map().values(), key=lambda c: c.id):
+            slice_ = (cfg.get("integrations") or {}).get(cls.id) or {}
+            warns = cls.setup_checks(slice_)
+            status = "✓ ok" if not warns else "✗ " + warns[0]
+            env_var = _INTEGRATION_ENV.get(cls.id, "")
+            print(f"  {cls.id:14}  {status}")
+            if warns and env_var:
+                hint = _INTEGRATION_HINT.get(cls.id, "")
+                if hint:
+                    print(f"               {hint}")
+                cur_in_settings = (_read_claude_settings().get("env") or {}).get(env_var, "")
+                masked = f"{cur_in_settings[:8]}…" if len(cur_in_settings) > 8 else cur_in_settings
+                prompt = f"               Enter {env_var}{' ['+masked+']' if masked else ''} (blank to skip): "
+                try:
+                    val = input(prompt).strip()
+                except EOFError:
+                    val = ""
+                if val:
+                    _set_integration_key(env_var, val)
+                    cfg.setdefault("integrations", {}).setdefault(cls.id, {})["enabled"] = True
+                    print(f"               ✓ Saved to ~/.claude/settings.json")
+                    changed = True
+            elif not warns:
+                en = slice_.get("enabled", True)
+                try:
+                    v = input(f"               Enable {cls.id}? (y/n) [{'y' if en else 'n'}]: ").strip().lower()
+                except EOFError:
+                    v = ""
+                if v in ("y", "n"):
+                    cfg.setdefault("integrations", {}).setdefault(cls.id, {})["enabled"] = v == "y"
+                    changed = True
+            print()
+        if changed:
+            save_config(vault, cfg)
+            print("config.json updated.")
+        print("Next: llm-wiki integrations validate  →  llm-wiki ingest <adapter> <url>")
+        return 0
+
+    print("Use: llm-wiki integrations status|validate|wizard|set-key <adapter> <key>")
     return 0
 
 
@@ -481,6 +577,7 @@ def main() -> int:
     pi.add_argument("--list", action="store_true")
     pi.add_argument("--force", action="store_true", help="Ignore integrations.<id>.enabled")
     pi.add_argument("--force-security", action="store_true", help="Scan even if security disabled")
+    pi.add_argument("--tags", default="", help="Comma-separated manual tags (e.g. auth,billing)")
     pi.add_argument("adapter_args", nargs=argparse.REMAINDER)
     pi.set_defaults(func=cmd_ingest)
 
@@ -494,9 +591,15 @@ def main() -> int:
     )
     pdeps.set_defaults(func=cmd_deps)
 
-    pint = sub.add_parser("integrations", help="integrations status|validate|wizard")
-    pint.add_argument("integrations_cmd", nargs="?", default="status")
-    pint.set_defaults(func=cmd_integrations)
+    pint = sub.add_parser("integrations", help="integrations status|validate|wizard|set-key")
+    int_sub = pint.add_subparsers(dest="integrations_cmd")
+    int_sub.add_parser("status", help="Show each adapter's readiness")
+    int_sub.add_parser("validate", help="Exit non-zero if any adapter is misconfigured")
+    int_sub.add_parser("wizard", help="Interactive setup for all integrations")
+    psk = int_sub.add_parser("set-key", help="Set an API key for an adapter (saved to ~/.claude/settings.json)")
+    psk.add_argument("adapter", help="Adapter id (e.g. firecrawl, perplexity, twitter, firebase)")
+    psk.add_argument("key_value", help="The API key value to store")
+    pint.set_defaults(func=cmd_integrations, integrations_cmd="status")
 
     pg = sub.add_parser("git", help="Vault-scoped git")
     pg.add_argument(
