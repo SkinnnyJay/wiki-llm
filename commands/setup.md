@@ -1,28 +1,26 @@
 ---
-description: Run the llm-wiki vault setup wizard — paths, config.json, optional git init.
+description: Initialize or reconfigure a llm-wiki vault. Runs the interactive wiki-setup wizard — asks questions, shows a full preview, then commits config.json and scaffolds vault directories.
 ---
 
-# Setup LLM Wiki vault
+# Setup / reconfigure vault
 
-1. Ask the user for `viewer.og_base_url` (optional) and whether to enable **vault git**, **research loop**, and **ingestion security** (defaults are in `llm-wiki/config.json`).
-2. Run from the project root:
+Follow the **wiki-setup** skill for a fully guided wizard. The wizard checks **`_meta.setup_completed`**, walks integrations and persona, shows a **full `config.json` preview** before writing, then scaffolds the vault.
 
-```bash
-llm-wiki configure -i
-```
-
-Or non-interactive flags:
-
-```bash
-llm-wiki configure --og-base-url "https://example.com/wiki" --git-enabled true
-```
-
-3. Scaffold the vault if missing:
+## Quick usage
 
 ```bash
 llm-wiki setup --root .
+llm-wiki configure -i
+llm-wiki integrations validate
 ```
 
-4. Optionally append to the **repository root** `CLAUDE.md` one line: `See llm-wiki/CLAUDE.md for wiki maintainer rules.`
+Non-interactive: see **wiki-setup** skill.
 
-Use `$ARGUMENTS` for any extra user notes (optional).
+## Arguments
+
+$ARGUMENTS
+
+## Smoke check
+
+- **CLI:** Run the primary `llm-wiki` command(s) shown in this file; use a configured vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
+- **Prompt:** In Claude Code with this plugin loaded, run the matching `/llm-wiki:…` command (if any) and verify the first CLI step completes without errors.

@@ -2,18 +2,24 @@
 description: Vault git log — history for the llm-wiki vault only.
 ---
 
-Run:
+# Vault git log
+
+Show history for the **vault** repository only (not the parent repo).
+
+## Quick usage
 
 ```bash
 llm-wiki git log
-```
-
-For JSON (agents):
-
-```bash
 llm-wiki git query
 ```
 
-Optional filters: pass through with `git log` flags if the CLI supports them; otherwise use `git log` via `llm-wiki git` after checking help.
+Optional filters: pass flags supported by **`llm-wiki git`** — see **`llm-wiki git --help`**.
 
-User request: $ARGUMENTS
+## Arguments
+
+$ARGUMENTS
+
+## Smoke check
+
+- **CLI:** Run the primary `llm-wiki` command(s) shown in this file; use a configured vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
+- **Prompt:** In Claude Code with this plugin loaded, run the matching `/llm-wiki:…` command (if any) and verify the first CLI step completes without errors.

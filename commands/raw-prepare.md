@@ -1,11 +1,23 @@
 ---
-description: Validate and clean raw markdown after ingest; log preparation goals; commit with prepare phase.
+description: Validate and clean raw/ markdown; log preparation; optional vault git [prepare] commit.
 ---
 
-1. **LLM / editor:** Clean up the extracted **`raw/`** file (structure, headings, noise). Respect **ingestion_security** if flagged.
-2. **Deterministic pass:** **`llm-wiki raw validate <path> --autofix`** (or skip to step 3).
-3. **One-shot (recommended):** **`llm-wiki raw finish <path> -m "short description of what changed"`** → autofix + validate + append **`raw/.preparation-log.jsonl`** + vault **git commit** with **`[prepare]`** prefix (needs **`git.enabled`**). Use **`--record-action llm_cleaned`** after heavy LLM edits; **`--skip-git`** to log only.
-4. **Or:** separate **`raw record`** + **`git snapshot --phase prepare`** as in **wiki-raw-prepare** skill.
-5. Then **wiki-ingest** to merge into **`wiki/`**.
+# Raw prepare
 
-User intent: $ARGUMENTS
+Follow the **wiki-raw-prepare** skill: LLM cleanup if needed, then **`llm-wiki raw validate`** / **`raw finish`** and merge to **wiki** via **wiki-ingest** when ready.
+
+## Quick usage
+
+```bash
+llm-wiki raw validate path/to/file.md --autofix
+llm-wiki raw finish path/to/file.md -m "describe changes"
+```
+
+## Arguments
+
+$ARGUMENTS
+
+## Smoke check
+
+- **CLI:** Run the primary `llm-wiki` command(s) shown in this file; use a configured vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
+- **Prompt:** In Claude Code with this plugin loaded, run the matching `/llm-wiki:…` command (if any) and verify the first CLI step completes without errors.
