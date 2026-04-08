@@ -65,6 +65,8 @@ def cmd_setup(args: argparse.Namespace) -> int:
         except vgit.GitDisabledError:
             pass
     print(f"Scaffolded vault at {vault}")
+    print("\nNext: add hooks for automatic Memory Stack updates.")
+    print(f"  See: {plugin_root() / 'hooks' / 'README.md'}")
     return 0
 
 
