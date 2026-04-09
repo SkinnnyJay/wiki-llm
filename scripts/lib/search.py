@@ -76,6 +76,139 @@ def _tags_for_file(fm: dict[str, str]) -> list[str]:
     return [t.strip().strip("'\"") for t in raw.split(",") if t.strip()]
 
 
+_QUERY_STOPWORDS = frozenset(
+    {
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "why",
+        "how",
+        "did",
+        "does",
+        "do",
+        "are",
+        "was",
+        "were",
+        "is",
+        "am",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "the",
+        "a",
+        "an",
+        "i",
+        "my",
+        "me",
+        "we",
+        "our",
+        "us",
+        "you",
+        "your",
+        "he",
+        "she",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "this",
+        "that",
+        "these",
+        "those",
+        "there",
+        "here",
+        "then",
+        "than",
+        "with",
+        "from",
+        "into",
+        "about",
+        "after",
+        "before",
+        "during",
+        "would",
+        "could",
+        "should",
+        "will",
+        "just",
+        "also",
+        "only",
+        "both",
+        "some",
+        "any",
+        "each",
+        "every",
+        "other",
+        "such",
+        "same",
+        "very",
+        "much",
+        "too",
+        "not",
+        "no",
+        "yes",
+        "or",
+        "and",
+        "if",
+        "as",
+        "at",
+        "be",
+        "by",
+        "on",
+        "in",
+        "of",
+        "to",
+        "so",
+    }
+)
+
+
+def build_fts_and_query(question: str, *, max_terms: int = 4) -> str | None:
+    """
+    Build a strict AND query from the longest content-like terms (for fusion with
+    a broad OR query). Returns None if there are not enough discriminative terms.
+    """
+    words: list[str] = []
+    for w in re.findall(r"\w+", question, flags=re.UNICODE):
+        lw = w.lower()
+        if len(lw) <= 2 or lw in _QUERY_STOPWORDS:
+            continue
+        words.append(lw)
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for w in words:
+        if w not in seen:
+            seen.add(w)
+            uniq.append(w)
+    uniq.sort(key=len, reverse=True)
+    picked = uniq[:max_terms]
+    if len(picked) < 2:
+        return None
+    return " AND ".join(picked)
+
+
+def prepare_fts5_match_query(raw: str) -> str:
+    """
+    Build a safe FTS5 MATCH string. Raw user questions often contain punctuation
+    (`?`, quotes, etc.) that triggers fts5 syntax errors and yields zero results.
+    We tokenize into word/alnum runs and OR them so BM25 can still rank.
+    """
+    s = re.sub(r"[^\w\u0080-\uFFFF]+", " ", raw, flags=re.UNICODE)
+    words = [w for w in s.split() if len(w) > 1][:48]
+    if not words:
+        return "x"
+    if len(words) == 1:
+        return words[0]
+    return " OR ".join(words)
+
+
 def _walk_vault_md(vault: Path) -> list[tuple[str, str]]:
     """Return (relative_path, full_text) for every .md in wiki/ and raw/."""
     files: list[tuple[str, str]] = []
@@ -243,14 +376,21 @@ class FTS5SearchBackend:
                 self.reindex()
 
     def search(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        sanitize_query: bool = True,
     ) -> list[SearchResult]:
         t0 = time.monotonic()
         self._auto_index_if_empty()
-        fts_query = query
+        safe = prepare_fts5_match_query(query) if sanitize_query else query.strip()
+        fts_query = safe
         if tag:
             safe_tag = tag.replace('"', '""')
-            fts_query = f'tags:"{safe_tag}" AND ({query})'
+            fts_query = f'tags:"{safe_tag}" AND ({safe})'
         if scope == "wiki":
             fts_query = f'path:"wiki/" AND ({fts_query})'
         elif scope == "raw":

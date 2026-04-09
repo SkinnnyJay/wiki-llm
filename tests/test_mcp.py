@@ -302,7 +302,8 @@ class TestMCPServer:
         assert "wiki_wake_up" in names
         assert "wiki_search" in names
         assert "wiki_kg_query" in names
-        assert len(tools) >= 24
+        assert "wiki_benchmark_run" in names
+        assert len(tools) >= 25
 
     def test_tool_call_status(self, vault):
         resp = self._call(vault, "tools/call", {"name": "wiki_status", "arguments": {}})

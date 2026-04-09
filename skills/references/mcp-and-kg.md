@@ -100,6 +100,8 @@ for r in get_search_backend(Path('llm-wiki')).search('query', limit=10):
 
 MCP equivalent: `wiki_search` tool. Use when agent has no shell access. Pass **`scope: "memory"`** to search only session memory files.
 
+**Benchmarks:** MCP tool **`wiki_benchmark_run`** runs LME / LoCoMo / ConvoMem against the vault (same as `llm-wiki benchmark run …`). Use **`use_llm`**: true to enable LLM rerank for that run per `benchmark.search.rerank_llm` (API or CLI `invoke`). Prefer the **CLI** when you have a shell (`llm-wiki benchmark run …`).
+
 ### Session memory (CLI — preferred locally)
 
 ```bash

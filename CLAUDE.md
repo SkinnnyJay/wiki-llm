@@ -21,6 +21,8 @@ This repo is the **llm-wiki** plugin: a **Python CLI** (`bin/llm-wiki`), **slash
 
 **Session memory CLI:** `bin/llm-wiki memory {save|log|list|show|recall|prune}` — per-chat files under **`llm-wiki/raw/memory/`** when **`memory.enabled`**; hooks write **`llm-wiki/.current-session`** for **`--current`**.
 
+**Benchmark CLI:** `bin/llm-wiki benchmark {run|report|history}` — retrieval benchmarks (LME / LoCoMo / ConvoMem) and metrics under **`benchmark.*`**. Guide: **`benchmarks/README.md`**.
+
 **Static viewer “Open file”:** In **`llm-wiki/config.json`**, set **`viewer.open_file_scheme`** to **`cursor`** or **`vscode`** when you want wiki links to open the editor.
 
 **Python:** Match existing style in **`scripts/`**; run tests or **`python3 -m compileall`** if you touch CLI code. Personal/demo scripts belong in **`scripts/.tmp/`** (gitignored), not tracked **`scripts/`**.

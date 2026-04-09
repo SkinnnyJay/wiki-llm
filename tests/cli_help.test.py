@@ -62,6 +62,7 @@ def test_top_level_help():
         "mcp",
         "kg",
         "metrics",
+        "benchmark",
         "memory",
     ],
 )
@@ -94,6 +95,9 @@ def test_subcommand_help(sub: str):
         ["metrics", "clear"],
         ["metrics", "report"],
         ["metrics", "summary"],
+        ["benchmark", "run"],
+        ["benchmark", "report"],
+        ["benchmark", "history"],
         ["memory", "save"],
         ["memory", "log"],
         ["memory", "list"],

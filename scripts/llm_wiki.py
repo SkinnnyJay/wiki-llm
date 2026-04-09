@@ -18,6 +18,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib.config_loader import DEFAULTS, load_config, save_config
+from lib.env_loader import load_plugin_dotenv
 from lib.paths import plugin_root, resolve_vault
 from lib import git as vgit
 from lib.sitegen import build_site, collect_wiki, site_is_stale
@@ -1214,6 +1215,133 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_benchmark(args: argparse.Namespace) -> int:
+    """Run retrieval benchmarks (LME, LoCoMo, ConvoMem) and print metrics."""
+    from lib.paths import plugin_root
+
+    root = plugin_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    bcfg = cfg.get("benchmark") or {}
+    if not bcfg.get("enabled", True):
+        print("benchmark.enabled is false in config.json", file=sys.stderr)
+        return 1
+
+    sub = getattr(args, "benchmark_sub", None)
+    if sub == "run":
+        raw_suite = getattr(args, "benchmark_suite", None) or "lme"
+        suite = "lme" if raw_suite in ("lme", "longmemeval") else raw_suite
+        if getattr(args, "benchmark_no_metrics", False):
+            cfg.setdefault("benchmark", {})["auto_record_metrics"] = False
+        compress_arg = getattr(args, "benchmark_compress", None)
+        compress = compress_arg if compress_arg is not None else bcfg.get("compress_method", "raw")
+        backend_arg = getattr(args, "benchmark_backend", None)
+        backend = backend_arg if backend_arg is not None else (bcfg.get("search") or {}).get("backend", "fts5")
+        limit = int(getattr(args, "benchmark_limit", 0) or 0)
+        data_arg = getattr(args, "benchmark_data", None)
+        top_k = int(getattr(args, "benchmark_top_k", 5) or 5)
+
+        backends = (
+            ["fts5", "grep", "chromadb", "hybrid"]
+            if str(backend).lower() == "all"
+            else [str(backend).lower()]
+        )
+        compressors = (
+            ["raw", "steno", "prune", "extract", "compact"]
+            if str(compress).lower() == "all"
+            else [str(compress).lower()]
+        )
+
+        if suite == "lme":
+            from benchmarks.lme_bench import download_dataset, finalize_lme_run, run_lme
+
+            cache = Path(os.path.expanduser(bcfg.get("data_cache_dir", "~/.cache/llm-wiki-benchmarks")))
+            data_path = Path(data_arg).resolve() if data_arg else download_dataset(cache)
+
+            last_fail: Path | None = None
+            for be in backends:
+                for comp in compressors:
+                    cfg_run = load_config(vault)
+                    if getattr(args, "benchmark_no_metrics", False):
+                        cfg_run.setdefault("benchmark", {})["auto_record_metrics"] = False
+                    cfg_run.setdefault("benchmark", {})["compress_method"] = comp
+                    result = run_lme(
+                        data_path,
+                        vault,
+                        cfg_run,
+                        backend=be,
+                        compressor_name=comp,
+                        limit=limit,
+                        top_k=top_k,
+                    )
+                    print(json.dumps(result["summary"], indent=2))
+                    last_fail = finalize_lme_run(
+                        vault,
+                        cfg_run,
+                        result,
+                        backend=be,
+                        compressor=comp,
+                    )
+            if last_fail is not None:
+                print(f"Failures log (last run): {last_fail}", file=sys.stderr)
+            return 0
+        if suite == "locomo":
+            from benchmarks.locomo_bench import run_locomo
+
+            out = run_locomo(
+                vault,
+                cfg,
+                limit=limit,
+                data_path=Path(data_arg).resolve() if data_arg else None,
+            )
+            print(json.dumps(out.get("summary", out), indent=2))
+            return 0
+        if suite == "convomem":
+            from benchmarks.convomem_bench import run_convomem
+
+            out = run_convomem(
+                vault,
+                cfg,
+                limit=limit,
+                data_path=Path(data_arg).resolve() if data_arg else None,
+            )
+            print(json.dumps(out.get("summary", out), indent=2))
+            return 0
+
+        print(f"Unknown benchmark suite: {suite}", file=sys.stderr)
+        return 1
+
+    if sub == "report":
+        from lib.metrics_report import load_metrics_records
+
+        since = getattr(args, "benchmark_since", None)
+        records = load_metrics_records(vault, cfg, since=since, limit=0)
+        bench = [r for r in records if str(r.get("key", "")).startswith("benchmark.")]
+        if getattr(args, "benchmark_json", False):
+            print(json.dumps(bench[-2000:], indent=2))
+            return 0
+        for r in bench[-50:]:
+            print(f"{r.get('ts', '')[:19]}  {r.get('key')}={r.get('value')}  {r.get('meta', {})}")
+        return 0
+
+    if sub == "history":
+        from lib.metrics_report import load_metrics_records
+
+        hist_limit = int(getattr(args, "benchmark_history_limit", 30))
+        records = load_metrics_records(vault, cfg, limit=0)
+        bench = [r for r in records if str(r.get("key", "")).startswith("benchmark.")]
+        bench = bench[-hist_limit:]
+        for r in bench:
+            print(f"{r.get('ts', '')[:19]}  {r.get('key')}={r.get('value')}")
+        return 0
+
+    print("Usage: llm-wiki benchmark {run|report|history}", file=sys.stderr)
+    return 1
+
+
 def cmd_interactive_configure() -> int:
     vault = resolve_vault()
     cfg = load_config(vault)
@@ -1688,6 +1816,85 @@ def build_parser() -> argparse.ArgumentParser:
 
     pmet.set_defaults(func=cmd_metrics)
 
+    # ── Benchmarks ───────────────────────────────────────────────────────
+    pbench = sub.add_parser(
+        "benchmark",
+        help="Retrieval benchmarks (LME / LoCoMo / ConvoMem) and recorded metrics",
+    )
+    pbench_sub = pbench.add_subparsers(dest="benchmark_sub", required=True)
+
+    pbench_run = pbench_sub.add_parser("run", help="Run a benchmark suite")
+    pbench_run.add_argument(
+        "benchmark_suite",
+        nargs="?",
+        default="lme",
+        choices=["lme", "longmemeval", "locomo", "convomem"],
+        help="Suite: lme (LongMemEval), locomo, convomem (default: lme)",
+    )
+    pbench_run.add_argument(
+        "--backend",
+        dest="benchmark_backend",
+        default=None,
+        help="Search backend: fts5, grep, chromadb, hybrid, or all (default: config benchmark.search.backend)",
+    )
+    pbench_run.add_argument(
+        "--compress",
+        dest="benchmark_compress",
+        default=None,
+        help="Compressor: raw, steno, prune, extract, compact, or all (default: config benchmark.compress_method)",
+    )
+    pbench_run.add_argument(
+        "--limit",
+        dest="benchmark_limit",
+        type=int,
+        default=0,
+        help="Max questions (0 = all)",
+    )
+    pbench_run.add_argument(
+        "--top-k",
+        dest="benchmark_top_k",
+        type=int,
+        default=5,
+        help="Recall/NDCG cutoff for primary headline metric (default: 5)",
+    )
+    pbench_run.add_argument(
+        "--data",
+        dest="benchmark_data",
+        default=None,
+        help="Path to dataset JSON (LME default: download to data cache)",
+    )
+    pbench_run.add_argument(
+        "--no-metrics",
+        dest="benchmark_no_metrics",
+        action="store_true",
+        help="Do not append metrics to .metrics.jsonl",
+    )
+
+    pbench_report = pbench_sub.add_parser("report", help="Print benchmark metric records")
+    pbench_report.add_argument(
+        "--since",
+        dest="benchmark_since",
+        default=None,
+        help="Filter records after this ISO date/time",
+    )
+    pbench_report.add_argument(
+        "--json",
+        dest="benchmark_json",
+        action="store_true",
+        help="Output as JSON",
+    )
+
+    pbench_hist = pbench_sub.add_parser("history", help="Benchmark metric history (recent lines)")
+    pbench_hist.add_argument(
+        "--limit",
+        dest="benchmark_history_limit",
+        type=int,
+        default=30,
+        help="Max benchmark lines (default: 30)",
+    )
+
+    pbench.set_defaults(func=cmd_benchmark)
+
     # ── Session memory ───────────────────────────────────────────────────
     pmemory = sub.add_parser("memory", help="Session memory files under raw/memory/")
     pmemory_sub = pmemory.add_subparsers(dest="memory_sub", required=True)
@@ -1734,6 +1941,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    # Repo-root .env / .env.local so ANTHROPIC_API_KEY etc. work without manual export.
+    if str(os.environ.get("LLM_WIKI_SKIP_DOTENV", "")).lower() not in ("1", "true", "yes"):
+        load_plugin_dotenv(plugin_root())
     args = build_parser().parse_args()
     return args.func(args)
 

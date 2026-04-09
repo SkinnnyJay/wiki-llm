@@ -170,6 +170,37 @@
       "_comment_distance": "Options: cosine | l2 | ip (inner product)"
     }
   },
+  "benchmark": {
+    "enabled": true,
+    "compress_method": "raw",
+    "data_cache_dir": "~/.cache/llm-wiki-benchmarks",
+    "results_dir": ".benchmarks",
+    "auto_record_metrics": true,
+    "search": {
+      "backend": "fts5",
+      "prf_rrf": true,
+      "tfidf_rrf": true,
+      "tfidf_head_tail": true,
+      "tfidf_rrf_weight": 1,
+      "or_late_rrf_weight": 0,
+      "and_rrf": true,
+      "rrf_boost_or": 2,
+      "final_borda": false,
+      "rerank_llm": {
+        "enabled": false,
+        "benchmark_auto": false,
+        "invoke": "anthropic_api",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "max_candidates": 80,
+        "max_chars": 3600,
+        "excerpt_mode": "head_tail",
+        "cli_argv": null,
+        "cli_timeout_s": 180,
+        "_comment": "invoke: anthropic_api | claude_cli | codex_cli | custom_cli (set cli_argv). LLM_WIKI_BENCHMARK_LLM=1 + key or CLI. ~500 calls / full LME run."
+      }
+    },
+    "_comment": "Retrieval benchmarks (llm-wiki benchmark run lme). See benchmarks/README.md."
+  },
   "metrics": {
     "enabled": false,
     "max_file_size_mb": 50,

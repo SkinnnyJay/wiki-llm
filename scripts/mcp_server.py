@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -459,6 +460,83 @@ def tool_memory_prune(
     return out
 
 
+def tool_wiki_benchmark_run(
+    suite: str = "lme",
+    limit: int = 10,
+    backend: str = "fts5",
+    compressor: str = "raw",
+    use_llm: bool = False,
+) -> dict[str, Any]:
+    """
+    Run a retrieval benchmark (LME, LoCoMo, ConvoMem) using the vault's config.
+    Set use_llm true to set LLM_WIKI_BENCHMARK_LLM=1 for this run (API or CLI rerank per config).
+    """
+    if not _vault_ok():
+        return _no_vault()
+    bcfg = _cfg.get("benchmark") or {}
+    if not bcfg.get("enabled", True):
+        return {
+            "error": "benchmark.enabled is false",
+            "hint": "Set benchmark.enabled to true in config.json",
+        }
+    root = plugin_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    suite_norm = "lme" if suite in ("lme", "longmemeval") else str(suite).lower()
+    old_llm = os.environ.get("LLM_WIKI_BENCHMARK_LLM")
+    try:
+        if use_llm:
+            os.environ["LLM_WIKI_BENCHMARK_LLM"] = "1"
+        cfg_run = load_config(_vault)
+        cfg_run.setdefault("benchmark", {})["auto_record_metrics"] = False
+        cfg_run.setdefault("benchmark", {})["compress_method"] = compressor
+        be = str(backend).lower()
+        lim = int(limit)
+
+        if suite_norm == "lme":
+            from benchmarks.lme_bench import download_dataset, finalize_lme_run, run_lme
+
+            cache = Path(
+                os.path.expanduser(bcfg.get("data_cache_dir", "~/.cache/llm-wiki-benchmarks"))
+            )
+            data_path = download_dataset(cache)
+            result = run_lme(
+                data_path,
+                _vault,
+                cfg_run,
+                backend=be,
+                compressor_name=compressor,
+                limit=lim,
+                top_k=5,
+            )
+            fail_path = finalize_lme_run(
+                _vault,
+                cfg_run,
+                result,
+                backend=be,
+                compressor=compressor,
+            )
+            return {
+                "summary": result["summary"],
+                "failure_count": len(result["failures"]),
+                "failures_log": str(fail_path),
+            }
+        if suite_norm == "locomo":
+            from benchmarks.locomo_bench import run_locomo
+
+            return {"summary": run_locomo(_vault, cfg_run, limit=lim, data_path=None).get("summary", {})}
+        if suite_norm == "convomem":
+            from benchmarks.convomem_bench import run_convomem
+
+            return {"summary": run_convomem(_vault, cfg_run, limit=lim, data_path=None).get("summary", {})}
+        return {"error": f"unknown suite: {suite}", "hint": "use lme | locomo | convomem"}
+    finally:
+        if old_llm is None:
+            os.environ.pop("LLM_WIKI_BENCHMARK_LLM", None)
+        else:
+            os.environ["LLM_WIKI_BENCHMARK_LLM"] = old_llm
+
+
 # ============================================================================
 # TOOL REGISTRY
 # ============================================================================
@@ -705,6 +783,26 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
         "handler": tool_memory_prune,
+    },
+    "wiki_benchmark_run": {
+        "description": "Run retrieval benchmark (LME / LoCoMo / ConvoMem) with vault config. CLI: llm-wiki benchmark run …",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "suite": {
+                    "type": "string",
+                    "description": "lme | locomo | convomem (aliases: longmemeval → lme)",
+                },
+                "limit": {"type": "integer", "description": "Max questions (0 = all)"},
+                "backend": {"type": "string", "description": "fts5 | grep | chromadb | hybrid"},
+                "compressor": {"type": "string", "description": "raw | steno | prune | extract | compact"},
+                "use_llm": {
+                    "type": "boolean",
+                    "description": "Set LLM_WIKI_BENCHMARK_LLM=1 for this run (rerank per benchmark.search.rerank_llm)",
+                },
+            },
+        },
+        "handler": tool_wiki_benchmark_run,
     },
 }
 
