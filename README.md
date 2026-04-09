@@ -2,9 +2,17 @@
   <img src="docs/assets/readme-banner.png" alt="llm-wiki" width="100%" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+**Install from this page:** GitHub cannot run Claude or Cursor for you—click a badge for the repo, the Claude marketplace steps below, or Cursor wiring in [`AGENTS.md`](AGENTS.md). (VS Code–style `vscode:extension/…` links only work for **extensions** published on the Marketplace, not for adding this repo as a Claude **plugin** marketplace.)
+
 # llm-wiki — Claude Code plugin
 
-**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main`, then open `https://<user-or-org>.github.io/<repo>/` — see [`docs/README.md`](docs/README.md). The landing page credits **inspiration** from [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) and quotes Newton’s letter to Hooke (shoulders of giants).
+**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`** so the static site is not processed by Jekyll). The published home page is **`docs/index.html`** at `https://<user-or-org>.github.io/<repo>/` — see [`docs/README.md`](docs/README.md). The landing page credits **inspiration** from [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) and quotes Newton’s letter to Hooke (shoulders of giants).
 
 Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`** (ingested sources), **`wiki/`** (your markdown), optional **`outputs/`** (generated briefings and drafts—review before treating as canonical), and **`CLAUDE.md`** (vault rules). Same “folders + text files” idea as a plain **raw/ wiki/ outputs/** layout, with plugin tooling on top. Optional **vault-scoped Git**, **static graph viewer** (`wiki/.og/`), **on-demand D3 graphs** in **`.tmp/llm-wiki-graph/`** (link view + knowledge clusters), **ingest adapters**, and **ingestion security** (heuristic prompt-injection scan).
 
@@ -147,12 +155,14 @@ In chat you can drive the same flow with **`/llm-wiki:ingest`**, then **`/llm-wi
 
 ---
 
+<a id="install-claude-code"></a>
+
 ## Install (Claude Code — no clone)
 
 Add the GitHub repo as a **plugin marketplace**, then install **llm-wiki** (catalog name in [`marketplace.json`](marketplace.json) is `llm-wiki-local`):
 
 ```text
-/plugin marketplace add https://github.com/wiki-llm/wiki-llm
+/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
 /plugin install llm-wiki@llm-wiki-local
 ```
 

@@ -4,10 +4,10 @@
   "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, D3 graphs, optional vault Git, research loop, ingestion security.",
   "author": {
     "name": "wiki-llm contributors",
-    "url": "https://github.com/wiki-llm"
+    "url": "https://github.com/SkinnnyJay"
   },
-  "homepage": "https://github.com/wiki-llm/wiki-llm#readme",
-  "repository": "https://github.com/wiki-llm/wiki-llm",
+  "homepage": "https://github.com/SkinnnyJay/wiki-llm#readme",
+  "repository": "https://github.com/SkinnnyJay/wiki-llm",
   "license": "MIT",
   "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian", "vault", "research"],
   "userConfig": {

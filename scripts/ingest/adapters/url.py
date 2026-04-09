@@ -34,7 +34,7 @@ class UrlAdapter(Adapter):
         p.add_argument("--out", type=Path, help="Relative path under raw/ e.g. clips/page.md")
         ns = p.parse_args(argv)
         validate_public_http_url(ns.url, context="ingest url")
-        req = Request(ns.url, headers={"User-Agent": "llm-wiki/0.1 (+https://github.com/wiki-llm/wiki-llm)"})
+        req = Request(ns.url, headers={"User-Agent": "llm-wiki/0.1 (+https://github.com/SkinnnyJay/wiki-llm)"})
         try:
             with urlopen(req, timeout=60) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
