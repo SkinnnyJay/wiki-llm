@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>llm-wiki — Claude Code knowledge vault plugin</title>
-  <meta name="description" content="Claude Code plugin for a compounding llm-wiki vault (raw + wiki + schema). Inspired by Karpathy's LLM Wiki pattern." />
+  <title>llm-wiki - Claude Code plugin for knowledge vaults</title>
+  <meta
+    name="description"
+    content="llm-wiki is a Claude Code plugin for persistent knowledge vaults with schema-driven ingest, static graph viewers, and reusable wiki workflows."
+  />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
@@ -16,164 +19,319 @@
 </head>
 <body>
   <header class="site-header">
-    <div class="wrap">
-      <img class="logo logo-wide" src="assets/logo.png" width="1376" height="768" alt="" />
-      <h1>llm-wiki</h1>
-      <p class="tagline">
-        A <strong>Claude Code</strong> plugin that scaffolds a vault — <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, schema, ingest, viewers, and vault git —
-        so your knowledge can compound as markdown instead of disappearing into chat.
-      </p>
-      <nav class="nav-inline" aria-label="Page sections">
-        <a href="#inspiration">Inspiration</a>
-        <a href="#goal">Goal</a>
+    <div class="wrap site-header-inner">
+      <a class="brand-lockup" href="#setup" aria-label="llm-wiki home">
+        <img class="brand-logo" src="assets/logo-mark.svg" width="512" height="512" alt="" />
+        <span class="brand-name">llm-wiki</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
         <a href="#setup">Setup</a>
-        <a href="#clone-dev">Clone</a>
-        <a href="#use">Use</a>
+        <a href="#what-you-get">What you get</a>
+        <a href="#details">Details</a>
         <a href="https://github.com/wiki-llm/wiki-llm">GitHub</a>
       </nav>
     </div>
   </header>
 
-  <main class="wrap wrap-wide">
-    <section id="inspiration" aria-labelledby="inspiration-heading">
-      <span class="section-label">Lineage</span>
-      <h2 id="inspiration-heading">Inspiration</h2>
+  <main>
+    <section class="hero-section" id="setup" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Claude Code Plugin</p>
+          <h1 id="hero-title">llm-wiki</h1>
+          <p class="hero-lead">
+            Turn scattered source material into a maintained wiki your agent can keep building on.
+          </p>
+          <p class="hero-body">
+            Scaffold <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, and schema-backed workflows so source captures stay immutable, curated pages stay linkable, and the command flow stays simple enough to reuse across repos.
+          </p>
 
-      <div class="quote-block">
-        <blockquote>
-          If I have seen further it is by standing on the shoulders of Giants.
-        </blockquote>
-        <p class="attrib">
-          — <cite>Isaac Newton</cite>, letter to Robert Hooke, 1675
-          <br />
-          <span class="quote-sub">(echoing Bernard of Chartres, <i>nanos gigantum humeris insidentes</i>)</span>
-        </p>
-      </div>
-
-      <div class="inspiration-card">
-        <p class="lead">
-          The <strong>LLM Wiki</strong> idea — a persistent, interlinked wiki the model maintains between <strong>immutable raw sources</strong> and a <strong>schema</strong> that disciplines ingest, query, and lint —
-          was articulated as a copy-paste pattern for any coding agent in
-          <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Andrej Karpathy’s gist <em>llm-wiki.md</em></a> (April 2026).
-        </p>
-        <p>
-          That document is intentionally abstract: <em>“The exact directory structure, the schema conventions … will depend on your domain … Your LLM can figure out the rest.”</em>
-          <strong>wiki-llm</strong> is one concrete, opinionated implementation for <strong>Claude Code</strong>, with a Python CLI, plugin manifest, skills, and slash commands.
-        </p>
-      </div>
-    </section>
-
-    <section id="goal" aria-labelledby="goal-heading">
-      <span class="section-label">Why this repo</span>
-      <h2 id="goal-heading">Goal</h2>
-      <p>
-        Ship a <strong>reusable plugin</strong> so you do not have to reinvent vault layout, ingest adapters, static graph viewer, optional vault-scoped Git, or ingestion-security hooks.
-        You curate sources and questions; the agent does the filing, cross-links, and maintenance described in <code class="inline-code">llm-wiki/CLAUDE.md</code> and the bundled skills.
-      </p>
-      <ul>
-        <li>Ingest (file, URL, Hacker News, optional Firecrawl / Perplexity / …)</li>
-        <li><code class="inline-code">build-site</code> → <code class="inline-code">wiki/.og/</code> viewer + wikilinks graph data</li>
-        <li>Optional lifecycle-tagged Git inside the vault</li>
-        <li>Heuristic prompt-injection scan + wiki-ingest review path</li>
-      </ul>
-    </section>
-
-    <section id="setup" aria-labelledby="setup-heading">
-      <span class="section-label">Install</span>
-      <h2 id="setup-heading">Setup by environment</h2>
-      <p class="lead">
-        Pick the row that matches your toolchain. The pattern (raw → wiki → schema) is the same; only the wiring differs.
-      </p>
-
-      <div class="setup-grid">
-        <div class="setup-card">
-          <h3>Claude Code</h3>
-          <p>First-class path: add this repo as a <strong>plugin marketplace</strong>, then install the plugin (no clone required for daily use).</p>
-          <pre class="code"><code>/plugin marketplace add https://github.com/wiki-llm/wiki-llm
+          <div class="install-shell" aria-label="Install plugin commands">
+            <div class="install-shell-top">
+              <span>Install once</span>
+            </div>
+            <pre><code>/plugin marketplace add https://github.com/wiki-llm/wiki-llm
 /plugin install llm-wiki@llm-wiki-local</code></pre>
-          <p class="note note-tight">Update: <kbd>/plugin marketplace update</kbd> · Reload: <kbd>/reload-plugins</kbd> · Docs: <a href="https://docs.anthropic.com/en/discover-plugins">Discover plugins</a></p>
+          </div>
+
+          <div class="hero-story" aria-labelledby="hero-story-title">
+            <p class="hero-story-label" id="hero-story-title">Then try one clean first workflow</p>
+            <div class="hero-story-grid">
+              <div class="story-step">
+                <span class="story-step-title">1. Setup the vault</span>
+                <pre><code>llm-wiki setup --root .</code></pre>
+              </div>
+              <div class="story-step">
+                <span class="story-step-title">2. Ingest one source</span>
+                <pre><code>llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
+              </div>
+              <div class="story-step">
+                <span class="story-step-title">3. Build the viewer</span>
+                <pre><code>llm-wiki build-site</code></pre>
+              </div>
+            </div>
+            <p class="hero-story-note">That path gets you from raw capture to a browseable graph-backed wiki without making the landing page feel like full documentation.</p>
+          </div>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#details">See the workflow details</a>
+            <a class="button button-secondary" href="https://github.com/wiki-llm/wiki-llm">View on GitHub</a>
+          </div>
         </div>
-        <div class="setup-card">
-          <h3>Cursor</h3>
-          <p>
-            <a href="https://cursor.com/docs/plugins">Cursor plugins</a> bundle rules, skills, MCP, hooks, and more. This repo includes <strong><code class="inline-code">.cursor-plugin/plugin.json</code></strong> (for Marketplace packaging) and <strong><code class="inline-code">rules/llm-wiki.mdc</code></strong> — the same rule file is linked under <strong><code class="inline-code">.cursor/rules/</code></strong> so opening the clone just works.
-          </p>
-          <p>
-            See <strong><a href="https://github.com/wiki-llm/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a></strong> for the full Claude vs Cursor vs Codex matrix. Optional: <strong>Claude Code</strong> with plugins enabled alongside Cursor, then use the marketplace commands in the Claude Code flow your setup exposes.
-          </p>
-        </div>
-        <div class="setup-card">
-          <h3>OpenAI Codex &amp; others</h3>
-          <p>
-            Codex loads root <strong><a href="https://github.com/wiki-llm/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a></strong> automatically (<a href="https://developers.openai.com/codex/guides/agents-md/">discovery</a>). Same CLI, <code class="inline-code">commands/</code> prompts, and skills. Per-vault rules after <code class="inline-code">llm-wiki setup</code> live in <code class="inline-code">llm-wiki/CLAUDE.md</code>; mirror key points into your project’s <code class="inline-code">AGENTS.md</code> if your tool only reads the repo root.
-          </p>
-          <p>
-            For <strong>Pi / OpenCode</strong>–style setups: same ideas as in <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">the gist</a>; use <strong><code class="inline-code">bin/llm-wiki</code></strong> from a terminal for deterministic ingest and <code class="inline-code">build-site</code> regardless of which model edits the wiki.
-          </p>
-        </div>
-        <div class="setup-card">
-          <h3>Obsidian</h3>
-          <p>
-            Optional: open <code class="inline-code">llm-wiki/wiki/</code> in <a href="https://obsidian.md">Obsidian</a> as the reader/IDE while the agent writes — same idea as in the gist. The plugin remains the automation layer.
-          </p>
+
+        <aside class="terminal-card" aria-label="Setup preview">
+          <div class="terminal-top">
+            <span class="terminal-dot terminal-dot-red"></span>
+            <span class="terminal-dot terminal-dot-amber"></span>
+            <span class="terminal-dot terminal-dot-green"></span>
+          </div>
+          <pre class="terminal-body"><code>$ llm-wiki setup --root .
+✓ Created llm-wiki/raw/
+✓ Created llm-wiki/wiki/
+✓ Created llm-wiki/.schema/
+✓ Initialized vault config</code></pre>
+        </aside>
+      </div>
+    </section>
+
+    <section class="feature-section" id="what-you-get" aria-labelledby="feature-title">
+      <div class="wrap">
+        <span class="section-label">What you get</span>
+        <h2 id="feature-title">The pieces that make the plugin useful</h2>
+        <p class="section-intro">
+          Each card links to the detailed section below, so you can jump straight to the part you care about.
+        </p>
+
+        <div class="feature-grid">
+          <a class="feature-card" href="#vault-structure">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.75 6.75h6l2 2h8.5v8.5a2 2 0 0 1-2 2H5.75a2 2 0 0 1-2-2z"/>
+                <path d="M3.75 8.75v-2a2 2 0 0 1 2-2h4.5"/>
+              </svg>
+            </span>
+            <h3>Vault Structure</h3>
+            <p>Immutable inputs, curated markdown, and schema files that keep the vault legible over time.</p>
+            <span class="feature-link">Jump to structure</span>
+          </a>
+
+          <a class="feature-card" href="#ingest-pipeline">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12h11"/>
+                <path d="m11 5 7 7-7 7"/>
+                <path d="M4 6.5h4"/>
+                <path d="M4 17.5h4"/>
+              </svg>
+            </span>
+            <h3>Ingest Pipeline</h3>
+            <p>Bring in files, URLs, Hacker News, and optional connectors without losing the original source layer.</p>
+            <span class="feature-link">Jump to ingest</span>
+          </a>
+
+          <a class="feature-card" href="#static-viewer">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="6.5" cy="12" r="2"/>
+                <circle cx="17.5" cy="6.5" r="2"/>
+                <circle cx="17.5" cy="17.5" r="2"/>
+                <path d="M8.25 11.25 15.75 7.25"/>
+                <path d="M8.25 12.75 15.75 16.75"/>
+              </svg>
+            </span>
+            <h3>Static Viewer</h3>
+            <p>Generate a graph-backed reader so the wiki becomes browseable, linkable, and easy to inspect locally.</p>
+            <span class="feature-link">Jump to viewer</span>
+          </a>
+
+          <a class="feature-card" href="#skills-commands">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4.5v15"/>
+                <path d="M5.5 8.25 18.5 15.75"/>
+                <path d="M5.5 15.75 18.5 8.25"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+            <h3>Skills &amp; Commands</h3>
+            <p>Use bundled prompts, CLI commands, and agent skills instead of rebuilding the workflow in every repo.</p>
+            <span class="feature-link">Jump to workflows</span>
+          </a>
         </div>
       </div>
     </section>
 
-    <section id="clone-dev" aria-labelledby="clone-heading">
-      <span class="section-label">Developers</span>
-      <h2 id="clone-heading">Clone &amp; develop the plugin</h2>
-      <p>Use when you are modifying the plugin source or need a local path to the repo.</p>
-      <pre class="code"><code>git clone https://github.com/wiki-llm/wiki-llm.git
-cd wiki-llm
-claude --plugin-dir .</code></pre>
-      <p class="note">After edits: <kbd>/reload-plugins</kbd> · Validate: <kbd>claude plugin validate</kbd> or <kbd>/plugin validate</kbd></p>
-      <h3>CLI without marketplace</h3>
-      <pre class="code"><code>python3 scripts/llm_wiki.py --help</code></pre>
-    </section>
+    <section class="detail-section" id="details" aria-labelledby="details-title">
+      <div class="wrap">
+        <span class="section-label">Details</span>
+        <h2 id="details-title">How the landing pieces map to the actual repo</h2>
 
-    <section id="use" aria-labelledby="use-heading">
-      <span class="section-label">Vault</span>
-      <h2 id="use-heading">How to use (after setup)</h2>
+        <div class="detail-grid">
+          <article class="detail-card" id="vault-structure" aria-labelledby="vault-structure-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">01</span>
+              <h3 id="vault-structure-title">Vault Structure</h3>
+            </div>
+            <p>
+              The vault keeps raw inputs separate from curated knowledge. That lets you preserve the source of truth, revise derived notes safely, and keep schema-driven rules nearby.
+            </p>
+            <pre><code>llm-wiki/
+  raw/        # immutable source captures
+  wiki/       # curated markdown pages
+  .schema/    # validation and structure rules
+  outputs/    # optional reports and generated artifacts</code></pre>
+            <ul>
+              <li><code class="inline-code">raw/</code> protects the original material.</li>
+              <li><code class="inline-code">wiki/</code> holds maintained markdown the agent can improve over time.</li>
+              <li><code class="inline-code">.schema/</code> keeps ingest, query, and lint behavior disciplined.</li>
+              <li>Generated viewer artifacts can live alongside the vault without replacing the markdown source.</li>
+            </ul>
+          </article>
 
-      <ol class="vault-steps">
-        <li>
-          <p><strong>Scaffold</strong> a vault in your project root.</p>
-          <pre class="code"><code>llm-wiki setup --root .</code></pre>
-        </li>
-        <li>
-          <p><strong>Configure</strong> (optional).</p>
-          <pre class="code"><code>llm-wiki configure -i</code></pre>
-        </li>
-        <li>
-          <p><strong>Ingest</strong>, then merge into <code class="inline-code">wiki/</code> via skills.</p>
-          <pre class="code"><code>llm-wiki ingest file ./notes.md --out clips/notes.md
+          <article class="detail-card" id="ingest-pipeline" aria-labelledby="ingest-pipeline-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">02</span>
+              <h3 id="ingest-pipeline-title">Ingest Pipeline</h3>
+            </div>
+            <p>
+              The pipeline is designed so new sources enter as recorded inputs first, then move through review and curation into the wiki layer.
+            </p>
+            <div class="flow-list" aria-label="Ingest flow">
+              <div class="flow-step">Source<br /><span>file, URL, HN, optional connectors</span></div>
+              <div class="flow-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12h13"/>
+                  <path d="m12 5 7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="flow-step">raw/<br /><span>captured without rewriting history</span></div>
+              <div class="flow-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12h13"/>
+                  <path d="m12 5 7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="flow-step">wiki/<br /><span>curated markdown and linked notes</span></div>
+            </div>
+            <pre><code>llm-wiki ingest file ./notes.md --out clips/notes.md
 llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
-          <p>In chat: <strong>/llm-wiki:ingest</strong> and the <strong>wiki-ingest</strong> skill.</p>
-        </li>
-        <li>
-          <p><strong>Build</strong> the static viewer.</p>
-          <pre class="code"><code>llm-wiki build-site
-cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
-          <p>Open <code class="inline-code">http://127.0.0.1:8765/</code> (serve over HTTP, not <code class="inline-code">file://</code>).</p>
-        </li>
-      </ol>
+            <ul>
+              <li>Files, URLs, and Hacker News threads can all enter the same workflow.</li>
+              <li>Optional connectors can extend capture without changing the vault model.</li>
+              <li>The review path helps keep prompt-injected or low-trust material from silently becoming wiki truth.</li>
+            </ul>
+          </article>
 
-      <p class="note">
-        Commands, skills, workflows, ethos:
-        <a href="https://github.com/wiki-llm/wiki-llm#readme">README</a>,
-        <a href="https://github.com/wiki-llm/wiki-llm/blob/main/WORKFLOWS.md">WORKFLOWS.md</a>,
-        <a href="https://github.com/wiki-llm/wiki-llm/blob/main/ETHOS.md">ETHOS.md</a>.
-      </p>
+          <article class="detail-card" id="static-viewer" aria-labelledby="static-viewer-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">03</span>
+              <h3 id="static-viewer-title">Static Viewer</h3>
+            </div>
+            <p>
+              After ingest and curation, <code class="inline-code">build-site</code> turns the wiki into a static reader with graph data, linked-page browsing, and an app-like interface that is easy to host or inspect locally.
+            </p>
+            <div class="viewer-preview" aria-hidden="true">
+              <div class="viewer-sidebar"></div>
+              <div class="viewer-graph">
+                <span class="node node-a"></span>
+                <span class="node node-b"></span>
+                <span class="node node-c"></span>
+                <span class="node node-d"></span>
+                <span class="node node-e"></span>
+                <span class="node node-f"></span>
+              </div>
+              <div class="viewer-reader"></div>
+            </div>
+            <pre><code>llm-wiki build-site
+cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
+            <p class="detail-note">Serve the viewer over HTTP, not <code class="inline-code">file://</code>, so graph assets and wiki data load predictably.</p>
+          </article>
+
+          <article class="detail-card" id="skills-commands" aria-labelledby="skills-commands-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">04</span>
+              <h3 id="skills-commands-title">Skills &amp; Commands</h3>
+            </div>
+            <p>
+              The repo bundles the operational layer too: CLI commands, slash-command prompts, and agent skills that describe how the wiki should be maintained. The goal is to show a small, memorable command surface first, then let deeper docs carry the rest.
+            </p>
+
+            <div class="command-story">
+              <div class="command-story-header">
+                <h4>Try this first</h4>
+                <p>A minimal command path that demonstrates the whole loop.</p>
+              </div>
+              <div class="command-example">
+                <div class="command-example-step">
+                  <span class="command-example-label">Install</span>
+                  <code>/plugin install llm-wiki@llm-wiki-local</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Setup</span>
+                  <code>llm-wiki setup --root .</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Ingest</span>
+                  <code>llm-wiki ingest url https://example.com --out clips/example.md</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Build</span>
+                  <code>llm-wiki build-site</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="command-list">
+              <div class="command-group">
+                <h4>Core commands</h4>
+                <ul>
+                  <li><code class="inline-code">setup</code> scaffolds the vault layout.</li>
+                  <li><code class="inline-code">ingest</code> records new files, URLs, and other sources into <code class="inline-code">raw/</code>.</li>
+                  <li><code class="inline-code">build-site</code> generates the static reader and graph view.</li>
+                </ul>
+              </div>
+              <div class="command-group">
+                <h4>Keep it healthy</h4>
+                <ul>
+                  <li><code class="inline-code">configure -i</code> helps tune the vault interactively.</li>
+                  <li><code class="inline-code">raw validate</code> and related raw commands help finish captures cleanly.</li>
+                  <li><code class="inline-code">wiki-ingest</code>, <code class="inline-code">wiki-query</code>, and other skills keep the workflow in chat.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="support-note-list">
+              <p><strong>Also works with:</strong> manual clone for local plugin work, direct CLI usage via <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code>, Cursor and Codex through <a href="https://github.com/wiki-llm/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a>, and Obsidian as an optional reader for <code class="inline-code">llm-wiki/wiki/</code>.</p>
+            </div>
+            <p class="detail-note">
+              Commands, workflows, and ethos live in
+              <a href="https://github.com/wiki-llm/wiki-llm#readme">README</a>,
+              <a href="https://github.com/wiki-llm/wiki-llm/blob/main/WORKFLOWS.md">WORKFLOWS.md</a>,
+              <a href="https://github.com/wiki-llm/wiki-llm/blob/main/ETHOS.md">ETHOS.md</a>, and the repo skills.
+            </p>
+          </article>
+        </div>
+
+        <div class="lineage-note">
+          <p>
+            <strong>Lineage:</strong> the reusable LLM wiki pattern was popularized in
+            <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy's <em>llm-wiki.md</em> gist</a>.
+            This repo is a concrete plugin implementation for Claude Code and adjacent agent tooling.
+          </p>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer>
+  <footer class="site-footer">
     <div class="wrap">
       <p>
-        <a href="https://github.com/wiki-llm/wiki-llm">wiki-llm</a>
-        · MIT License
-        · Pattern credit: <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>
+        <a href="https://github.com/wiki-llm/wiki-llm">GitHub</a>
+        <span aria-hidden="true">·</span>
+        MIT License
+        <span aria-hidden="true">·</span>
+        Pattern credit:
+        <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>
       </p>
     </div>
   </footer>
