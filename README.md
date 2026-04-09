@@ -8,11 +8,12 @@
 
 Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`** (ingested sources), **`wiki/`** (your markdown), optional **`outputs/`** (generated briefings and drafts—review before treating as canonical), and **`CLAUDE.md`** (vault rules). Same “folders + text files” idea as a plain **raw/ wiki/ outputs/** layout, with plugin tooling on top. Optional **vault-scoped Git**, **static graph viewer** (`wiki/.og/`), **on-demand D3 graphs** in **`.tmp/llm-wiki-graph/`** (link view + knowledge clusters), **ingest adapters**, and **ingestion security** (heuristic prompt-injection scan).
 
-**Cursor & OpenAI Codex:** see **[`AGENTS.md`](AGENTS.md)** for how each tool loads instructions (Claude Code vs [Cursor plugins](https://cursor.com/docs/plugins) vs [Codex `AGENTS.md` discovery](https://developers.openai.com/codex/guides/agents-md/)). This repo ships **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)** (Cursor project rules; mirrored under **`.cursor/rules/`**), **[`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json)** (for [Cursor Marketplace](https://cursor.com/marketplace/publish) packaging alongside **`.claude-plugin/`**), plus **`commands/`** and **`bin/llm-wiki`**.
+**Cursor & OpenAI Codex:** see **[`AGENTS.md`](AGENTS.md)** for how each tool loads instructions (Claude Code vs [Cursor plugins](https://cursor.com/docs/plugins) vs [Codex `AGENTS.md` discovery](https://developers.openai.com/codex/guides/agents-md/)). This repo ships **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)** (Cursor project rules; mirrored under **`.cursor/rules/`**), **[`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json)** (for [Cursor Marketplace](https://cursor.com/marketplace/publish) packaging alongside **`.claude-plugin/`**), plus **`commands/`** and **`bin/llm-wiki`**. Shared workflow text is edited once in **[`docs/AGENTS.shared.md`](docs/AGENTS.shared.md)** and synced with **`bin/llm-wiki sync-agent-docs`**. Codex project knobs: **[`.codex/config.toml`](.codex/config.toml)** (see **[`.codex/README.md`](.codex/README.md)**).
 
 | You want… | Use |
 |-----------|-----|
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
+| Shared plugin instructions (single source) | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) — then **`bin/llm-wiki sync-agent-docs`** |
 | Cursor rules (clone & open) | [`rules/llm-wiki.mdc`](rules/llm-wiki.mdc) |
 | Full slash-command prompts | [`commands/`](commands/) (one `.md` per command) |
 | Full skill instructions | [`skills/*/SKILL.md`](skills/) |
@@ -104,7 +105,8 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 | `graph-knowledge` | Alias for `graph --mode knowledge`. |
 | `git` | `init`, `status`, `log`, `diff`, `snapshot`, `query`, **`lifecycle`** (audit by phase; `--json`, `--phase`, `--since`). `snapshot -m "…" --phase wiki` prepends `[wiki]`. Optional **`snapshot_after_build`** after `build-site`. |
 | `security scan <file>` | Print heuristic scan JSON (does not mutate the file). |
-| `check` | Fast vault/config sanity; **`--plugin-repo`** runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
+| `check` | Fast vault/config sanity; **`--plugin-repo`** verifies agent docs match **`docs/AGENTS.shared.md`** and runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
+| `sync-agent-docs` | Regenerate **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`**, **`.claude/rules/llm-wiki.md`** from **`docs/AGENTS.shared.md`**. **`--check`** exits non-zero if anything is out of sync (CI uses **`check --plugin-repo`**). |
 | `smoke-test` | Run **`pytest tests/`** from the plugin root. Default is **offline** (skips optional suites). **`--network`** enables **`@pytest.mark.network`** tests; **`--claude`** enables **`claude plugin validate`**. Also **`-v`**, **`--only-contracts`**, then pytest args after **`--`**. |
 | `test-report` | **Integration report:** runs real **`llm-wiki`** subprocesses (help matrix, temp vault pipeline, harvested safe lines from **`commands/*.md`**, skill frontmatter checks, optional **`--network`**, **`claude plugin validate`** if on `PATH`). Prints a **Markdown** table; **`--json FILE`** for machine output. Does **not** invoke an LLM or execute slash commands in chat. |
 
