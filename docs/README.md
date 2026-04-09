@@ -1,6 +1,6 @@
 # GitHub Pages (this folder)
 
-Static site for **llm-wiki**: Inspiration (Karpathy gist + Newton quote), goal, setup (Claude Code, Cursor, Codex/others, Obsidian), clone & dev, vault workflow. Assets: `assets/logo.png` (wide art), `assets/logo-square.png` (square master for raster favicons), `favicon.ico` + `favicon-16x16.png` / `favicon-32x32.png` + `apple-touch-icon.png`, `css/style.css`.
+Static site for **llm-wiki**: Inspiration (Karpathy gist, MemPalace, Newton quote), goal, setup (Claude Code, Cursor, Codex/others, Obsidian), clone & dev, vault workflow. Assets: `assets/logo.png` (wide art), `assets/logo-square.png` (square master for raster favicons), `favicon.ico` + `favicon-16x16.png` / `favicon-32x32.png` + `apple-touch-icon.png`, `css/style.css`.
 
 **Published home page:** GitHub Pages uses this **`docs/`** folder as the site root. The landing page is **`index.html`** — it is served at `https://<org>.github.io/<repo>/` and `https://<org>.github.io/<repo>/index.html`.
 

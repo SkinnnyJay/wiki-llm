@@ -405,6 +405,10 @@ pre code {
   width: 100%;
 }
 
+.lineage-note + .install-shell {
+  margin-top: 1.15rem;
+}
+
 .install-shell + .terminal-card {
   margin-top: 1.15rem;
 }
