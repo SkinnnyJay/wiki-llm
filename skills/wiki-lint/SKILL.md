@@ -29,6 +29,16 @@ Audit **`wiki/`** for **orphans**, **broken `[[wikilinks]]`**, **contradictions*
 
 - If **`outputs/`** exists, flag **duplicate claims** or **contradictions** between **`outputs/`** and **`wiki/`** (treat outputs as drafts until promoted with evidence).
 
+### Step 4 — Refresh site viewer
+
+If auto-fixable edits were applied and **`viewer.enabled`** is not false in config:
+
+```bash
+llm-wiki build-site --if-stale
+```
+
+This rebuilds **`wiki/.og/`** only when wiki content is newer than the last build.
+
 ## Done looks like
 
 - Deliverable is a **structured report**: orphans, broken links, contradictions, gaps — each with **concrete next actions** (create page, remove link, merge, research).
@@ -48,6 +58,7 @@ Downstream: **wiki-maintainer** (fixes), **wiki-pipeline** (gate). See **`skills
 - **wiki-raw-prepare** — structural cleanup in **`raw/`** before merge.
 - **wiki-maintainer** — apply cross-link and index fixes.
 - **wiki-query** — Q&A from wiki after lint passes.
+- **wiki-session-memory** — session memory files under **`raw/memory/`** (optional context).
 
 ## Smoke check
 

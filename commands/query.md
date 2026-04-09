@@ -6,9 +6,12 @@ description: Answer from the wiki with citations; optionally file the answer bac
 
 Follow the **wiki-query** skill: read `wiki/index.md`, open relevant pages, answer with inline citations. Offer to save notable answers under **wiki/** (durable) or **outputs/** (reports/drafts).
 
+When the vault has **MCP search** or **knowledge graph** enabled, the skill also uses ranked search and entity queries — see **`skills/references/mcp-and-kg.md`**.
+
 ## Quick usage
 
 - Ask a question about topics already in **`wiki/`** (not new web research — use **`/llm-wiki:research`** for that).
+- For entity lookups: `llm-wiki kg query "GPT-4"`.
 
 ## Arguments
 

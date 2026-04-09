@@ -1,13 +1,28 @@
 # llm-wiki Claude Code Hooks
 
-Two hooks that keep your vault's Memory Stack current during Claude sessions.
+Hooks keep your vault’s Memory Stack and optional **session memory** current during Claude sessions. Definitions live in **`hooks/hooks.json`** (loaded when the plugin is installed).
 
 ## Behavior comparison
 
 | Hook | When it runs | `wake-up` | Vault `git snapshot` | Notes |
-|------|----------------|-----------|------------------------|--------|
-| **PreCompact** (`llm_wiki_precompact.sh`) | Before Claude compresses context | Yes | Yes — `pre-compact checkpoint` | Use when you want an automatic commit before compaction. |
-| **Stop** (`llm_wiki_stop.sh`) | On each Claude stop | Yes (if `wiki/` changed or first run) | **No** | Debounced via `~/.llm-wiki/last-stop`; avoids noisy commits. For a commit on stop, run [`llm-wiki git snapshot`](../commands/git-snapshot.md) manually or rely on PreCompact. |
+|------|----------------|-----------|------------------------|-------|
+| **PreCompact** (`llm_wiki_precompact.sh`) | Before Claude compresses context | Yes | Yes — `pre-compact checkpoint` | Automatic commit before compaction. |
+| **Stop** (`llm_wiki_stop.sh`) | On each Claude stop | Yes (if `wiki/` changed or first run) | **No** | Debounced via `~/.llm-wiki/last-stop`. |
+| **Stop** (`llm_wiki_memory.sh`) | On each Claude stop | No | No | Session memory: writes **`llm-wiki/.current-session`**, optional **`memory log`** (see below). |
+| **PostCompact** (`llm_wiki_memory.sh`) | After compaction | No | No | Session memory: saves **`compact_summary`** when **`memory.enabled`**. |
+| **SessionEnd** (`llm_wiki_memory.sh`) | End of session | No | No | Session memory: final tag save; keep work fast (default ~1.5s timeout). |
+
+**Session memory** is **opt-in** via **`memory.enabled`** in **`llm-wiki/config.json`**. If disabled, `llm_wiki_memory.sh` exits early after writing **`.current-session`** (harmless).
+
+### `llm_wiki_memory.sh`
+
+- Reads **stdin JSON** from Claude Code: **`session_id`**, **`hook_event_name`**, and event-specific fields.
+- **Always** (when `session_id` is present): atomically writes **`llm-wiki/.current-session`** so **`llm-wiki memory … --current`** works without passing an id.
+- **Stop:** appends a round entry via **`llm-wiki memory log --session-id … --message-preview …`** (truncated assistant preview). Skips when **`stop_hook_active`** is true to avoid loops.
+- **PostCompact:** **`llm-wiki memory save`** with **`--compact-summary`** and tag **`compact`**.
+- **SessionEnd:** **`llm-wiki memory save`** with tag **`session-end`**.
+
+See **wiki-session-memory** skill and **`commands/memory.md`**.
 
 ## `llm_wiki_precompact.sh`
 
@@ -25,7 +40,7 @@ When llm-wiki is installed as a Claude Code plugin (marketplace or `--plugin-dir
 
 ### Manual install (standalone / dev clone)
 
-If running hooks outside the plugin system, add `bin/` to your `PATH` or symlink `bin/llm-wiki`. Then add to `~/.claude/settings.json`:
+If running hooks outside the plugin system, add `bin/` to your `PATH` or symlink `bin/llm-wiki`. Then add to `~/.claude/settings.json` (mirror the events in `hooks/hooks.json`, including **PostCompact**, **SessionEnd**, and the second **Stop** hook for memory):
 
 ```json
 {
@@ -37,8 +52,20 @@ If running hooks outside the plugin system, add `bin/` to your `PATH` or symlink
     }],
     "Stop": [{
       "matcher": "",
+      "hooks": [
+        {"type": "command", "command": "/absolute/path/to/wiki-llm/hooks/llm_wiki_stop.sh"},
+        {"type": "command", "command": "/absolute/path/to/wiki-llm/hooks/llm_wiki_memory.sh"}
+      ]
+    }],
+    "PostCompact": [{
+      "matcher": "",
       "hooks": [{"type": "command",
-        "command": "/absolute/path/to/wiki-llm/hooks/llm_wiki_stop.sh"}]
+        "command": "/absolute/path/to/wiki-llm/hooks/llm_wiki_memory.sh"}]
+    }],
+    "SessionEnd": [{
+      "matcher": "",
+      "hooks": [{"type": "command",
+        "command": "/absolute/path/to/wiki-llm/hooks/llm_wiki_memory.sh"}]
     }]
   }
 }

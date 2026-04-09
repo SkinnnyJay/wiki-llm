@@ -2,9 +2,11 @@
 description: Generate a knowledge/cluster graph — pages colored by undirected link component (relational clusters).
 ---
 
-# Knowledge graph
+# Knowledge graph (wikilink clusters)
 
 Same pipeline as **`/llm-wiki:graph`**, but uses **connected components** of the wikilink graph: pages that reach each other through links share a color. Isolated pages are their own cluster.
+
+> **Note:** This visualizes **wikilink topology**. For the **entity knowledge graph** (structured triples), use `llm-wiki kg` — see **`skills/references/mcp-and-kg.md`** § "Disambiguation".
 
 ## Quick usage
 

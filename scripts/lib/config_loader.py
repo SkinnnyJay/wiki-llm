@@ -82,6 +82,49 @@ DEFAULTS: dict[str, Any] = {
         # Set to null to always use Vision regardless of cost.
         "max_cost_usd": None,
     },
+    "mcp": {
+        "enabled": True,
+        "transport": "stdio",
+        "port": 8891,
+        "host": "127.0.0.1",
+        "search_backend": "fts5",
+    },
+    "knowledge_graph": {
+        "enabled": True,
+        "backend": "json",
+        "auto_update_on_ingest": True,
+    },
+    "memory": {
+        "enabled": False,
+        "dir": "raw/memory",
+        "max_sessions": 50,
+    },
+    "storage": {
+        "search_db": ".search.sqlite3",
+        "kg_db": ".kg.json",
+        "kg_sqlite_db": ".kg.sqlite3",
+        "chromadb_dir": ".chromadb",
+        "metrics_db": ".metrics.jsonl",
+    },
+    "performance": {
+        "sqlite": {
+            "journal_mode": "wal",
+            "synchronous": "normal",
+            "cache_size": -8192,
+            "mmap_size": 67108864,
+            "busy_timeout": 5000,
+        },
+        "chromadb": {
+            "collection_name": "wiki_pages",
+            "distance_fn": "cosine",
+            "batch_size": 100,
+            "embedding_model": "default",
+        },
+    },
+    "metrics": {
+        "enabled": False,
+        "max_file_size_mb": 50,
+    },
 }
 
 
@@ -104,6 +147,14 @@ def load_config(vault: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         return deepcopy(DEFAULTS)
     return deep_merge(DEFAULTS, data)
+
+
+def resolve_storage_path(vault: Path, cfg: dict[str, Any], key: str) -> Path:
+    """Resolve a storage path from config. Relative paths anchor to vault root."""
+    storage = cfg.get("storage") or {}
+    raw = storage.get(key, DEFAULTS["storage"][key])
+    p = Path(raw)
+    return p if p.is_absolute() else vault / p
 
 
 def save_config(vault: Path, cfg: dict[str, Any]) -> None:

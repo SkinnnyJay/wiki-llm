@@ -44,6 +44,7 @@ if [ -d "$WIKI_DIR" ] && [ -f "$LAST_STOP" ]; then
 fi
 
 "$LLM_WIKI_BIN" --vault "$VAULT" wake-up --update-claude || true
+"$LLM_WIKI_BIN" --vault "$VAULT" build-site --if-stale || true
 
 # Update last-stop atomically
 mkdir -p "$HOME/.llm-wiki"

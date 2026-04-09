@@ -10,8 +10,11 @@ Canonical paths through the vault. Voice and epistemics: [`prompts/PERSONA.md`](
 
 Optional **wiki-pipeline** skill chains the standard vault workflow with optional user gates: **status → research/fetch → raw prepare → wiki ingest → lint → build-site → validate**. See [`skills/wiki-pipeline/SKILL.md`](skills/wiki-pipeline/SKILL.md). Feed-forward artifacts between stages: [`skills/references/pipeline-artifacts.md`](skills/references/pipeline-artifacts.md).
 
+**MCP (agents):** `llm-wiki mcp` — stdio JSON-RPC MCP server for editor-hosted agents. `llm-wiki mcp --transport sse` — HTTP POST JSON-RPC on `127.0.0.1` and `mcp.port` (default `8891`). Search backends and KG: **`skills/references/mcp-and-kg.md`**. After `ingest` post-processing, **`knowledge_graph.auto_update_on_ingest`** triggers a **KG rebuild** from wiki/raw markdown (wikilinks + tags).
+
 - **wiki-retro** — periodic activity/health report to `outputs/retro-YYYY-MM-DD.md`.
 - **wiki-learn** — cross-session notes in `llm-wiki/.agent-memory.md`.
+- **wiki-session-memory** — opt-in per-chat notes in `llm-wiki/raw/memory/` (`memory.enabled`); hooks + `llm-wiki memory …`.
 - **wiki-upgrade** — `git pull` + re-run `./setup` in the plugin repo.
 
 ## Plugin development / testing

@@ -28,6 +28,16 @@ You own the **curated layer** under **`llm-wiki/wiki/`**. Sources live in **`llm
 
 - Append **`wiki/log.md`** with date, scope, and files touched for non-trivial maintenance passes.
 
+### Step 4 — Refresh site viewer
+
+If **`viewer.enabled`** is not false in config:
+
+```bash
+llm-wiki build-site --if-stale
+```
+
+This rebuilds **`wiki/.og/`** only when wiki content is newer than the last build.
+
 ## Done looks like
 
 - **`wiki/index.md`** reflects actual **`wiki/**/*.md`** pages (no stale-only index lines for missing pages unless intentional stubs).
@@ -49,6 +59,7 @@ Downstream: **wiki-lint**, **wiki-pipeline** (validate stage). See **`skills/ref
 - **wiki-lint** — orphans, contradictions, gaps.
 - **wiki-raw-prepare** — clean messy `raw/` before merge when needed.
 - **wiki-query** — read-only Q&A from wiki.
+- **wiki-session-memory** — per-chat notes in **`raw/memory/`**
 
 See `references/workflows.md` for ingest/query/lint outlines.
 

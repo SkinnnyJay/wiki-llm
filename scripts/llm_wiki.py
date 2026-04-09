@@ -7,7 +7,10 @@ import argparse
 import json
 import os
 import shutil
+import socket
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -17,7 +20,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from lib.config_loader import DEFAULTS, load_config, save_config
 from lib.paths import plugin_root, resolve_vault
 from lib import git as vgit
-from lib.sitegen import build_site, collect_wiki
+from lib.sitegen import build_site, collect_wiki, site_is_stale
 from lib.graphgen import build_graph_bundle
 from lib.ingest_finish import post_ingest
 from lib.raw_markdown import append_preparation_log, autofix_raw_markdown, raw_file_path, validate_raw_markdown
@@ -61,6 +64,145 @@ def cmd_configure(args: argparse.Namespace) -> int:
     return 0
 
 
+def _yn(prompt: str, default: bool) -> bool:
+    hint = "Y/n" if default else "y/N"
+    raw = input(f"{prompt} [{hint}]: ").strip().lower()
+    if raw in ("y", "yes"):
+        return True
+    if raw in ("n", "no"):
+        return False
+    return default
+
+
+def _setup_wizard(vault: Path, cfg: dict) -> None:
+    """Interactive setup wizard — asks about features with explanations."""
+    print()
+    print("╭─────────────────────────────────────╮")
+    print("│  llm-wiki setup wizard              │")
+    print("╰─────────────────────────────────────╯")
+    print()
+    print("  Use defaults for a quick start, or step through")
+    print("  each feature to customize your vault.")
+    print()
+
+    mode = input("  (d) Defaults — fast, change later  /  (s) Step-by-step: ").strip().lower()
+    if mode not in ("s", "step", "step-by-step"):
+        print("\n  Using defaults. Run `llm-wiki configure -i` to change later.\n")
+        return
+
+    print()
+    cur_name = (cfg.get("persona") or {}).get("name") or "Gennie"
+    pn = input(f"  Wiki persona name [{cur_name}]: ").strip()
+    if pn:
+        cfg.setdefault("persona", {})["name"] = pn
+
+    print()
+    print("─── Core features ───")
+    print()
+
+    if _yn(
+        "  Enable vault git? (track changes to wiki/, raw/, config)\n"
+        "  Good for: undo mistakes, see what changed between sessions.\n"
+        "  Enable",
+        default=True,
+    ):
+        cfg.setdefault("git", {})["enabled"] = True
+        cfg["git"]["init_on_setup"] = True
+    else:
+        cfg.setdefault("git", {})["enabled"] = False
+
+    print()
+    if _yn(
+        "  Enable static viewer? (browse your wiki in a local web page)\n"
+        "  Good for: visual overview, sharing with teammates.\n"
+        "  Enable",
+        default=True,
+    ):
+        cfg.setdefault("viewer", {})["enabled"] = True
+    else:
+        cfg.setdefault("viewer", {})["enabled"] = False
+
+    print()
+    if _yn(
+        "  Enable ingestion security? (scans URLs + content for threats)\n"
+        "  Good for: catching malicious prompt injections in ingested content.\n"
+        "  Enable",
+        default=True,
+    ):
+        cfg.setdefault("ingestion_security", {})["enabled"] = True
+    else:
+        cfg.setdefault("ingestion_security", {})["enabled"] = False
+
+    print()
+    print("─── MCP server (lets agents query your wiki via tools) ───")
+    print()
+    print("  The MCP server gives AI agents direct access to your wiki")
+    print("  through 21 tools: search, knowledge graph, ingest, validate.")
+    print("  Without it, agents must shell out to the CLI for every operation.")
+    print()
+    if _yn("  Enable MCP server", default=True):
+        cfg.setdefault("mcp", {})["enabled"] = True
+    else:
+        cfg.setdefault("mcp", {})["enabled"] = False
+
+    print()
+    print("─── Search backend ───")
+    print()
+    print("  (fts5)  SQLite FTS5 — BM25 ranked search, phrase matching,")
+    print("          boolean queries. Zero deps (Python stdlib). [recommended]")
+    print("  (grep)  Ripgrep / regex — fast literal search, no ranking.")
+    print("          Simplest option, no index file.")
+    print("  (chromadb) Semantic embeddings — finds conceptually similar content")
+    print("          even without keyword overlap. Requires: pip install chromadb")
+    print()
+    sb = input("  Search backend [fts5]: ").strip().lower() or "fts5"
+    if sb in ("fts5", "grep", "chromadb"):
+        cfg.setdefault("mcp", {})["search_backend"] = sb
+    else:
+        print(f"  Unknown backend '{sb}', using fts5.")
+        cfg.setdefault("mcp", {})["search_backend"] = "fts5"
+
+    print()
+    print("─── Knowledge graph ───")
+    print()
+    print("  Tracks entity relationships (who decided what, project dependencies,")
+    print("  team assignments) extracted from your wiki and raw files.")
+    print()
+    if _yn("  Enable knowledge graph", default=True):
+        cfg.setdefault("knowledge_graph", {})["enabled"] = True
+        print()
+        print("  (json)   JSON file — zero deps, simple, readable.")
+        print("           Stored in .kg.json alongside your vault files.")
+        print("  (sqlite) SQLite — better for large wikis (1000+ facts),")
+        print("           temporal queries (what was true on date X). Stdlib.")
+        print()
+        kb = input("  KG backend [json]: ").strip().lower() or "json"
+        if kb in ("json", "sqlite"):
+            cfg["knowledge_graph"]["backend"] = kb
+        else:
+            print(f"  Unknown backend '{kb}', using json.")
+            cfg["knowledge_graph"]["backend"] = "json"
+    else:
+        cfg.setdefault("knowledge_graph", {})["enabled"] = False
+
+    print()
+    if _yn(
+        "  Enable research loop? (batch web research from a task list)\n"
+        "  Good for: automated research across multiple topics.\n"
+        "  Enable",
+        default=False,
+    ):
+        cfg.setdefault("research_loop", {})["enabled"] = True
+    else:
+        cfg.setdefault("research_loop", {})["enabled"] = False
+
+    save_config(vault, cfg)
+    print()
+    print("  Settings saved to config.json.")
+    print("  Change anytime with: llm-wiki configure -i")
+    print()
+
+
 def cmd_setup(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     vault = root / "llm-wiki"
@@ -72,6 +214,13 @@ def cmd_setup(args: argparse.Namespace) -> int:
         return 1
     shutil.copytree(tpl, vault, dirs_exist_ok=True)
     cfg = load_config(vault)
+
+    if getattr(args, "interactive", False) or (
+        sys.stdin.isatty() and not getattr(args, "defaults", False)
+    ):
+        _setup_wizard(vault, cfg)
+        cfg = load_config(vault)
+
     if cfg.get("git", {}).get("init_on_setup"):
         try:
             print(vgit.git_init(vault, cfg))
@@ -125,6 +274,9 @@ def cmd_graph_knowledge(args: argparse.Namespace) -> int:
 def cmd_build_site(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
+    if getattr(args, "if_stale", False) and not site_is_stale(vault):
+        print("Site is up-to-date; skipping build.")
+        return 0
     out = build_site(vault, cfg)
     print(f"Built site → {out}")
     if cfg.get("git", {}).get("snapshot_after_build"):
@@ -185,6 +337,14 @@ def _raw_validate_run(vault: Path, rel: str, autofix: bool) -> tuple[bool, Path,
     if not path.is_file():
         print(f"Not a file: {path}", file=sys.stderr)
         return False, path, []
+    cfg = load_config(vault)
+    mem_dir = (cfg.get("memory") or {}).get("dir", "raw/memory")
+    mem_rel = str(Path(mem_dir).as_posix().replace("\\", "/")).strip("/")
+    if mem_rel.startswith("raw/"):
+        mem_rel = mem_rel[4:]
+    if rel == mem_rel or rel.startswith(mem_rel + "/"):
+        print("OK (skipped — session memory)", path.relative_to(vault))
+        return True, path, []
     text = path.read_text(encoding="utf-8", errors="replace")
     applied: list[str] = []
     if autofix:
@@ -567,11 +727,500 @@ def cmd_raw_rebuild_index(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── MCP server ───────────────────────────────────────────────────────────────
+
+def _mcp_tcp_listening(host: str, port: int, *, timeout: float = 0.35) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _mcp_start_background(args: argparse.Namespace) -> int:
+    """
+    Ensure the HTTP (SSE) MCP listener is running: if nothing is bound on the
+    configured host/port, spawn ``llm-wiki mcp --transport sse`` in the background.
+    """
+    vault = resolve_vault(override=getattr(args, "vault", None))
+    cfg = load_config(vault)
+    if not (cfg.get("mcp") or {}).get("enabled", True):
+        print(
+            "MCP server disabled in config.json (mcp.enabled=false). Enable it to start.",
+            file=sys.stderr,
+        )
+        return 1
+
+    mcp_cfg = cfg.get("mcp") or {}
+    port = getattr(args, "mcp_port", None)
+    if port is None:
+        port = int(mcp_cfg.get("port") or 8891)
+    host = getattr(args, "mcp_host", None) or mcp_cfg.get("host") or "127.0.0.1"
+    host = str(host)
+
+    url = f"http://{host}:{port}/"
+    if _mcp_tcp_listening(host, port):
+        print(f"MCP HTTP already listening — {url}")
+        return 0
+
+    root = plugin_root()
+    script = root / "scripts" / "llm_wiki.py"
+    log_path = vault / ".mcp-sse.log"
+    env = os.environ.copy()
+    env["LLM_WIKI_VAULT"] = str(vault.resolve())
+
+    cmd = [
+        sys.executable,
+        str(script),
+        "mcp",
+        "--transport",
+        "sse",
+        "--port",
+        str(port),
+        "--host",
+        host,
+    ]
+
+    log_file = open(log_path, "ab", buffering=0)
+    popen_kw: dict = {
+        "cwd": str(root),
+        "env": env,
+        "stdin": subprocess.DEVNULL,
+        "stdout": log_file,
+        "stderr": subprocess.STDOUT,
+    }
+    if sys.platform == "win32":
+        # Background process without a console; child keeps inherited log fd.
+        popen_kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+            subprocess, "DETACHED_PROCESS", 0
+        )
+    else:
+        popen_kw["start_new_session"] = True
+
+    try:
+        proc = subprocess.Popen(cmd, **popen_kw)
+    except OSError as e:
+        log_file.close()
+        print(f"Failed to start MCP: {e}", file=sys.stderr)
+        return 1
+
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        if _mcp_tcp_listening(host, port):
+            print(f"Started MCP HTTP in background — {url}")
+            print(f"Log: {log_path}")
+            return 0
+        if proc.poll() is not None:
+            print(
+                f"MCP server exited immediately (exit code {proc.returncode}). See {log_path}",
+                file=sys.stderr,
+            )
+            return 1
+        time.sleep(0.15)
+
+    print(
+        f"MCP did not become ready on {host}:{port} within 15s. See {log_path}",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    sub = getattr(args, "mcp_sub", None)
+    if sub == "install":
+        return _mcp_install(args)
+    if sub == "start":
+        return _mcp_start_background(args)
+    vault = resolve_vault(override=getattr(args, "vault", None))
+    cfg = load_config(vault)
+    if not (cfg.get("mcp") or {}).get("enabled", True):
+        print(
+            "MCP server disabled in config.json (mcp.enabled=false). Enable it to start.",
+            file=sys.stderr,
+        )
+        return 1
+    transport = getattr(args, "mcp_transport", None) or (cfg.get("mcp") or {}).get(
+        "transport", "stdio"
+    )
+    if str(transport).lower() == "sse":
+        from mcp_sse import run_sse_server
+
+        port = getattr(args, "mcp_port", None)
+        if port is None:
+            port = int((cfg.get("mcp") or {}).get("port") or 8891)
+        host = getattr(args, "mcp_host", None) or (cfg.get("mcp") or {}).get("host") or "127.0.0.1"
+        run_sse_server(vault, port=int(port), host=str(host))
+        return 0
+    from mcp_server import main as mcp_main
+
+    mcp_main()
+    return 0
+
+
+def _mcp_install(args: argparse.Namespace) -> int:
+    """Write MCP config so Claude Code / Cursor can discover the server."""
+    import json as _json
+    server_path = str((plugin_root() / "scripts" / "mcp_server.py").resolve())
+    vault_arg = getattr(args, "vault", None)
+    entry: dict = {"command": "python3", "args": [server_path]}
+    if vault_arg:
+        entry["args"].extend(["--vault", str(Path(vault_arg).resolve())])
+
+    claude_cfg = Path.home() / ".claude" / "claude_desktop_config.json"
+    if claude_cfg.parent.exists():
+        existing = {}
+        if claude_cfg.exists():
+            existing = _json.loads(claude_cfg.read_text(encoding="utf-8"))
+        existing.setdefault("mcpServers", {})["llm-wiki"] = entry
+        claude_cfg.write_text(_json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {claude_cfg}")
+
+    cursor_cfg = Path.cwd() / "mcp.json"
+    data = {"mcpServers": {"llm-wiki": entry}}
+    cursor_cfg.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {cursor_cfg}")
+    return 0
+
+
+# ── Knowledge graph CLI ──────────────────────────────────────────────────────
+
+def cmd_kg(args: argparse.Namespace) -> int:
+    from lib.knowledge_graph import get_kg_backend
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    kg = get_kg_backend(vault, cfg)
+    sub = getattr(args, "kg_sub", None)
+
+    if sub == "add":
+        tid = kg.add_triple(
+            args.subject, args.predicate, args.object,
+            valid_from=getattr(args, "valid_from", None) or None,
+            source=getattr(args, "source", None) or None,
+        )
+        print(f"Added: {args.subject} → {args.predicate} → {args.object}  (id: {tid})")
+        return 0
+
+    if sub == "query":
+        results = kg.query_entity(args.entity, as_of=getattr(args, "as_of", None) or None)
+        if not results:
+            print(f"No facts found for: {args.entity}")
+            return 0
+        for t in results:
+            ended = f"  (ended {t['valid_until']})" if t.get("valid_until") else ""
+            print(f"  {t['s']} → {t['p']} → {t['o']}  [{t.get('valid_from', '?')}]{ended}")
+        return 0
+
+    if sub == "invalidate":
+        ok = kg.invalidate(
+            args.subject, args.predicate, args.object,
+            ended=getattr(args, "ended", None) or None,
+        )
+        if ok:
+            print(f"Invalidated: {args.subject} → {args.predicate} → {args.object}")
+        else:
+            print("No matching active triple found.", file=sys.stderr)
+        return 1 if not ok else 0
+
+    if sub == "timeline":
+        entity = getattr(args, "entity", None) or None
+        results = kg.timeline(entity)
+        if not results:
+            print("No facts." if not entity else f"No facts for: {entity}")
+            return 0
+        for t in results:
+            ended = f" → ended {t['valid_until']}" if t.get("valid_until") else ""
+            print(f"  [{t.get('valid_from', '?')}] {t['s']} → {t['p']} → {t['o']}{ended}")
+        return 0
+
+    if sub == "stats":
+        s = kg.stats()
+        for k, v in s.items():
+            print(f"  {k}: {v}")
+        return 0
+
+    if sub == "rebuild":
+        result = kg.rebuild(vault)
+        print(f"Rebuilt: {result.get('added', 0)} triples added, {result.get('total_triples', 0)} total, {result.get('entities', 0)} entities")
+        return 0
+
+    print("Usage: llm-wiki kg {add|query|invalidate|timeline|stats|rebuild}", file=sys.stderr)
+    return 1
+
+
+def cmd_memory(args: argparse.Namespace) -> int:
+    from lib import session_memory as mem
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    sub = getattr(args, "memory_sub", None)
+
+    def _sid() -> str:
+        return mem.resolve_session_arg(
+            vault,
+            session_id=getattr(args, "session_id", None),
+            current=getattr(args, "current", False),
+        )
+
+    if sub == "save":
+        if not mem.memory_enabled(cfg):
+            print("memory.enabled is false — skipping.", file=sys.stderr)
+            return 0
+        if not getattr(args, "current", False) and not getattr(args, "session_id", None):
+            print("memory save: pass --session-id or --current", file=sys.stderr)
+            return 1
+        try:
+            sid = _sid()
+        except (ValueError, FileNotFoundError) as e:
+            print(str(e), file=sys.stderr)
+            return 1
+        tags = None
+        raw_tags = getattr(args, "tags", None) or ""
+        if raw_tags.strip():
+            tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+        meta = None
+        if getattr(args, "metadata", None):
+            try:
+                meta = json.loads(args.metadata)
+            except json.JSONDecodeError:
+                print("Invalid JSON for --metadata", file=sys.stderr)
+                return 1
+        path = mem.memory_save(
+            vault,
+            cfg,
+            sid,
+            summary=getattr(args, "summary", None),
+            compact_summary=getattr(args, "compact_summary", None),
+            tags=tags,
+            metadata=meta,
+        )
+        print(path.relative_to(vault))
+        return 0
+
+    if sub == "log":
+        if not mem.memory_enabled(cfg):
+            print("memory.enabled is false — skipping.", file=sys.stderr)
+            return 0
+        if not getattr(args, "current", False) and not getattr(args, "session_id", None):
+            print("memory log: pass --session-id or --current", file=sys.stderr)
+            return 1
+        try:
+            sid = _sid()
+        except (ValueError, FileNotFoundError) as e:
+            print(str(e), file=sys.stderr)
+            return 1
+        path = mem.memory_log_round(
+            vault,
+            cfg,
+            sid,
+            message_preview=getattr(args, "message_preview", None),
+        )
+        print(path.relative_to(vault))
+        return 0
+
+    if sub == "list":
+        rows = mem.memory_list(
+            vault,
+            cfg,
+            session_id=getattr(args, "session_filter", None),
+            tag=getattr(args, "tag", None),
+        )
+        if getattr(args, "json_out", False):
+            print(json.dumps(rows, indent=2))
+        else:
+            for r in rows:
+                print(
+                    f"{r['session_id']}\t{r.get('updated', '')}\trounds={r.get('rounds', 0)}\t"
+                    f"tags={','.join(r.get('tags', []))}"
+                )
+        return 0
+
+    if sub == "show":
+        sid = getattr(args, "session_id_arg", None)
+        if getattr(args, "current", False):
+            try:
+                sid = mem.resolve_current_session(vault)
+            except (ValueError, FileNotFoundError) as e:
+                print(str(e), file=sys.stderr)
+                return 1
+        elif not sid:
+            print("show: pass SESSION_ID or --current", file=sys.stderr)
+            return 1
+        text = mem.memory_show(vault, cfg, sid)
+        print(text, end="" if text.endswith("\n") else "\n")
+        return 0
+
+    if sub == "recall":
+        q = (getattr(args, "query", None) or "").strip()
+        if not q:
+            print("recall: query required", file=sys.stderr)
+            return 1
+        sf = getattr(args, "session_filter", None)
+        if getattr(args, "current", False):
+            try:
+                sf = mem.resolve_current_session(vault)
+            except (ValueError, FileNotFoundError) as e:
+                print(str(e), file=sys.stderr)
+                return 1
+        results = mem.memory_recall(
+            vault,
+            cfg,
+            q,
+            session_id=sf,
+            tag=getattr(args, "tag", None),
+            limit=getattr(args, "limit", 5),
+        )
+        for r in results:
+            print(f"{r.path}\t{r.score}\t{r.snippet[:200]}")
+        return 0
+
+    if sub == "prune":
+        if not mem.memory_enabled(cfg):
+            print("memory.enabled is false — skipping.", file=sys.stderr)
+            return 0
+        try:
+            out = mem.memory_prune(
+                vault,
+                cfg,
+                session_id=getattr(args, "session_filter", None),
+                tag=getattr(args, "tag", None),
+                older_than_days=getattr(args, "older_than", None),
+                keep=getattr(args, "keep", None),
+                dry_run=getattr(args, "dry_run", False),
+            )
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 1
+        for d in out["deleted"]:
+            print("deleted" if not out["dry_run"] else "would delete", d)
+        return 0
+
+    print("Usage: llm-wiki memory {save|log|list|show|recall|prune}", file=sys.stderr)
+    return 1
+
+
+def cmd_metrics(args: argparse.Namespace) -> int:
+    from lib.metrics import MetricsRecorder
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    cfg.setdefault("metrics", {})["enabled"] = True
+    m = MetricsRecorder(vault, cfg)
+    sub = getattr(args, "metrics_sub", None)
+
+    if sub == "record":
+        value: float | int | str = args.value
+        try:
+            value = int(args.value)
+        except ValueError:
+            try:
+                value = float(args.value)
+            except ValueError:
+                pass
+        meta = None
+        if getattr(args, "meta", None):
+            try:
+                meta = json.loads(args.meta)
+            except json.JSONDecodeError:
+                print(f"Invalid JSON for --meta: {args.meta}", file=sys.stderr)
+                return 1
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()] if getattr(args, "tags", "") else None
+        m.record(args.key, value, meta=meta, tags=tags)
+        print(f"Recorded: {args.key}={value}")
+        return 0
+
+    if sub == "query":
+        records = m.query(
+            key=getattr(args, "key", None),
+            since=getattr(args, "since", None),
+            limit=getattr(args, "limit", 100),
+        )
+        if not records:
+            print("No records found.")
+            return 0
+        if getattr(args, "metrics_json", False):
+            print(json.dumps(records, indent=2))
+        else:
+            for rec in records:
+                ts = rec.get("ts", "?")[:19]
+                k = rec.get("key", "?")
+                v = rec.get("value", "?")
+                meta = rec.get("meta", {})
+                meta_str = f"  {meta}" if meta else ""
+                print(f"  {ts}  {k}={v}{meta_str}")
+        return 0
+
+    if sub == "stats":
+        s = m.stats()
+        for k, v in s.items():
+            print(f"  {k}: {v}")
+        return 0
+
+    if sub == "clear":
+        if not getattr(args, "yes", False):
+            print("Use --yes to confirm clearing metrics.", file=sys.stderr)
+            return 1
+        result = m.clear(before=getattr(args, "before", None))
+        print(f"Removed {result['removed']} records.")
+        return 0
+
+    if sub == "report":
+        from lib.metrics_report import build_metrics_report
+
+        out_dir = (
+            Path(getattr(args, "metrics_report_out", None)).resolve()
+            if getattr(args, "metrics_report_out", None)
+            else (Path.cwd() / ".tmp" / "llm-wiki-metrics").resolve()
+        )
+        try:
+            path = build_metrics_report(
+                vault,
+                cfg,
+                out_dir,
+                since=getattr(args, "metrics_report_since", None),
+                key=getattr(args, "metrics_report_key", None),
+            )
+        except FileNotFoundError as e:
+            print(e, file=sys.stderr)
+            return 1
+        print(f"Metrics dashboard → {path}")
+        print(f"  cd {path.parent} && python3 -m http.server 8890")
+        return 0
+
+    if sub == "summary":
+        from lib.metrics_report import build_metrics_summary
+
+        if getattr(args, "metrics_summary_json", False):
+            out = build_metrics_summary(
+                vault,
+                cfg,
+                since=getattr(args, "metrics_summary_since", None),
+                key=getattr(args, "metrics_summary_key", None),
+                as_json=True,
+            )
+            assert isinstance(out, dict)
+            print(json.dumps(out, indent=2))
+        else:
+            text = build_metrics_summary(
+                vault,
+                cfg,
+                since=getattr(args, "metrics_summary_since", None),
+                key=getattr(args, "metrics_summary_key", None),
+                as_json=False,
+            )
+            assert isinstance(text, str)
+            print(text)
+        return 0
+
+    print("Usage: llm-wiki metrics {record|query|stats|clear|report|summary}", file=sys.stderr)
+    return 1
+
+
 def cmd_interactive_configure() -> int:
     vault = resolve_vault()
     cfg = load_config(vault)
     print("llm-wiki configure (interactive) — enter empty to keep current")
     print("Vault:", vault)
+    print()
+
     og = input(f"viewer.og_base_url [{cfg.get('viewer', {}).get('og_base_url', '')}]: ").strip()
     if og:
         cfg.setdefault("viewer", {})["og_base_url"] = og
@@ -579,18 +1228,48 @@ def cmd_interactive_configure() -> int:
     pn = input(f"persona.name (wiki display name) [{cur_name}]: ").strip()
     if pn:
         cfg.setdefault("persona", {})["name"] = pn
-    for key, label in [
-        ("viewer", "Enable static viewer"),
-        ("git", "Enable vault git"),
-        ("research_loop", "Enable research loop skill"),
-        ("ingestion_security", "Enable ingestion security scan"),
+
+    print()
+    print("─── Feature toggles ───")
+    for key, label, reason in [
+        ("viewer", "Static viewer", "browse wiki in a local web page"),
+        ("git", "Vault git", "track changes, undo mistakes"),
+        ("research_loop", "Research loop", "batch web research from task lists"),
+        ("ingestion_security", "Ingestion security", "scan ingested content for threats"),
     ]:
         cur = cfg.get(key, {}).get("enabled", DEFAULTS.get(key, {}).get("enabled"))
-        v = input(f"{label} (y/n) [{ 'y' if cur else 'n' }]: ").strip().lower()
+        v = input(f"  {label} — {reason} (y/n) [{'y' if cur else 'n'}]: ").strip().lower()
         if v in ("y", "n"):
             cfg.setdefault(key, {})["enabled"] = v == "y"
+
+    print()
+    print("─── MCP server ───")
+    mcp_cur = (cfg.get("mcp") or {}).get("enabled", True)
+    v = input(f"  MCP server — agents query wiki via 21 tools (y/n) [{'y' if mcp_cur else 'n'}]: ").strip().lower()
+    if v in ("y", "n"):
+        cfg.setdefault("mcp", {})["enabled"] = v == "y"
+
+    sb_cur = (cfg.get("mcp") or {}).get("search_backend", "fts5")
+    print(f"  Search backend: fts5 (ranked) | grep (simple) | chromadb (semantic)")
+    sb = input(f"  Search backend [{sb_cur}]: ").strip().lower()
+    if sb in ("fts5", "grep", "chromadb"):
+        cfg.setdefault("mcp", {})["search_backend"] = sb
+
+    print()
+    print("─── Knowledge graph ───")
+    kg_cur = (cfg.get("knowledge_graph") or {}).get("enabled", True)
+    v = input(f"  Knowledge graph — entity relationships from wiki (y/n) [{'y' if kg_cur else 'n'}]: ").strip().lower()
+    if v in ("y", "n"):
+        cfg.setdefault("knowledge_graph", {})["enabled"] = v == "y"
+
+    kb_cur = (cfg.get("knowledge_graph") or {}).get("backend", "json")
+    print(f"  KG backend: json (simple file) | sqlite (temporal queries)")
+    kb = input(f"  KG backend [{kb_cur}]: ").strip().lower()
+    if kb in ("json", "sqlite"):
+        cfg.setdefault("knowledge_graph", {})["backend"] = kb
+
     save_config(vault, cfg)
-    print("Saved.")
+    print("\nSaved.")
     return 0
 
 
@@ -617,6 +1296,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     ps = sub.add_parser("setup", help="Scaffold vault from templates")
     ps.add_argument("--root", default=".", help="Project root containing llm-wiki/")
+    ps.add_argument("-i", "--interactive", action="store_true", help="Force step-by-step wizard even in non-TTY")
+    ps.add_argument("--defaults", action="store_true", help="Skip wizard, use defaults")
     ps.set_defaults(func=cmd_setup)
 
     pt = sub.add_parser("teardown", help="Remove generated artifacts (or --purge vault)")
@@ -627,8 +1308,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     pb = sub.add_parser("build-site", help="Emit wiki-data.json + static viewer")
     pb.add_argument("--alias-build-og", action="store_true", help=argparse.SUPPRESS)
+    pb.add_argument("--if-stale", action="store_true", help="Only rebuild when wiki/ is newer than wiki/.og/wiki-data.json")
     pb.set_defaults(func=cmd_build_site)
-    sub.add_parser("build-og", help="Alias for build-site").set_defaults(func=cmd_build_site)
+    pbo = sub.add_parser("build-og", help="Alias for build-site")
+    pbo.add_argument("--if-stale", action="store_true", help="Only rebuild when wiki/ is newer than wiki/.og/wiki-data.json")
+    pbo.set_defaults(func=cmd_build_site)
 
     pv = sub.add_parser("validate", help="Check vault layout")
     pv.add_argument("--wikilinks", action="store_true", help="Fail if wikilinks point to missing wiki pages")
@@ -875,6 +1559,176 @@ def build_parser() -> argparse.ArgumentParser:
         help="Plain text output instead of Markdown",
     )
     ptr.set_defaults(func=cmd_test_report)
+
+    # ── MCP server ───────────────────────────────────────────────────────
+    pmcp = sub.add_parser(
+        "mcp",
+        help="Start the MCP server (stdio JSON-RPC by default, or HTTP with --transport sse)",
+    )
+    pmcp.add_argument(
+        "--transport",
+        dest="mcp_transport",
+        default=None,
+        choices=("stdio", "sse"),
+        help="stdio (default) or sse (HTTP POST JSON-RPC on --port)",
+    )
+    pmcp.add_argument(
+        "--port",
+        dest="mcp_port",
+        type=int,
+        default=None,
+        help="Port for --transport sse (default: config mcp.port or 8891)",
+    )
+    pmcp.add_argument(
+        "--host",
+        dest="mcp_host",
+        default=None,
+        help="Bind address for --transport sse (default: config mcp.host or 127.0.0.1)",
+    )
+    pmcp_sub = pmcp.add_subparsers(dest="mcp_sub")
+    pmcp_install = pmcp_sub.add_parser("install", help="Write MCP config for Claude Code / Cursor discovery")
+    pmcp_start = pmcp_sub.add_parser(
+        "start",
+        help="Ensure HTTP MCP (--transport sse) is listening; start in background if needed",
+    )
+    pmcp_start.add_argument(
+        "--port",
+        dest="mcp_port",
+        type=int,
+        default=None,
+        help="Port (default: config mcp.port or 8891)",
+    )
+    pmcp_start.add_argument(
+        "--host",
+        dest="mcp_host",
+        default=None,
+        help="Bind address (default: config mcp.host or 127.0.0.1)",
+    )
+    pmcp.set_defaults(func=cmd_mcp)
+
+    # ── Knowledge graph ──────────────────────────────────────────────────
+    pkg = sub.add_parser("kg", help="Knowledge graph: add/query/invalidate/timeline/stats/rebuild")
+    pkg_sub = pkg.add_subparsers(dest="kg_sub", required=True)
+
+    pkg_add = pkg_sub.add_parser("add", help="Add a fact triple")
+    pkg_add.add_argument("subject")
+    pkg_add.add_argument("predicate")
+    pkg_add.add_argument("object")
+    pkg_add.add_argument("--from", dest="valid_from", help="When this became true (YYYY-MM-DD)")
+    pkg_add.add_argument("--source", help="Source file path")
+
+    pkg_query = pkg_sub.add_parser("query", help="Look up an entity")
+    pkg_query.add_argument("entity")
+    pkg_query.add_argument("--as-of", dest="as_of", help="Point-in-time filter (YYYY-MM-DD)")
+
+    pkg_inv = pkg_sub.add_parser("invalidate", help="Mark a fact as ended")
+    pkg_inv.add_argument("subject")
+    pkg_inv.add_argument("predicate")
+    pkg_inv.add_argument("object")
+    pkg_inv.add_argument("--ended", help="When it stopped being true (YYYY-MM-DD, default: today)")
+
+    pkg_tl = pkg_sub.add_parser("timeline", help="Chronological entity history")
+    pkg_tl.add_argument("entity", nargs="?", default=None)
+
+    pkg_sub.add_parser("stats", help="Knowledge graph overview")
+    pkg_sub.add_parser("rebuild", help="Rebuild KG from vault wikilinks + tags")
+    pkg.set_defaults(func=cmd_kg)
+
+    # ── Metrics ──────────────────────────────────────────────────────────
+    pmet = sub.add_parser("metrics", help="Operational metrics: record/query/stats/clear/report/summary (.metrics.jsonl)")
+    pmet_sub = pmet.add_subparsers(dest="metrics_sub", required=True)
+
+    pmet_rec = pmet_sub.add_parser("record", help="Write one metric entry")
+    pmet_rec.add_argument("key", help="Metric key (e.g. search.query_ms)")
+    pmet_rec.add_argument("value", help="Metric value (number or string)")
+    pmet_rec.add_argument("--meta", default=None, help='JSON metadata, e.g. \'{"query":"auth"}\'')
+    pmet_rec.add_argument("--tags", default="", help="Comma-separated tags")
+
+    pmet_query = pmet_sub.add_parser("query", help="Read/filter metric records")
+    pmet_query.add_argument("--key", default=None, help="Filter by metric key")
+    pmet_query.add_argument("--since", default=None, help="Filter records after this ISO date")
+    pmet_query.add_argument("--limit", type=int, default=100, help="Max records to return (default 100)")
+    pmet_query.add_argument("--json", dest="metrics_json", action="store_true", help="Output as JSON")
+
+    pmet_sub.add_parser("stats", help="Summary: keys, counts, file size, date range")
+
+    pmet_clear = pmet_sub.add_parser("clear", help="Truncate or prune old entries")
+    pmet_clear.add_argument("--before", default=None, help="Remove entries before this ISO date (omit to clear all)")
+    pmet_clear.add_argument("--yes", action="store_true", help="Confirm clear")
+
+    pmet_report = pmet_sub.add_parser("report", help="Generate Chart.js HTML metrics dashboard")
+    pmet_report.add_argument(
+        "--since",
+        dest="metrics_report_since",
+        default=None,
+        help="Filter records after this ISO date/time (default: last 30 days)",
+    )
+    pmet_report.add_argument("--key", dest="metrics_report_key", default=None, help="Filter by metric key")
+    pmet_report.add_argument(
+        "--out",
+        dest="metrics_report_out",
+        default=None,
+        help="Output directory (default: .tmp/llm-wiki-metrics under cwd)",
+    )
+
+    pmet_summary = pmet_sub.add_parser("summary", help="Print metrics summary table for chat/terminal")
+    pmet_summary.add_argument(
+        "--since",
+        dest="metrics_summary_since",
+        default=None,
+        help="Filter records after this ISO date/time (default: last 30 days)",
+    )
+    pmet_summary.add_argument("--key", dest="metrics_summary_key", default=None, help="Filter by metric key")
+    pmet_summary.add_argument(
+        "--json",
+        dest="metrics_summary_json",
+        action="store_true",
+        help="Output as JSON",
+    )
+
+    pmet.set_defaults(func=cmd_metrics)
+
+    # ── Session memory ───────────────────────────────────────────────────
+    pmemory = sub.add_parser("memory", help="Session memory files under raw/memory/")
+    pmemory_sub = pmemory.add_subparsers(dest="memory_sub", required=True)
+
+    msave = pmemory_sub.add_parser("save", help="Update session memory markdown")
+    msave.add_argument("--session-id", "-s", dest="session_id", default=None)
+    msave.add_argument("-c", "--current", action="store_true")
+    msave.add_argument("--summary", default=None)
+    msave.add_argument("--compact-summary", default=None)
+    msave.add_argument("--tags", default=None)
+    msave.add_argument("--metadata", default=None)
+
+    mlog = pmemory_sub.add_parser("log", help="Append a round entry (typically from Stop hook)")
+    mlog.add_argument("--session-id", "-s", dest="session_id", default=None)
+    mlog.add_argument("-c", "--current", action="store_true")
+    mlog.add_argument("--message-preview", default=None)
+
+    mlist = pmemory_sub.add_parser("list", help="List session memory files")
+    mlist.add_argument("--session-id", dest="session_filter", default=None)
+    mlist.add_argument("--tag", default=None)
+    mlist.add_argument("--json", dest="json_out", action="store_true")
+
+    mshow = pmemory_sub.add_parser("show", help="Print one session memory file")
+    mshow.add_argument("session_id_arg", nargs="?", default=None)
+    mshow.add_argument("-c", "--current", action="store_true")
+
+    mrec = pmemory_sub.add_parser("recall", help="Search session memories (indexed scope memory)")
+    mrec.add_argument("query")
+    mrec.add_argument("--session-id", dest="session_filter", default=None)
+    mrec.add_argument("-c", "--current", action="store_true")
+    mrec.add_argument("--tag", default=None)
+    mrec.add_argument("--limit", type=int, default=5)
+
+    mprune = pmemory_sub.add_parser("prune", help="Delete session memory files")
+    mprune.add_argument("--session-id", dest="session_filter", default=None)
+    mprune.add_argument("--tag", default=None)
+    mprune.add_argument("--older-than", type=int, dest="older_than", default=None)
+    mprune.add_argument("--keep", type=int, default=None)
+    mprune.add_argument("--dry-run", action="store_true")
+
+    pmemory.set_defaults(func=cmd_memory)
 
     return p
 

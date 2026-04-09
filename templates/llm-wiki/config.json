@@ -117,5 +117,62 @@
   },
   "pdf": {
     "max_cost_usd": 1.00
+  },
+  "mcp": {
+    "enabled": true,
+    "transport": "stdio",
+    "port": 8891,
+    "host": "127.0.0.1",
+    "search_backend": "fts5",
+    "_comment_search": "Options: fts5 (BM25 ranked, stdlib sqlite3) | grep (ripgrep/re fallback) | chromadb (semantic embeddings, requires: pip install chromadb)",
+    "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)"
+  },
+  "knowledge_graph": {
+    "enabled": true,
+    "backend": "json",
+    "auto_update_on_ingest": true,
+    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)"
+  },
+  "memory": {
+    "enabled": false,
+    "dir": "raw/memory",
+    "max_sessions": 50,
+    "_comment_enabled": "Per-session memory files under raw/memory/ (hooks + memory CLI).",
+    "_comment_dir": "Directory under vault for session memory markdown files.",
+    "_comment_max_sessions": "Auto-prune oldest sessions beyond this count (0 = unlimited)."
+  },
+  "storage": {
+    "search_db": ".search.sqlite3",
+    "kg_db": ".kg.json",
+    "kg_sqlite_db": ".kg.sqlite3",
+    "chromadb_dir": ".chromadb",
+    "metrics_db": ".metrics.jsonl",
+    "_comment": "Relative paths resolve from vault root. Absolute paths are used as-is (e.g. /tmp/fast-disk/search.db)."
+  },
+  "performance": {
+    "sqlite": {
+      "journal_mode": "wal",
+      "synchronous": "normal",
+      "cache_size": -8192,
+      "mmap_size": 67108864,
+      "busy_timeout": 5000,
+      "_comment_journal": "wal = best concurrent reads; delete = legacy default",
+      "_comment_sync": "normal = safe with WAL, 2-3x faster writes; full = max durability",
+      "_comment_cache": "Negative = KB; -8192 = 8 MB page cache; -32768 = 32 MB",
+      "_comment_mmap": "Bytes; 67108864 = 64 MB memory-mapped I/O; 0 = disabled",
+      "_comment_busy": "Milliseconds to wait on lock contention before SQLITE_BUSY"
+    },
+    "chromadb": {
+      "collection_name": "wiki_pages",
+      "distance_fn": "cosine",
+      "batch_size": 100,
+      "embedding_model": "default",
+      "_comment_distance": "Options: cosine | l2 | ip (inner product)"
+    }
+  },
+  "metrics": {
+    "enabled": false,
+    "max_file_size_mb": 50,
+    "_comment": "Opt-in operational metrics. Records to storage.metrics_db (default .metrics.jsonl). Enable to track search latency, KG operations, MCP tool calls."
   }
 }

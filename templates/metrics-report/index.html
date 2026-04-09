@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLM Wiki — Metrics Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #070b14;
+      --surface: #0f1629;
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e8edf7;
+      --text-soft: #cbd5e1;
+      --muted: #8b9cb3;
+      --accent: #38bdf8;
+      --accent2: #a78bfa;
+      --radius-sm: 10px;
+      --font-ui: "DM Sans", system-ui, sans-serif;
+      --font-body: "Source Serif 4", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+    .app-header {
+      height: 52px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 22, 41, 0.85);
+      backdrop-filter: blur(8px);
+    }
+    .header-left { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-mark { width: 28px; height: 28px; flex-shrink: 0; }
+    .brand { font-weight: 600; font-size: 1.05rem; letter-spacing: -0.02em; }
+    .header-meta { font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, monospace; }
+    .persona-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .app-body { flex: 1; padding: 1.25rem; max-width: 1280px; margin: 0 auto; width: 100%; }
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.1rem;
+      transition: border-color 0.15s ease;
+    }
+    .metric-card:hover { border-color: rgba(56, 189, 248, 0.35); }
+    .metric-card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .metric-card .value {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-card .sub { font-size: 0.8rem; color: var(--text-soft); margin-top: 0.25rem; font-family: var(--font-body); }
+    .chart-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .chart-section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-soft);
+    }
+    .chart-wrap { position: relative; height: 280px; }
+    .chart-wrap.tall { height: 320px; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: var(--font-body);
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="header-left">
+        <svg class="logo-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M229 129C260 129 291 139 317 160C339 177 355 200 364 226" stroke="#67C4FF" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path d="M177 259C208 226 252 209 299 212C324 214 347 220 367 232" stroke="#67C4FF" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path d="M248 361C248 315 278 272 321 255C339 248 359 245 378 247" stroke="#67C4FF" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <circle cx="241" cy="110" r="60" fill="#69BFFF"/>
+          <circle cx="134" cy="257" r="60" fill="#69BFFF"/>
+          <circle cx="236" cy="394" r="60" fill="#69BFFF"/>
+          <circle cx="394" cy="256" r="92" fill="#9B82FF"/>
+        </svg>
+        <span class="brand">Metrics Dashboard</span>
+      </div>
+      <span class="header-meta" id="gen-meta"></span>
+      <span class="persona-badge" id="persona-name">Gennie</span>
+    </header>
+    <div class="app-body">
+      <div class="summary-row" id="summary-cards"></div>
+      <div id="charts-root"></div>
+      <div class="empty-state hidden" id="empty-state">No metric records in this range.</div>
+    </div>
+  </div>
+  <script>
+    const METRICS_DATA = __METRICS_DATA_JSON__;
+  </script>
+  <script>
+(function () {
+  function addCard(parent, title, value, sub) {
+    var el = document.createElement("div");
+    el.className = "metric-card";
+    var h = document.createElement("h3");
+    h.textContent = title;
+    var v = document.createElement("div");
+    v.className = "value";
+    v.textContent = value;
+    var s = document.createElement("div");
+    s.className = "sub";
+    s.textContent = sub;
+    el.appendChild(h);
+    el.appendChild(v);
+    el.appendChild(s);
+    parent.appendChild(el);
+  }
+
+  var root = document.getElementById("charts-root");
+  var emptyEl = document.getElementById("empty-state");
+  var meta = METRICS_DATA.meta || {};
+  var persona = meta.persona_name || "Gennie";
+  document.getElementById("persona-name").textContent = persona;
+  document.getElementById("gen-meta").textContent =
+    "Generated " + (meta.generated_at || "").slice(0, 19).replace("T", " ") + " UTC";
+
+  var n = meta.record_count || 0;
+  if (n === 0) {
+    emptyEl.classList.remove("hidden");
+    return;
+  }
+
+  function fmtBytes(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+    return (b / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  var cards = document.getElementById("summary-cards");
+  var first = (meta.first_ts || "").slice(0, 10);
+  var last = (meta.last_ts || "").slice(0, 10);
+  addCard(cards, "Total records", String(n), "in selected range");
+  addCard(cards, "Unique keys", String(meta.key_count || 0), "metric names");
+  addCard(cards, "Date range", first && last ? first + " → " + last : "—", "first / last ts");
+  addCard(cards, "File size", fmtBytes(meta.size_bytes || 0), "JSONL on disk");
+
+  Chart.defaults.color = "#cbd5e1";
+  Chart.defaults.borderColor = "rgba(148, 163, 184, 0.2)";
+  Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+
+  var commonOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { boxWidth: 10, padding: 12 } },
+    },
+    scales: {
+      x: { grid: { color: "rgba(148, 163, 184, 0.12)" }, ticks: { maxRotation: 45, minRotation: 0 } },
+      y: { grid: { color: "rgba(148, 163, 184, 0.12)" }, beginAtZero: true },
+    },
+  };
+
+  var tl = METRICS_DATA.timeline || {};
+  var labels = tl.labels || [];
+  var series = tl.series || [];
+
+  if (labels.length && series.length) {
+    var sec = document.createElement("section");
+    sec.className = "chart-section";
+    var h2 = document.createElement("h2");
+    h2.textContent = "Values over time";
+    var wrap = document.createElement("div");
+    wrap.className = "chart-wrap tall";
+    var cv = document.createElement("canvas");
+    cv.id = "chart-timeline";
+    wrap.appendChild(cv);
+    sec.appendChild(h2);
+    sec.appendChild(wrap);
+    root.appendChild(sec);
+    var ctx = cv.getContext("2d");
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: series.map(function (s) {
+          return {
+            label: s.label,
+            data: s.data,
+            borderColor: s.borderColor,
+            backgroundColor: s.backgroundColor || s.borderColor + "33",
+            fill: true,
+            tension: 0.25,
+            spanGaps: false,
+          };
+        }),
+      },
+      options: { plugins: commonOpts.plugins, scales: commonOpts.scales, responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false } },
+    });
+  }
+
+  var dist = METRICS_DATA.distribution || {};
+  var dLabels = dist.labels || [];
+  var dCounts = dist.counts || [];
+  if (dLabels.length) {
+    var sec2 = document.createElement("section");
+    sec2.className = "chart-section";
+    var h2b = document.createElement("h2");
+    h2b.textContent = "Records per key";
+    var wrap2 = document.createElement("div");
+    wrap2.className = "chart-wrap";
+    var cv2 = document.createElement("canvas");
+    cv2.id = "chart-dist";
+    wrap2.appendChild(cv2);
+    sec2.appendChild(h2b);
+    sec2.appendChild(wrap2);
+    root.appendChild(sec2);
+    var ctx2 = cv2.getContext("2d");
+    new Chart(ctx2, {
+      type: "bar",
+      data: {
+        labels: dLabels,
+        datasets: [
+          {
+            label: "count",
+            data: dCounts,
+            backgroundColor: ["#38bdf8aa", "#a78bfaaa", "#67C4FFaa", "#9B82FFaa", "#69BFFFaa", "#c084fcaa"],
+            borderColor: ["#38bdf8", "#a78bfa", "#67C4FF", "#9B82FF", "#69BFFF", "#c084fc"],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: "rgba(148, 163, 184, 0.12)" }, beginAtZero: true },
+          y: { grid: { display: false } },
+        },
+      },
+    });
+  }
+
+  var lat = METRICS_DATA.latency_bars || {};
+  var latLabels = lat.labels || [];
+  if (latLabels.length) {
+    var sec3 = document.createElement("section");
+    sec3.className = "chart-section";
+    var h2c = document.createElement("h2");
+    h2c.textContent = "Latency percentiles (ms)";
+    var wrap3 = document.createElement("div");
+    wrap3.className = "chart-wrap tall";
+    var cv3 = document.createElement("canvas");
+    cv3.id = "chart-lat";
+    wrap3.appendChild(cv3);
+    sec3.appendChild(h2c);
+    sec3.appendChild(wrap3);
+    root.appendChild(sec3);
+    var ctx3 = cv3.getContext("2d");
+    new Chart(ctx3, {
+      type: "bar",
+      data: {
+        labels: latLabels,
+        datasets: [
+          { label: "p50", data: lat.p50 || [], backgroundColor: "#38bdf8cc", borderColor: "#38bdf8", borderWidth: 1 },
+          { label: "p90", data: lat.p90 || [], backgroundColor: "#a78bfacc", borderColor: "#a78bfa", borderWidth: 1 },
+          { label: "p99", data: lat.p99 || [], backgroundColor: "#67C4FFcc", borderColor: "#67C4FF", borderWidth: 1 },
+        ],
+      },
+      options: {
+        plugins: commonOpts.plugins,
+        scales: commonOpts.scales,
+        responsive: true,
+        maintainAspectRatio: false,
+      },
+    });
+  }
+})();
+  </script>
+</body>
+</html>

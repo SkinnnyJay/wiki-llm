@@ -16,6 +16,10 @@ You maintain **wiki/** (LLM-owned markdown). **raw/** holds ingested sources; **
 
 If **`.agent-memory.md`** exists at the vault root, use **wiki-learn** to append **patterns / preferences / pitfalls / next steps**. This is **not** canonical wiki content — it is assistant-facing notes (edit freely).
 
+## Session memory (optional)
+
+If **`memory.enabled`** in **`config.json`**, per-chat notes live under **`raw/memory/<session-id>.md`** (**wiki-session-memory**). Prefer **`llm-wiki memory save --current …`** (CLI over MCP when local). **`raw validate`** skips **`raw/memory/`**; tagging and search still index those files.
+
 ## Retrospective (optional)
 
 **wiki-retro** writes **`outputs/retro-YYYY-MM-DD.md`** summarizing activity, source mix, and wiki health from logs and git.

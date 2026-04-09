@@ -9,7 +9,13 @@
   "homepage": "https://github.com/SkinnnyJay/wiki-llm#readme",
   "repository": "https://github.com/SkinnnyJay/wiki-llm",
   "license": "MIT",
-  "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian", "vault", "research"],
+  "keywords": ["wiki", "knowledge-base", "ingest", "markdown", "obsidian", "vault", "research", "mcp"],
+  "mcpServers": {
+    "llm-wiki": {
+      "command": "python3",
+      "args": ["scripts/mcp_server.py"]
+    }
+  },
   "userConfig": {
     "firecrawl_api_key": {
       "description": "Firecrawl API key for web extraction (optional)",

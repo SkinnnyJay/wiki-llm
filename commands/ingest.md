@@ -6,6 +6,8 @@ description: Materialize sources into llm-wiki/raw/ then merge into the wiki per
 
 Follow **wiki-ingest** (and **wiki-maintainer** as needed): use **`llm-wiki ingest`** to land files in **`raw/`**, then merge into **`wiki/`** with index + log updates. For messy HTML/PDF/OCR, use **wiki-raw-prepare** / **`llm-wiki raw finish`** first.
 
+If **`knowledge_graph.auto_update_on_ingest`** is enabled, run `llm-wiki kg rebuild` after merging — see **`skills/references/mcp-and-kg.md`**.
+
 ## Quick usage
 
 ```bash

@@ -14,7 +14,14 @@
     "markdown",
     "obsidian",
     "llm",
-    "vault"
+    "vault",
+    "mcp"
   ],
+  "mcpServers": {
+    "llm-wiki": {
+      "command": "python3",
+      "args": ["scripts/mcp_server.py"]
+    }
+  },
   "logo": "docs/assets/logo-square.png"
 }

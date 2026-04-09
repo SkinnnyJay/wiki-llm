@@ -87,6 +87,23 @@ def wiki_data_meta(vault: Path, cfg: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def site_is_stale(vault: Path) -> bool:
+    """Return True if any wiki/*.md is newer than wiki/.og/wiki-data.json."""
+    data_json = vault / "wiki" / ".og" / "wiki-data.json"
+    if not data_json.exists():
+        return True
+    ref_mtime = data_json.stat().st_mtime
+    wiki = vault / "wiki"
+    if not wiki.is_dir():
+        return False
+    for md in wiki.rglob("*.md"):
+        if ".og" in md.parts:
+            continue
+        if md.stat().st_mtime > ref_mtime:
+            return True
+    return False
+
+
 def build_site(vault: Path, cfg: dict[str, Any]) -> Path:
     viewer = cfg.get("viewer") or {}
     if viewer.get("enabled") is False:

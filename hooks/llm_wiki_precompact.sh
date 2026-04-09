@@ -38,6 +38,7 @@ if [ ! -x "$LLM_WIKI_BIN" ]; then
 fi
 
 "$LLM_WIKI_BIN" --vault "$VAULT" wake-up --update-claude || true
+"$LLM_WIKI_BIN" --vault "$VAULT" build-site --if-stale || true
 "$LLM_WIKI_BIN" --vault "$VAULT" git snapshot --phase wiki -m "pre-compact checkpoint" || true
 
 exit 0

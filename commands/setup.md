@@ -4,7 +4,7 @@ description: Initialize or reconfigure a llm-wiki vault. Runs the interactive wi
 
 # Setup / reconfigure vault
 
-Follow the **wiki-setup** skill for a fully guided wizard. The wizard checks **`_meta.setup_completed`**, walks integrations and persona, shows a **full `config.json` preview** before writing, then scaffolds the vault.
+Follow the **wiki-setup** skill for a fully guided wizard. The wizard checks **`_meta.setup_completed`**, walks integrations and persona, **MCP server / search backend**, **knowledge graph**, shows a **full `config.json` preview** before writing, then scaffolds the vault.
 
 ## Quick usage
 
@@ -13,6 +13,8 @@ llm-wiki setup --root .
 llm-wiki configure -i
 llm-wiki integrations validate
 ```
+
+After setup, register the MCP server with your editor: `llm-wiki mcp install`. Seed the knowledge graph from existing wiki pages: `llm-wiki kg rebuild`.
 
 Non-interactive: see **wiki-setup** skill.
 

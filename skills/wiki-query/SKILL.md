@@ -1,7 +1,7 @@
 ---
 name: wiki-query
 description: Answers questions using llm-wiki/wiki pages with citations. Use when the user asks about vault content or synthesized knowledge.
-allowed-tools: Read Grep Glob
+allowed-tools: Read Grep Glob Bash
 argument-hint: "<question about vault content>"
 ---
 
@@ -13,6 +13,9 @@ Answer questions **from curated wiki pages** with **inline citations** to `wiki/
 
 1. Confirm `llm-wiki/config.json` exists (vault root). If missing, offer **wiki-setup**.
 2. Read **`wiki/index.md`** to orient; open the most relevant `wiki/**/*.md` files for the question.
+3. Check `config.json` for `mcp.search_backend` and `knowledge_graph.enabled` to decide which tools to use.
+
+> Search backend API, KG CLI, and Python examples: **`skills/references/mcp-and-kg.md`**
 
 ## Steps
 
@@ -20,11 +23,18 @@ Answer questions **from curated wiki pages** with **inline citations** to `wiki/
 
 - If the question is vague, narrow it or list candidate pages from `wiki/index.md`.
 - If the answer is not in the wiki, say so and offer **wiki-research** or **wiki-fetch** instead of inventing sources.
+- If **`memory.enabled`** is true, optionally run **`llm-wiki memory recall "<terms>"`** for past session notes under **`raw/memory/`** before giving up.
+- **Search shortcut:** When the vault is large or the question targets specific terms, use the CLI search for BM25-ranked results (see reference § "Search"). Prefer CLI locally; fall back to MCP `wiki_search` only when shell access is unavailable.
+
+### Step 1b — Query the knowledge graph (when enabled)
+
+If **`knowledge_graph.enabled`** is true, run `llm-wiki kg query "<entity>"` for structured relationships — see reference § "CLI quick reference".
 
 ### Step 2 — Answer with citations
 
 - Cite paths inline, e.g. `` `wiki/topics/foo.md` `` or `` [[Topic]] `` when listing sources.
 - Prefer quoting short spans; for long passages, point to the file and section.
+- When the knowledge graph provides structured facts, cite both the KG triple and the source wiki page.
 
 ### Step 3 — Optional persistence
 
@@ -50,6 +60,7 @@ Downstream: **wiki-maintainer** if many pages change; **wiki-lint** for a health
 - **wiki-fetch** — quick single-URL ingest into `raw/` without full research orchestration.
 - **wiki-ingest** / **wiki-maintainer** — merge curated content after new material lands in `raw/`.
 - **wiki-lint** — audit wiki coherence after bulk edits.
+- **wiki-session-memory** — recall per-chat notes in **`raw/memory/`** when enabled.
 
 ## Smoke check
 

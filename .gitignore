@@ -10,7 +10,7 @@ scripts/.tmp/
 .claude/settings.local.json
 .venv-*/
 # Local vault (created by `llm-wiki setup`); tracked by its own git repo
-llm-wiki/
+/llm-wiki/
 # Local secrets — never commit
 .env.local
 .env
@@ -19,3 +19,8 @@ scratchpad/
 .playwright-mcp/
 .tmp/
 .cursor/
+# MCP server sidecar files (created in user vaults)
+.search.sqlite3
+.kg.json
+.chromadb/
+.metrics.jsonl

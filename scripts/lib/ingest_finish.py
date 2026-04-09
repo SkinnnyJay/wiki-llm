@@ -166,4 +166,17 @@ def post_ingest(
 
     if not suppress_sound:
         maybe_play_sound(cfg, "ingest")
+
+    # Optional knowledge graph refresh after raw ingest
+    kg_cfg = cfg.get("knowledge_graph") or {}
+    if kg_cfg.get("enabled", True) and kg_cfg.get("auto_update_on_ingest", True):
+        try:
+            from lib.knowledge_graph import get_kg_backend
+
+            kg = get_kg_backend(vault, cfg)
+            summary = kg.rebuild(vault)
+            print(f"KG: auto-update — added {summary.get('added', 0)} triple(s)")
+        except Exception as e:
+            print(f"KG: auto-update skipped: {e}", file=sys.stderr)
+
     return 0

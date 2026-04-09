@@ -5,6 +5,11 @@ All notable changes to the llm-wiki plugin are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Session memory** — opt-in **`memory.*`** config, **`llm-wiki memory {save|log|list|show|recall|prune}`**, MCP tools (`memory_save`, `memory_list`, `memory_show`, `memory_recall`, `memory_prune`), search scope **`memory`**, hooks **`llm_wiki_memory.sh`** (Stop / PostCompact / SessionEnd), **`wiki-session-memory`** skill, **`commands/memory.md`**, **`raw/memory/`** excluded from raw prepare validation scans
+
 ## [0.2.0] — 2026-04-08
 
 ### Added

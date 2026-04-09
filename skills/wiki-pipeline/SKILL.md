@@ -17,7 +17,7 @@ See **`skills/references/pipeline-artifacts.md`** for what each stage writes and
 ## Pre-flight
 
 1. Run **wiki-status** (or the pre-flight snippet in **wiki-research**). If **`_meta.setup_completed`** is false, stop and offer **wiki-setup**.
-2. Optionally read **`llm-wiki/.agent-memory.md`** if **wiki-learn** is in use.
+2. Optionally read **`llm-wiki/.agent-memory.md`** if **wiki-learn** is in use; if **`memory.enabled`**, optionally **`llm-wiki memory recall`** for relevant past sessions (**wiki-session-memory**).
 
 ## Entry point (`$ARGUMENTS`)
 
@@ -40,6 +40,7 @@ Stages are **skipped** when not applicable (e.g. no new `raw/` files → skip pr
 | 2 | **research** | **wiki-research** (topic/URL) or **wiki-fetch** (quick URL) | **Gate:** “N file(s) in `raw/`. Review before wiki merge?” — skip auto-continue if user wants to inspect |
 | 3 | **prepare** | **wiki-raw-prepare** / `llm-wiki raw validate` / `raw finish` | Usually no gate if validation passes |
 | 4 | **ingest** | **wiki-ingest** then **wiki-maintainer** | **Gate:** “Updated wiki pages: …. Run lint?” (or auto-continue if user asked for full unattended run) |
+| 4b | **kg update** | `llm-wiki kg rebuild` (if `knowledge_graph.auto_update_on_ingest`) | No gate — runs automatically after ingest |
 | 5 | **lint** | **wiki-lint** | **Gate** if issues found: list orphans/contradictions; offer fixes via **wiki-maintainer** before build |
 | 6 | **build** | `llm-wiki build-site` | No gate on success |
 | 7 | **validate** | `llm-wiki validate` and `llm-wiki validate --wikilinks` if wiki has links | **Done** |
@@ -58,11 +59,13 @@ If the user supplied a topic, URL, or batch intent, run **wiki-research** or **w
 
 ### Step 3 — Prepare raw (if needed)
 
-For messy HTML/PDF/OCR: **wiki-raw-prepare** + `llm-wiki raw finish` as in **wiki-raw-prepare**. If **`raw validate`** already passes with no LLM cleanup needed, skip.
+For messy HTML/PDF/OCR: **wiki-raw-prepare** + `llm-wiki raw finish` as in **wiki-raw-prepare**. If **`raw validate`** already passes with no LLM cleanup needed, skip. **`raw/`** validation skips **`raw/memory/`** (machine-generated session files).
 
 ### Step 4 — Wiki ingest
 
 Run **wiki-ingest** then **wiki-maintainer**. Append **`wiki/log.md`** with a **`pipeline | …`** entry. **Gate** unless unattended.
+
+If **`knowledge_graph.auto_update_on_ingest`** is true, run `llm-wiki kg rebuild` after wiki merges; the CLI also runs **`kg rebuild`** after **`post_ingest`** on new `raw/` files — see **`skills/references/mcp-and-kg.md`** § "KG auto-update after ingest".
 
 ### Step 5 — Lint
 

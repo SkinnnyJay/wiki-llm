@@ -19,6 +19,7 @@ Summarize **research velocity**, **source mix**, **topic coverage**, **wiki heal
 
 - Read **`wiki/log.md`**: count dated sections in the last 7 days (or window in `$ARGUMENTS`).
 - Note lines matching **`research`**, **`ingest`**, **`pipeline`**, **`deep-research`**, etc.
+- If **`memory.enabled`** and **`raw/memory/`** exists, count session files and note recent **`updated`** timestamps in frontmatter (**wiki-session-memory**).
 
 ### Step 2 — Source mix
 
@@ -64,14 +65,15 @@ Save to **`outputs/retro-YYYY-MM-DD.md`** (create **`outputs/`** if missing):
 
 | Reads | Writes |
 |-------|--------|
-| `wiki/log.md`, `wiki/index.md`, `raw/**`, `raw/.preparation-log.jsonl`, optional `llm-wiki git log` | `outputs/retro-YYYY-MM-DD.md`, optional `llm-wiki/.agent-memory.md` **Next Steps** |
+| `wiki/log.md`, `wiki/index.md`, `raw/**`, `raw/memory/**`, `raw/.preparation-log.jsonl`, optional `llm-wiki git log` | `outputs/retro-YYYY-MM-DD.md`, optional `llm-wiki/.agent-memory.md` **Next Steps** |
 
 ## Related skills
 
 - **wiki-lint** — health signals  
 - **wiki-learn** — persist recommendations  
 - **wiki-status** — tooling/config snapshot  
-- **wiki-pipeline** — standard flow for fixes  
+- **wiki-pipeline** — standard flow for fixes
+- **wiki-session-memory** — per-session **`raw/memory/`** files
 
 ## Smoke check
 

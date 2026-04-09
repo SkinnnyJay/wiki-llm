@@ -209,13 +209,71 @@ PYEOF
 
 ---
 
-## Step 8 — Check MCP servers
+## Step 8 — Check MCP server and search/KG backends
+
+> Config keys, backend options, and CLI reference: **`skills/references/mcp-and-kg.md`**
+
+```bash
+python3 << 'PYEOF'
+import json, pathlib
+
+cfg_path = pathlib.Path('llm-wiki/config.json')
+cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
+
+print("\n=== MCP SERVER ===")
+mcp = cfg.get('mcp', {})
+enabled = mcp.get('enabled', True)
+sb = mcp.get('search_backend', 'fts5')
+print(f"  {'✓' if enabled else '✗'}  MCP server         enabled={enabled}")
+print(f"  ·  search backend     : {sb}")
+if sb == 'chromadb':
+    try:
+        import chromadb
+        print(f"     chromadb           : ✓ installed ({chromadb.__version__})")
+    except ImportError:
+        print(f"     chromadb           : ✗ not installed (pip install chromadb)")
+        print(f"     → falling back to grep search (configure fts5 for BM25 without chromadb)")
+
+kg = cfg.get('knowledge_graph', {})
+kg_enabled = kg.get('enabled', True)
+kg_backend = kg.get('backend', 'json')
+print(f"\n  {'✓' if kg_enabled else '✗'}  Knowledge graph    enabled={kg_enabled}  backend={kg_backend}")
+if kg_enabled:
+    kg_path = pathlib.Path('llm-wiki/.kg.json') if kg_backend == 'json' else pathlib.Path('llm-wiki/.kg.sqlite3')
+    if kg_path.exists():
+        if kg_backend == 'json':
+            data = json.loads(kg_path.read_text())
+            tc = len(data.get('triples', []))
+            ec = len(data.get('entities', {}))
+            print(f"     entities: {ec}  triples: {tc}")
+        else:
+            print(f"     sqlite db exists: ✓")
+    else:
+        print(f"     ⚠ No KG data yet — run: llm-wiki kg rebuild")
+
+# FTS5 index status
+fts_path = pathlib.Path('llm-wiki/.search.sqlite3')
+if sb == 'fts5':
+    if fts_path.exists():
+        import sqlite3
+        conn = sqlite3.connect(str(fts_path))
+        try:
+            count = conn.execute('SELECT count(*) FROM pages').fetchone()[0]
+            print(f"\n  ✓  FTS5 index         {count} pages indexed")
+        except Exception:
+            print(f"\n  ⚠  FTS5 index         exists but empty — run: llm-wiki mcp then wiki_reindex")
+        conn.close()
+    else:
+        print(f"\n  ○  FTS5 index         not built yet (auto-builds on first search)")
+PYEOF
+```
+
+### External MCP configs (optional)
 
 ```bash
 python3 << 'PYEOF'
 import pathlib, json
 
-# Check Cursor MCP config (macOS path)
 mcp_paths = [
     pathlib.Path.home() / '.cursor' / 'mcp.json',
     pathlib.Path.home() / '.claude' / 'claude_desktop_config.json',
@@ -223,13 +281,13 @@ mcp_paths = [
 ]
 
 relevant_mcps = {
+    'llm-wiki': 'Wiki vault MCP server (this plugin)',
     'context7': 'Documentation lookup',
     'playwright': 'Browser automation',
     'redis':    'Caching/state',
     'github':   'GitHub integration',
     'fetch':    'Raw HTTP fetching',
     'memory':   'Persistent agent memory',
-    'prisma':   'Database access',
 }
 
 found_any = False
@@ -240,19 +298,49 @@ for mcp_path in mcp_paths:
     try:
         data = json.loads(mcp_path.read_text())
         servers = data.get('mcpServers', {})
-        print(f"\n=== MCP SERVERS ({mcp_path}) ===")
+        print(f"\n=== EXTERNAL MCP CONFIGS ({mcp_path}) ===")
         for name, _ in servers.items():
             desc = relevant_mcps.get(name, 'installed')
             print(f"  ✓  {name:<25} {desc}")
-        # Check for any relevant ones that are missing
-        for name, desc in relevant_mcps.items():
-            if name not in servers:
-                print(f"  ○  {name:<25} {desc}  (not installed)")
+        if 'llm-wiki' not in servers:
+            print(f"  ⚠  llm-wiki               not registered — run: llm-wiki mcp install")
     except Exception as e:
         print(f"  ⚠  Could not parse {mcp_path}: {e}")
 
 if not found_any:
-    print("\n=== MCP SERVERS ===\n  ○  No MCP config found (optional)")
+    print("\n=== EXTERNAL MCP CONFIGS ===\n  ○  No MCP config found — run: llm-wiki mcp install")
+PYEOF
+```
+
+---
+
+## Step 8b — Session memory
+
+```bash
+python3 << 'PYEOF'
+import json, pathlib
+
+cfg_path = pathlib.Path('llm-wiki/config.json')
+if not cfg_path.exists():
+    print("\n=== SESSION MEMORY ===\n  ○  No config")
+else:
+    cfg = json.loads(cfg_path.read_text())
+    mem = cfg.get('memory', {})
+    en = mem.get('enabled', False)
+    d = (mem.get('dir') or 'raw/memory').replace('\\\\', '/').strip('/')
+    mx = mem.get('max_sessions', 50)
+    vault = pathlib.Path('llm-wiki')
+    memdir = vault / d if not pathlib.Path(d).is_absolute() else pathlib.Path(d)
+    n = sz = 0
+    if memdir.is_dir():
+        for p in memdir.glob('*.md'):
+            n += 1
+            sz += p.stat().st_size
+    print("\n=== SESSION MEMORY ===")
+    print(f"  {'✓' if en else '○'}  memory.enabled     {en}")
+    print(f"  ·  memory.dir         : {d}")
+    print(f"  ·  max_sessions       : {mx}")
+    print(f"  ·  files in dir       : {n}  (~{sz // 1024} KiB)")
 PYEOF
 ```
 
@@ -287,7 +375,10 @@ PYEOF
 ## Done looks like
 
 - All steps 1–9 completed (or skipped with reason); summary box printed.
-- User sees setup state, integrations, CLI/Python tooling, API keys (masked), vault paths, config flags, and optional MCP inventory.
+- User sees setup state, integrations, CLI/Python tooling, API keys (masked), vault paths, config flags, MCP server + search backend + KG status, and external MCP inventory.
+- If MCP server is enabled but not registered in editor config, suggest `llm-wiki mcp install`.
+- If knowledge graph has no data yet, suggest `llm-wiki kg rebuild`.
+- If search backend is `chromadb` but the package is missing, note the fallback to **grep** (suggest `fts5` or `pip install chromadb`).
 - If setup is incomplete or tools are missing, user is pointed to **wiki-setup** or **`llm-wiki integrations wizard`**.
 
 ## Quick invocation

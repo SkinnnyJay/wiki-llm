@@ -17,7 +17,7 @@ argument-hint: "<topic, URL, or question>"
 
 ## Pre-flight check
 
-Before classifying the request, verify the vault is ready. If **`llm-wiki/.agent-memory.md`** exists, skim **Pitfalls** and **Preferences** (**wiki-learn**) before heavy research.
+Before classifying the request, verify the vault is ready. If **`llm-wiki/.agent-memory.md`** exists, skim **Pitfalls** and **Preferences** (**wiki-learn**) before heavy research. If **`memory.enabled`**, optionally **`llm-wiki memory recall "<topic>"`** to see whether past sessions covered this topic (**wiki-session-memory**).
 
 ```bash
 python3 -c "
@@ -135,6 +135,7 @@ Regardless of which sub-skill ran:
 - **wiki-ingest** — merge `raw/` into `wiki/`
 - **wiki-maintainer** — index, cross-links, consistency
 - **wiki-raw-prepare** — clean structurally broken markdown in `raw/`
+- **wiki-session-memory** — recall past sessions on the topic (`raw/memory/`)
 - **wiki-fetch** — single-URL fetch without wiki merge (lightweight)
 
 Optional: `skills/references/context-persona.md` and `persona.name` in `llm-wiki/config.json` (default **Gennie**).

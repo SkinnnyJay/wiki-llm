@@ -212,7 +212,65 @@ export FIRECRAWL_API_KEY="fc-..."
 
 ---
 
-## Section 8 — Viewer
+## Section 8 — MCP server and search backend
+
+> Backend options, config keys, and CLI reference: **`skills/references/mcp-and-kg.md`** § "Search backends" and § "Setup wizard sections".
+
+**Ask:**
+> The vault includes an **MCP server** that lets AI agents search, query, and update your wiki programmatically. How should it be configured?
+
+**Options:**
+- `[1]` **Defaults** — MCP enabled, FTS5 search (zero-dependency BM25 ranking) *(recommended)*
+- `[2]` **Step-by-step** — choose search backend and advanced features individually
+- `[3]` **Disabled** — skip MCP server entirely (agents can still use CLI commands)
+- `[?]` **Tell me more** — show the search backend comparison table from **`skills/references/mcp-and-kg.md`**
+
+**If "step-by-step":**
+> Which search backend?
+> - `[1]` **FTS5** — BM25 ranked, zero deps *(recommended)*
+> - `[2]` **Grep** — no index, regex only
+> - `[3]` **ChromaDB** — semantic embeddings *(requires install)*
+
+**Store answers as:**
+- `mcp.enabled`
+- `mcp.search_backend` (`fts5` | `grep` | `chromadb`)
+
+---
+
+## Section 8b — Knowledge graph
+
+> Backend options: **`skills/references/mcp-and-kg.md`** § "Knowledge graph backends".
+
+**Ask:**
+> The vault can maintain an **entity knowledge graph** — a structured store of entities and relationships extracted from your wiki pages. Enable it?
+
+**Options:**
+- `[1]` **Yes — JSON file** (zero-dependency, `.kg.json`) *(recommended)*
+- `[2]` **Yes — SQLite** (temporal validity, indexed queries)
+- `[3]` **No** — skip knowledge graph
+- `[?]` **Tell me more** — show the KG backend comparison table from **`skills/references/mcp-and-kg.md`**
+
+**Store answers as:**
+- `knowledge_graph.enabled`
+- `knowledge_graph.backend` (`json` | `sqlite`)
+- `knowledge_graph.auto_update_on_ingest` (true by default)
+
+---
+
+## Section 8c — Session memory
+
+**Ask:**
+> Save **per-chat session memory** under **`raw/memory/`** (Claude Code hooks + `llm-wiki memory …`)? Files are clean markdown — **raw prepare** skips this folder; tagging, search index, and KG still apply.
+
+**Options:**
+- `[1]` **Yes** — set `memory.enabled` to true (optional: cap with `memory.max_sessions`, default 50)
+- `[2]` **No** — leave `memory.enabled` false
+
+**Store as:** `memory.enabled`, `memory.max_sessions`, `memory.dir` (default `raw/memory`)
+
+---
+
+## Section 9 — Viewer
 
 **Ask:**
 > Do you want to generate a static site viewer for your wiki?
@@ -226,7 +284,7 @@ export FIRECRAWL_API_KEY="fc-..."
 
 ---
 
-## Section 9 — Preview (before committing anything)
+## Section 10 — Preview (before committing anything)
 
 Show the complete `config.json` that will be written:
 
@@ -250,7 +308,7 @@ Then ask:
 
 ---
 
-## Section 10 — Commit
+## Section 11 — Commit
 
 Only runs if user confirmed `[1]` in the preview:
 
@@ -287,6 +345,15 @@ cfg['research_loop'] = {
     'delay_seconds_between_fetches': 1.0,
 }
 cfg['pdf'] = {'default_adapter': '<pdf_adapter>', 'max_cost_usd': 1.00}
+cfg['mcp'] = {
+    'enabled': <mcp_enabled>,
+    'search_backend': '<search_backend>',
+}
+cfg['knowledge_graph'] = {
+    'enabled': <kg_enabled>,
+    'backend': '<kg_backend>',
+    'auto_update_on_ingest': True,
+}
 cfg['viewer'] = {
     'enabled': <viewer_enabled>,
     'og_base_url': '<og_base_url>',
@@ -328,6 +395,8 @@ After setup completes, tell the user:
 3. **Run status check:** `wiki-status` to confirm everything is green
 4. **Research loop:** If enabled, edit `<vault_root>/research-tasks.json` to configure sources
 5. **Missing keys:** Any skipped integrations can be added later with `llm-wiki integrations wizard`
+6. **MCP server:** If enabled, register with your editor via `llm-wiki mcp install` (stdio). For HTTP clients, use `llm-wiki mcp --transport sse` (see **`skills/references/mcp-and-kg.md`**).
+7. **Knowledge graph:** If enabled, seed it from existing wiki pages with `llm-wiki kg rebuild`
 
 ---
 

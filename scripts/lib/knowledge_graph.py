@@ -1,0 +1,243 @@
+"""Pluggable knowledge graph: JSON file (default) with Protocol for future SQLite."""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import time
+from datetime import datetime
+from dataclasses import dataclass, asdict, field
+from pathlib import Path
+from typing import Any, Protocol
+
+from lib.config_loader import resolve_storage_path
+
+
+# ---------------------------------------------------------------------------
+# Protocol
+# ---------------------------------------------------------------------------
+
+class KGBackend(Protocol):
+    def add_triple(
+        self, subject: str, predicate: str, object_: str,
+        *, valid_from: str | None = None, source: str | None = None,
+    ) -> str: ...
+
+    def query_entity(self, entity: str, *, as_of: str | None = None) -> list[dict[str, Any]]: ...
+
+    def invalidate(
+        self, subject: str, predicate: str, object_: str,
+        *, ended: str | None = None,
+    ) -> bool: ...
+
+    def timeline(self, entity: str | None = None) -> list[dict[str, Any]]: ...
+
+    def stats(self) -> dict[str, Any]: ...
+
+    def rebuild(self, vault: Path) -> dict[str, Any]: ...
+
+
+# ---------------------------------------------------------------------------
+# JSON file KG (default — zero deps)
+# ---------------------------------------------------------------------------
+
+_KG_FILENAME = ".kg.json"
+
+
+def _kg_path(vault: Path, cfg: dict[str, Any] | None = None) -> Path:
+    if cfg:
+        return resolve_storage_path(vault, cfg, "kg_db")
+    return vault / _KG_FILENAME
+
+
+def _load_kg(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"entities": {}, "triples": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if "entities" not in data:
+            data["entities"] = {}
+        if "triples" not in data:
+            data["triples"] = []
+        return data
+    except Exception:
+        return {"entities": {}, "triples": []}
+
+
+def _save_kg(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=False, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _triple_id(s: str, p: str, o: str) -> str:
+    raw = f"{s}|{p}|{o}"
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
+def _today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+class JSONFileKG:
+    def __init__(self, vault: Path, cfg: dict[str, Any] | None = None):
+        self._vault = vault
+        self._cfg = cfg or {}
+        self._path = _kg_path(vault, self._cfg)
+        self._metrics: Any = None
+
+    def add_triple(
+        self, subject: str, predicate: str, object_: str,
+        *, valid_from: str | None = None, source: str | None = None,
+    ) -> str:
+        data = _load_kg(self._path)
+        tid = _triple_id(subject, predicate, object_)
+
+        for t in data["triples"]:
+            if t.get("id") == tid and not t.get("valid_until"):
+                return tid
+
+        triple: dict[str, Any] = {
+            "id": tid,
+            "s": subject,
+            "p": predicate,
+            "o": object_,
+            "valid_from": valid_from or _today(),
+        }
+        if source:
+            triple["source"] = source
+
+        data["triples"].append(triple)
+
+        for entity in (subject, object_):
+            if entity not in data["entities"]:
+                data["entities"][entity] = {"first_seen": valid_from or _today()}
+
+        _save_kg(self._path, data)
+        if self._metrics:
+            self._metrics.record("kg.add_triple", 1, meta={"subject": subject, "predicate": predicate})
+        return tid
+
+    def query_entity(self, entity: str, *, as_of: str | None = None) -> list[dict[str, Any]]:
+        t0 = time.monotonic()
+        data = _load_kg(self._path)
+        results: list[dict[str, Any]] = []
+        for t in data["triples"]:
+            if t["s"] != entity and t["o"] != entity:
+                continue
+            if as_of:
+                vf = t.get("valid_from", "")
+                vu = t.get("valid_until")
+                if vf and vf > as_of:
+                    continue
+                if vu and vu <= as_of:
+                    continue
+            elif t.get("valid_until"):
+                continue
+            results.append(t)
+        if self._metrics:
+            elapsed_ms = round((time.monotonic() - t0) * 1000, 1)
+            self._metrics.record("kg.query_ms", elapsed_ms, meta={"entity": entity, "results": len(results)})
+        return results
+
+    def invalidate(
+        self, subject: str, predicate: str, object_: str,
+        *, ended: str | None = None,
+    ) -> bool:
+        data = _load_kg(self._path)
+        tid = _triple_id(subject, predicate, object_)
+        found = False
+        for t in data["triples"]:
+            if t.get("id") == tid and not t.get("valid_until"):
+                t["valid_until"] = ended or _today()
+                found = True
+        if found:
+            _save_kg(self._path, data)
+        return found
+
+    def timeline(self, entity: str | None = None) -> list[dict[str, Any]]:
+        data = _load_kg(self._path)
+        triples = data["triples"]
+        if entity:
+            triples = [t for t in triples if t["s"] == entity or t["o"] == entity]
+        return sorted(triples, key=lambda t: t.get("valid_from", ""))
+
+    def stats(self) -> dict[str, Any]:
+        data = _load_kg(self._path)
+        total = len(data["triples"])
+        active = sum(1 for t in data["triples"] if not t.get("valid_until"))
+        predicates: set[str] = set()
+        for t in data["triples"]:
+            predicates.add(t["p"])
+        return {
+            "backend": "json",
+            "entities": len(data["entities"]),
+            "triples_total": total,
+            "triples_active": active,
+            "triples_expired": total - active,
+            "predicates": sorted(predicates),
+            "kg_path": str(self._path),
+        }
+
+    def rebuild(self, vault: Path) -> dict[str, Any]:
+        """Rebuild KG from vault files: extract entities from wikilinks + frontmatter tags."""
+        from lib.search import _walk_vault_md, _parse_frontmatter, _tags_for_file
+
+        data = _load_kg(self._path)
+        added = 0
+
+        existing_ids = {t["id"] for t in data["triples"]}
+
+        wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
+
+        for rel, text in _walk_vault_md(vault):
+            fm, body = _parse_frontmatter(text)
+            tags = _tags_for_file(fm)
+            page_name = Path(rel).stem
+
+            for tag in tags:
+                tid = _triple_id(page_name, "tagged", tag)
+                if tid not in existing_ids:
+                    data["triples"].append({
+                        "id": tid, "s": page_name, "p": "tagged", "o": tag,
+                        "valid_from": _today(), "source": rel,
+                    })
+                    existing_ids.add(tid)
+                    added += 1
+                for entity in (page_name, tag):
+                    if entity not in data["entities"]:
+                        data["entities"][entity] = {"first_seen": _today()}
+
+            for m in wikilink_re.finditer(body):
+                target = m.group(1).strip()
+                tid = _triple_id(page_name, "links_to", target)
+                if tid not in existing_ids:
+                    data["triples"].append({
+                        "id": tid, "s": page_name, "p": "links_to", "o": target,
+                        "valid_from": _today(), "source": rel,
+                    })
+                    existing_ids.add(tid)
+                    added += 1
+                for entity in (page_name, target):
+                    if entity not in data["entities"]:
+                        data["entities"][entity] = {"first_seen": _today()}
+
+        _save_kg(self._path, data)
+        return {"added": added, "total_triples": len(data["triples"]), "entities": len(data["entities"])}
+
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+def get_kg_backend(vault: Path, cfg: dict[str, Any]) -> KGBackend:
+    backend_name = (cfg.get("knowledge_graph") or {}).get("backend", "json")
+    if backend_name == "sqlite":
+        try:
+            from lib.kg_sqlite import SQLiteKG
+            return SQLiteKG(vault, cfg)
+        except ImportError:
+            pass
+    return JSONFileKG(vault, cfg)

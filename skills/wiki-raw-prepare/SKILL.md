@@ -6,7 +6,7 @@ user-invocable: false
 
 # Wiki raw prepare
 
-Use **after** `llm-wiki ingest …` (or dropped files) when the material in **`raw/`** needs formatting or structural cleanup before wiki merge.
+Use **after** `llm-wiki ingest …` (or dropped files) when the material in **`raw/`** needs formatting or structural cleanup before wiki merge. **Do not** run prepare on **`raw/memory/`** — session memory files are machine-generated and excluded from **`raw validate`** / **`raw finish`** structural checks.
 
 Two distinct stages — do them in order:
 

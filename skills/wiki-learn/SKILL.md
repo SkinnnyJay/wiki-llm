@@ -72,7 +72,8 @@ Optional cross-session notes. Edit freely. This file is **not** evidence for cla
 
 - **wiki-research** — consumes recall at session start (optional)  
 - **wiki-retro** — feeds **Next Steps**  
-- **wiki-pipeline** — may read memory before long runs  
+- **wiki-pipeline** — may read memory before long runs
+- **wiki-session-memory** — per-chat **`raw/memory/<session-id>.md`**; promote recurring patterns from session files into **`.agent-memory.md`** when useful.
 
 ## Smoke check
 

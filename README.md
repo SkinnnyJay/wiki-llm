@@ -14,7 +14,7 @@
 
 **Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`** so the static site is not processed by Jekyll). The published home page is **`docs/index.html`** at `https://<user-or-org>.github.io/<repo>/` — see [`docs/README.md`](docs/README.md). The landing page credits **inspiration** from [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) and quotes Newton’s letter to Hooke (shoulders of giants).
 
-Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`** (ingested sources), **`wiki/`** (your markdown), optional **`outputs/`** (generated briefings and drafts—review before treating as canonical), and **`CLAUDE.md`** (vault rules). Same “folders + text files” idea as a plain **raw/ wiki/ outputs/** layout, with plugin tooling on top. Optional **vault-scoped Git**, **static graph viewer** (`wiki/.og/`), **on-demand D3 graphs** in **`.tmp/llm-wiki-graph/`** (link view + knowledge clusters), **ingest adapters**, and **ingestion security** (heuristic prompt-injection scan).
+Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`** (ingested sources), **`wiki/`** (your markdown), optional **`outputs/`** (generated briefings and drafts—review before treating as canonical), and **`CLAUDE.md`** (vault rules). Same “folders + text files” idea as a plain **raw/ wiki/ outputs/** layout, with plugin tooling on top. Optional **vault-scoped Git**, **static graph viewer** (`wiki/.og/`), **on-demand D3 graphs** in **`.tmp/llm-wiki-graph/`** (link view + knowledge clusters), **ingest adapters**, **ingestion security** (heuristic prompt-injection scan), and **opt-in session memory** (`memory.enabled`) — per-chat notes under **`raw/memory/`**, CLI + MCP + hooks.
 
 **Cursor & OpenAI Codex:** see **[`AGENTS.md`](AGENTS.md)** for how each tool loads instructions (Claude Code vs [Cursor plugins](https://cursor.com/docs/plugins) vs [Codex `AGENTS.md` discovery](https://developers.openai.com/codex/guides/agents-md/)). This repo ships **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)** (Cursor project rules; mirrored under **`.cursor/rules/`**), **[`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json)** (for [Cursor Marketplace](https://cursor.com/marketplace/publish) packaging alongside **`.claude-plugin/`**), plus **`commands/`** and **`bin/llm-wiki`**. Shared workflow text is edited once in **[`docs/AGENTS.shared.md`](docs/AGENTS.shared.md)** and synced with **`bin/llm-wiki sync-agent-docs`**. Codex project knobs: **[`.codex/config.toml`](.codex/config.toml)** (see **[`.codex/README.md`](.codex/README.md)**).
 
@@ -29,6 +29,7 @@ Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/cl
 | Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian/persona.md`](agents/wiki-librarian/persona.md), [`agents/research-runner/persona.md`](agents/research-runner/persona.md) |
 | Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
 | Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
+| MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
 | Builder principles (raw vs wiki, evidence) | [`ETHOS.md`](ETHOS.md) |
 | Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
@@ -56,6 +57,8 @@ Invoked in Claude Code after loading the plugin. Each file under [`commands/`](c
 | `/llm-wiki:git-diff` | Vault-only diff (working tree / staged). |
 | `/llm-wiki:git-snapshot` | Commit vault state with a message. |
 | `/llm-wiki:git-lifecycle` | Audit commits by **lifecycle phase** (prefix tags) — flow progression, JSON export. |
+| `/llm-wiki:memory` | Session memory — list/recall/save/prune per-chat notes in `raw/memory/` when `memory.enabled`. |
+| `/llm-wiki:mcp` | MCP server — stdio or HTTP (`--transport sse`), `mcp install`, backends and config in **`skills/references/mcp-and-kg.md`**. |
 
 ---
 
@@ -72,6 +75,8 @@ In Claude Code, skills load when relevant; in Cursor/Codex, open **`skills/*/SKI
 | **wiki-research** | Topic-led research: discover sources, **`llm-wiki ingest`**, merge with **wiki-ingest** / **wiki-maintainer**, log phases in **`wiki/log.md`**. | User gives a research question or subject (not the JSON task file). |
 | **wiki-research-loop** | Runs **batch** tasks from the research tasks file (`research_loop.tasks_file`, default `research-tasks.json`). | HN / fixed URL lists on a schedule when `research_loop.enabled`. |
 | **wiki-raw-prepare** | Deterministic **`raw validate`** + LLM cleanup for HTML/PDF/OCR markdown; **`raw record`** audit log; aligns with git **`[prepare]`** phase. | After ingest when `raw/` is not yet valid markdown, before **wiki-ingest**. |
+| **wiki-session-memory** | Opt-in per-chat notes in **`raw/memory/`**; **`llm-wiki memory …`** + hooks; complements **wiki-learn** (`.agent-memory.md`). | Long sessions, recalling past work, manual or hook-driven saves. |
+| **wiki-status** | Vault health — integrations, MCP/search/KG backends, optional session memory. | Pre-flight / “is everything configured?” |
 
 Security note for **wiki-ingest**: when `ingestion_security` flags content, follow `skills/wiki-ingest/references/prompt-injection-review.md`.
 
@@ -113,6 +118,7 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 | `graph-knowledge` | Alias for `graph --mode knowledge`. |
 | `git` | `init`, `status`, `log`, `diff`, `snapshot`, `query`, **`lifecycle`** (audit by phase; `--json`, `--phase`, `--since`). `snapshot -m "…" --phase wiki` prepends `[wiki]`. Optional **`snapshot_after_build`** after `build-site`. |
 | `security scan <file>` | Print heuristic scan JSON (does not mutate the file). |
+| `memory` | **`memory {save|log|list|show|recall|prune}`** — per-session markdown under **`raw/memory/`** when **`memory.enabled`**; **`--current`** reads **`llm-wiki/.current-session`**. |
 | `check` | Fast vault/config sanity; **`--plugin-repo`** verifies agent docs match **`docs/AGENTS.shared.md`** and runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
 | `sync-agent-docs` | Regenerate **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`**, **`.claude/rules/llm-wiki.md`** from **`docs/AGENTS.shared.md`**. **`--check`** exits non-zero if anything is out of sync (CI uses **`check --plugin-repo`**). |
 | `smoke-test` | Run **`pytest tests/`** from the plugin root. Default is **offline** (skips optional suites). **`--network`** enables **`@pytest.mark.network`** tests; **`--claude`** enables **`claude plugin validate`**. Also **`-v`**, **`--only-contracts`**, then pytest args after **`--`**. |
