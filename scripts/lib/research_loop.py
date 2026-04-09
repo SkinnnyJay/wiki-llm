@@ -187,7 +187,22 @@ def run_research_loop(
                     exit_code = 1
                     ran += 1
                     continue
-                providers = t.get("providers") or _available_search_providers(cfg)
+                providers_raw = t.get("providers")
+                if providers_raw is None:
+                    providers = _available_search_providers(cfg)
+                elif isinstance(providers_raw, str):
+                    providers = [providers_raw.strip()] if providers_raw.strip() else _available_search_providers(cfg)
+                elif isinstance(providers_raw, list):
+                    providers = providers_raw
+                else:
+                    print(
+                        f"task {tid}: search_multi 'providers' must be a list of ids (or omit for auto)",
+                        file=sys.stderr,
+                    )
+                    exit_code = 1
+                    ran += 1
+                    continue
+
                 count = int(t.get("count") or max_n)
                 prefix = str(t.get("output_prefix") or "research/multi")
                 slug = query.lower().replace(" ", "_")[:40]
