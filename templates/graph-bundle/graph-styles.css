@@ -1,63 +1,120 @@
-/* GitHub-primitives-inspired dark theme (approximates github.com dark UI) */
+/* ─── LLM Wiki Knowledge Graph ─── shared tokens with site viewer ─── */
 :root {
-  --bg: #0d1117;
-  --elev: #161b22;
-  --border: #30363d;
-  --fg: #e6edf3;
-  --muted: #8b949e;
-  --accent: #58a6ff;
-  --link: #388bfd;
+  --bg:            #070b14;
+  --bg-elevated:   #0f1629;
+  --bg-surface:    #131a2e;
+  --bg-hover:      rgba(56, 189, 248, 0.06);
+  --text:          #e8edf7;
+  --text-secondary:#b8c5d6;
+  --muted:         #8b9cb3;
+  --faint:         #4a5568;
+  --accent:        #38bdf8;
+  --accent-dim:    rgba(56, 189, 248, 0.15);
+  --accent2:       #a78bfa;
+  --border:        rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(148, 163, 184, 0.20);
+  --radius-sm:     8px;
+  --radius-xs:     5px;
+  --font:          "DM Sans", system-ui, -apple-system, sans-serif;
+  --mono:          ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --header-h:      52px;
+  --ease:          cubic-bezier(0.4, 0, 0.2, 1);
+  --dur:           200ms;
 }
 
-.gh-canvas {
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
   background: var(--bg);
-}
-.gh-header {
-  background: var(--elev);
-}
-.text-fg {
-  color: var(--fg);
-}
-.text-muted {
-  color: var(--muted);
-}
-.border-border {
-  border-color: var(--border);
-}
-.bg-elev {
-  background: var(--elev);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.link-line {
-  stroke: var(--border);
-  stroke-opacity: 0.85;
-  stroke-width: 1.25px;
+/* ─── App shell ─── */
+.app { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+.app-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* ─── Header ─── */
+.app-header {
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
+.header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.logo-mark { width: 28px; height: 28px; flex-shrink: 0; display: block; object-fit: contain; }
+.brand { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.header-meta { flex: 1; text-align: center; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.persona-badge {
+  font-size: 12px; font-weight: 500; color: var(--muted);
+  background: var(--accent-dim); padding: 3px 10px;
+  border-radius: 999px; border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+/* ─── Legend sidebar ─── */
+.sidebar-legend {
+  width: 200px; flex-shrink: 0; border-right: 1px solid var(--border);
+  background: var(--bg-elevated); padding: 14px; overflow-y: auto;
+}
+.sidebar-legend.hidden { display: none; }
+.legend-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; }
+.legend-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.legend-label strong { color: var(--text); }
+
+/* ─── Graph pane ─── */
+.graph-pane {
+  flex: 1; position: relative; min-width: 0; overflow: hidden;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(56, 189, 248, 0.03), transparent), var(--bg);
+}
+.graph-pane svg { display: block; width: 100%; height: 100%; cursor: grab; }
+.graph-pane svg:active { cursor: grabbing; }
+
+.link-line { stroke: var(--faint); stroke-opacity: 0.12; stroke-width: 1px; }
 .node-circle {
-  stroke: var(--border);
-  stroke-width: 1.5px;
-  cursor: grab;
+  stroke: var(--bg); stroke-width: 1.5px; cursor: grab;
+  transition: filter var(--dur) var(--ease);
 }
-.node-circle:active {
-  cursor: grabbing;
-}
+.node-circle:active { cursor: grabbing; }
 .node-label {
-  fill: var(--muted);
-  font-size: 11px;
+  fill: var(--muted); font-size: 11px; pointer-events: none;
+  font-family: var(--mono);
+}
+.graph-sub {
+  position: absolute; bottom: 12px; left: 12px;
+  font-size: 11px; color: var(--faint); font-family: var(--mono);
   pointer-events: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* ─── Detail sidebar ─── */
+.sidebar-detail {
+  width: 260px; flex-shrink: 0; border-left: 1px solid var(--border);
+  background: var(--bg-elevated); padding: 14px; overflow-y: auto;
+}
+.detail-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; }
+.detail-empty { font-size: 13px; color: var(--faint); }
+.detail-node-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.detail-node-path { font-size: 11px; color: var(--faint); font-family: var(--mono); word-break: break-all; margin-bottom: 8px; }
+.detail-node-meta { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.detail-links-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.detail-link-list { list-style: disc; padding-left: 16px; font-size: 12px; color: var(--text-secondary); }
+.detail-link-list li { margin-bottom: 3px; }
+
+/* ─── Tooltip ─── */
 .tooltip {
-  position: absolute;
-  pointer-events: none;
-  background: var(--elev);
-  border: 1px solid var(--border);
-  color: var(--fg);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  max-width: 280px;
-  z-index: 20;
+  position: fixed; pointer-events: none;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 10px; border-radius: 6px;
+  font-size: 11px; max-width: 280px; z-index: 20;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
+.tooltip.hidden { display: none; }
+.tooltip strong { color: var(--text); }
+.tooltip .tp-muted { color: var(--muted); }
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) { .sidebar-legend { display: none; } .sidebar-detail { width: 220px; } }
+@media (max-width: 640px) { .sidebar-detail { display: none; } }

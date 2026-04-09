@@ -110,7 +110,7 @@ def build_site(vault: Path, cfg: dict[str, Any]) -> Path:
     tpl = plugin_root() / "templates" / "site"
     if tpl.is_dir():
         for f in tpl.iterdir():
-            if f.name == "README.md":
+            if f.name == "README.md" or not f.is_file():
                 continue
             dest = og / f.name
             shutil.copy2(f, dest)

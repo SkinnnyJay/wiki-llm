@@ -64,7 +64,7 @@ a:hover { text-decoration: underline; }
   z-index: 10;
 }
 .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.logo-mark { width: 34px; height: 34px; flex-shrink: 0; display: block; object-fit: contain; }
+.logo-mark { width: 34px; height: 34px; flex-shrink: 0; }
 .brand {
   font-size: 18px;
   font-weight: 700;

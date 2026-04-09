@@ -204,6 +204,6 @@ def build_graph_bundle(vault: Path, cfg: dict[str, Any], out_dir: Path, mode: st
     if not tpl.is_dir():
         raise FileNotFoundError(f"Missing graph template: {tpl}")
     for f in tpl.iterdir():
-        if f.suffix.lower() in (".html", ".js", ".css") and f.is_file():
+        if f.suffix.lower() in (".html", ".js", ".css", ".svg", ".png") and f.is_file():
             shutil.copy2(f, out_dir / f.name)
     return out_dir
