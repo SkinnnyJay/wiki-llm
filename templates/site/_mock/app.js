@@ -288,7 +288,7 @@
     scroll.scrollTop = 0;
   }
 
-  /* ── Ledger ──────────────────────────────────────────────────────── */
+  /* ── Ledger (activity strip: date + tag + short title, readable wrap) ─ */
   (function renderLedger() {
     var ledgerEl = document.getElementById("app-ledger");
     var entries = data.ledger || [];
@@ -297,8 +297,21 @@
     entries.forEach(function (c, i) {
       var sz = dotSizes[i % dotSizes.length];
       var dot = el("span", { cls: "ledger-dot", style: "width:" + sz + "px;height:" + sz + "px" });
-      var txt = el("span", { text: c.date + " — " + c.subject });
-      ledgerEl.appendChild(el("div", { cls: "ledger-entry" }, [dot, txt]));
+      var subject = String(c.subject || "");
+      var tag = null;
+      var title = subject;
+      var m = subject.match(/^\[([^\]]+)\]\s*(.*)$/);
+      if (m) {
+        tag = m[1];
+        title = (m[2] || "").trim() || tag;
+      }
+      var meta = el("div", { cls: "ledger-meta" });
+      meta.appendChild(el("time", { cls: "ledger-date", datetime: c.date, text: c.date }));
+      if (tag) meta.appendChild(el("span", { cls: "ledger-tag", text: tag }));
+      var subj = el("p", { cls: "ledger-subject", text: title });
+      subj.setAttribute("title", subject);
+      var body = el("div", { cls: "ledger-body" }, [meta, subj]);
+      ledgerEl.appendChild(el("div", { cls: "ledger-entry" }, [dot, body]));
     });
   })();
 

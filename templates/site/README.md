@@ -27,6 +27,7 @@ Open `http://127.0.0.1:8765/` — serve over HTTP, not `file://`, so `fetch()` w
 - **Search** — `⌘K` to focus; filters tree + dims graph nodes in real time
 - **Graph** — D3 force layout, nodes colored by directory, sized by degree; hover highlights neighbors, click opens reader
 - **Reader** — serif title, metadata bar, rendered markdown with code blocks / blockquotes / tables, linked-page cards
-- **Ledger** — horizontal git timeline strip at bottom (when vault git is enabled)
+- **Ledger** — recent-activity strip at bottom (git commits when vault git is enabled): each entry shows date, optional `[tag]` chip, and a two-line clamped title (full text on hover)
+- **Logo** — `logo-mark.svg` (transparent mark, same art as `docs/assets/logo-mark.svg`)
 - **Sidebar toggle** — collapse page tree for more graph space
 - **Responsive** — sidebar hides at 900px, stacks vertically at 640px
