@@ -56,6 +56,7 @@ def test_top_level_help():
         "security",
         "raw",
         "check",
+        "sync-agent-docs",
         "smoke-test",
         "test-report",
     ],
