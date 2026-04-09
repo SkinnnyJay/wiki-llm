@@ -1,0 +1,6 @@
+# Project-scoped Codex configuration (merged with ~/.codex/config.toml).
+# See https://developers.openai.com/codex/config-advanced/#project-config-files-codexconfigtoml
+# Codex loads this only when the workspace is trusted.
+
+# Headroom for merged instruction text (global ~/.codex + repo root AGENTS.md + nested overrides).
+project_doc_max_bytes = 65536
