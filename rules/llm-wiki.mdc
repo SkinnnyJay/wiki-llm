@@ -5,10 +5,20 @@ alwaysApply: true
 
 # wiki-llm (this repo)
 
-- **CLI:** `bin/llm-wiki` (absolute path works from any cwd) or `python3 scripts/llm_wiki.py` from **repo root** for ingest, `raw validate` / `raw record` / `raw finish`, build-site, validate, graph, git, etc. (Avoid `PYTHONPATH=scripts`—relative PYTHONPATH can fatal-error Python 3.14+; `llm_wiki.py` fixes up `sys.path` itself.)
-- **Slash commands (Claude Code):** Same prompts as files in **`commands/`** — open the matching **`.md`** when you need the full workflow text without the plugin.
-- **Skills:** **`skills/*/SKILL.md`** — wiki-pipeline, wiki-maintainer, wiki-ingest, wiki-raw-prepare, wiki-query, wiki-lint, wiki-status, wiki-setup, wiki-research (ad-hoc topic), wiki-research-loop (batch from `research-tasks.json`), wiki-retro, wiki-learn, wiki-upgrade; see **`skills/references/pipeline-artifacts.md`** for staged flow.
-- **Canonical docs:** **`WORKFLOWS.md`**, **`ETHOS.md`**, **`prompts/PERSONA.md`**. Root **`AGENTS.md`** is the portable summary for Codex/Cursor and other agents.
-- **Python:** Match existing style in **`scripts/`**; run tests or **`python3 -m compileall`** if you touch CLI code. Personal/demo scripts belong in **`scripts/.tmp/`** (gitignored), not tracked **`scripts/`**.
+## Repo summary
+
+This repo is the **llm-wiki** plugin: a **Python CLI** (`bin/llm-wiki`), **slash-command prompts** (`commands/`), **skills** (`skills/*/SKILL.md`), and **agent personas** (`agents/`, **`prompts/PERSONA.md`**). Vault layout is **`raw/`** (sources) → **`wiki/`** (curated markdown) + optional **`outputs/`** (drafts/reports); see **`ETHOS.md`** and **`WORKFLOWS.md`**.
+
+## Common workflows (all tools)
+
+1. **CLI** — `bin/llm-wiki` (works from any cwd if invoked by absolute path) or `python3 scripts/llm_wiki.py` **from the repo root** for `setup`, `ingest`, `validate`, `raw validate` / `raw record` / **`raw finish`** (validate + log + `[prepare]` commit), `build-site`, `graph`, `git`, `research-loop`, etc. (Do not use `PYTHONPATH=scripts`—relative `PYTHONPATH` can crash Python 3.14+ at startup; the script adds `scripts/` to `sys.path` automatically.)
+2. **Commands as prompts** — Open **`commands/<name>.md`**; same text as **`/llm-wiki:…`**.
+3. **Skills** — **wiki-pipeline** (end-to-end vault flow), **wiki-maintainer**, **wiki-ingest**, **wiki-raw-prepare**, **wiki-query**, **wiki-lint**, **wiki-status**, **wiki-setup**, **wiki-research** (ad-hoc topic), **wiki-research-loop** (batch tasks), **wiki-retro**, **wiki-learn** (`.agent-memory.md`), **wiki-upgrade** (plugin repo pull) in **`skills/*/SKILL.md`**. Pipeline artifacts: **`skills/references/pipeline-artifacts.md`**.
+4. **Context** — **`WORKFLOWS.md`**, **`ETHOS.md`**, **`prompts/PERSONA.md`**.
+5. **Agent doc sync (this plugin repo only)** — After editing **`docs/AGENTS.shared.md`**, run **`bin/llm-wiki sync-agent-docs`** to refresh **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`**, and **`.claude/rules/llm-wiki.md`**. Before merge, **`bin/llm-wiki sync-agent-docs --check`** (or **`bin/llm-wiki check --plugin-repo`**) must pass. Equivalent: **`python3 scripts/sync_agent_docs.py`** from the repo root.
+
+**Static viewer “Open file”:** In **`llm-wiki/config.json`**, set **`viewer.open_file_scheme`** to **`cursor`** or **`vscode`** when you want wiki links to open the editor.
+
+**Python:** Match existing style in **`scripts/`**; run tests or **`python3 -m compileall`** if you touch CLI code. Personal/demo scripts belong in **`scripts/.tmp/`** (gitignored), not tracked **`scripts/`**.
 
 When editing the **vault template** under **`templates/llm-wiki/`**, keep **`llm-wiki/CLAUDE.md`** and **`config.json`** schema consistent with **`README.md`** and **`WORKFLOWS.md`**.

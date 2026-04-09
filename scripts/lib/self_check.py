@@ -15,7 +15,8 @@ from lib.paths import plugin_root, resolve_vault
 
 def cmd_check(args) -> int:
     """
-    Fast deterministic checks: vault config readable, optional plugin-repo compileall.
+    Fast deterministic checks: vault config readable, optional plugin-repo agent-doc
+    sync verification + compileall.
     Always prints pointers to smoke-test and per-command ## Smoke check sections.
     """
     vault = resolve_vault(override=getattr(args, "vault", None))
@@ -32,6 +33,10 @@ def cmd_check(args) -> int:
 
     if getattr(args, "plugin_repo", False):
         root = plugin_root()
+        from sync_agent_docs import verify_agent_docs
+
+        if verify_agent_docs(root, quiet=True) != 0:
+            errs += 1
         scripts = root / "scripts"
         if scripts.is_dir():
             ok = compileall.compile_dir(str(scripts), quiet=1, maxlevels=16)
@@ -60,6 +65,7 @@ def cmd_check(args) -> int:
 
     print()
     print("Next steps:")
+    print("  llm-wiki sync-agent-docs --check # verify AGENTS.md / rules match docs/AGENTS.shared.md")
     print("  llm-wiki smoke-test              # full pytest (offline by default)")
     print("  llm-wiki smoke-test --network    # also run network reachability tests")
     print("  llm-wiki smoke-test --claude      # also run `claude plugin validate`")

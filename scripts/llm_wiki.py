@@ -28,6 +28,16 @@ from lib.self_check import cmd_check, cmd_smoke_test
 from lib.test_report import cmd_test_report
 
 
+def cmd_sync_agent_docs(args: argparse.Namespace) -> int:
+    """Regenerate AGENTS.md / rules from docs/AGENTS.shared.md (plugin repo only)."""
+    from sync_agent_docs import sync_agent_docs, verify_agent_docs
+
+    root = plugin_root()
+    if getattr(args, "check", False):
+        return verify_agent_docs(root)
+    return sync_agent_docs(root)
+
+
 def cmd_configure(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
@@ -798,7 +808,7 @@ def build_parser() -> argparse.ArgumentParser:
     pch.add_argument(
         "--plugin-repo",
         action="store_true",
-        help="When run from the plugin repo: compileall scripts/ for syntax errors",
+        help="Plugin repo: verify agent docs match docs/AGENTS.shared.md + compileall scripts/",
     )
     pch.add_argument(
         "--claude-validate",
@@ -806,6 +816,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="If `claude` is on PATH, run: claude plugin validate",
     )
     pch.set_defaults(func=cmd_check)
+
+    psync = sub.add_parser(
+        "sync-agent-docs",
+        help="Regenerate AGENTS.md, CLAUDE.md, rules from docs/AGENTS.shared.md (plugin repo)",
+    )
+    psync.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit 1 if generated files differ from docs/AGENTS.shared.md (does not write)",
+    )
+    psync.set_defaults(func=cmd_sync_agent_docs)
 
     pst = sub.add_parser(
         "smoke-test",
