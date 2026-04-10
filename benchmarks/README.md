@@ -42,6 +42,21 @@ Tune **one knob per experiment** and **merge only if quality does not regress** 
 
 **Knobs worth trying next (usually one at a time):** `fuse_original_weight` (lower → trust LLM order more; raise if R@5 drops), `max_picks` / `max_candidates`, `max_chars` / `excerpt_mode`, `invoke_when: adaptive` + `adaptive_confidence_threshold` (fewer LLM calls; validate R@5 on 500), `parallel_workers` (throughput only; should not change R@5).
 
+### Batch iteration + chart (150 trials)
+
+[`benchmarks/iterate_lme_rerank.py`](iterate_lme_rerank.py) runs a **deterministic schedule** of `rerank_llm` micro-knobs (fuse weight, `max_picks`, `max_chars`, `always` vs `adaptive` + threshold), logs **JSONL + CSV**, writes **`iteration_lme_rerank_<timestamp>_best.json`**, and an **HTML** report with **Chart.js** (R@5 and failures vs iteration). Requires **`LLM_WIKI_BENCHMARK_LLM=1`** and a working CLI/API.
+
+```bash
+# Preview schedule (no benchmark runs)
+python3 benchmarks/iterate_lme_rerank.py --dry-run --iterations 150
+
+# Example: 150 trials × 50 questions (faster); confirm on --limit 0 separately
+LLM_WIKI_BENCHMARK_LLM=1 python3 benchmarks/iterate_lme_rerank.py --iterations 150 --limit 50 \\
+  --out-dir docs/memory/benchmarks/runs
+```
+
+Open the generated **`iteration_lme_rerank_*.html`** in a browser for charts. Rows with **`best_so_far: true`** in JSONL mark a new rolling best (higher R@5, then fewer failures).
+
 ### Eval size (`--limit`)
 
 | `--limit` | Typical use |
