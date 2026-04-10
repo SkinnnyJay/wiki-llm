@@ -57,6 +57,8 @@ LLM_WIKI_BENCHMARK_LLM=1 python3 benchmarks/iterate_lme_rerank.py --iterations 1
 
 Open the generated **`iteration_lme_rerank_*.html`** in a browser for charts. Rows with **`best_so_far: true`** in JSONL mark a new rolling best (higher R@5, then fewer failures).
 
+**See also (narrative + tracked misses):** [`docs/memory/benchmarks/lme_misses_blocking_100.md`](../docs/memory/benchmarks/lme_misses_blocking_100.md) — baseline vs best-validated miss lists and the remaining **`gpt4_4929293b`** blocker; hub index [`docs/memory/benchmarks/README.md`](../docs/memory/benchmarks/README.md).
+
 ### Eval size (`--limit`)
 
 | `--limit` | Typical use |

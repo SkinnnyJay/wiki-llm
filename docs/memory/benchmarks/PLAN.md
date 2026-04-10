@@ -28,6 +28,8 @@ Consolidated plan for retrieval benchmarks, failure reduction, metrics strategy,
 - Tune fusion / index / rerank per Phase 1 buckets; document **winning config** in [`benchmarks/README.md`](../../../benchmarks/README.md).
 - Track **`failures`** and optional **`failure_bucket_counts`** over runs for charts.
 
+**Snapshot (2026-04-10):** A validated LLM rerank config (**`more_picks_fuse`**) reached **R@5 = 0.998** (one remaining miss, bucket **M**). Baseline heuristic stayed at **~0.98** (~10 misses). See **[`lme_misses_blocking_100.md`](./lme_misses_blocking_100.md)** and **[`runs/rerank_cli_validated_2026-04-10.json`](./runs/rerank_cli_validated_2026-04-10.json)**; use **[`benchmarks/README.md`](../../../benchmarks/README.md)** *Forward-only* + **`iterate_lme_rerank.py`** for the next iteration round.
+
 ---
 
 ## Phase 3 — Reports and chartable metrics

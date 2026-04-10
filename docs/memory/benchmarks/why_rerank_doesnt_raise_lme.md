@@ -111,3 +111,10 @@ LME_ONLY=openai_gpt_5_4 LME_LIMIT=500 python3 scripts/.tmp/run_lme_all_models_re
 ```
 
 Expect **`failure_bucket_counts`** with **R/M** (not all **L**) and **`llm_invoked: true`** on failure rows if rerank actually ran.
+
+---
+
+## See also
+
+- **[lme_misses_blocking_100.md](lme_misses_blocking_100.md)** — which `question_id`s block **100%** R@5 on the public 500-question JSON (baseline vs best validated LLM rerank).
+- **[comparisons.md](comparisons.md)** — wiki-llm measured rows and methodology caveats.

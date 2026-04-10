@@ -24,6 +24,8 @@ Snapshot JSON: [runs/lme_mode_compare_2026-04-09.json](runs/lme_mode_compare_202
 
 Update this table when you change defaults or re-run on a release machine.
 
+**Gap to R@5 = 1.0 on the full 500:** tracked miss lists and the last known **`gpt4_4929293b`** blocker are documented in **[lme_misses_blocking_100.md](lme_misses_blocking_100.md)** (pairs with **[runs/rerank_cli_validated_2026-04-10.json](runs/rerank_cli_validated_2026-04-10.json)**).
+
 ## Other systems (primary sources only)
 
 | System / paper | Benchmark | Metric | Score | Primary source | Comparability |

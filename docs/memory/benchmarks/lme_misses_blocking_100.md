@@ -42,4 +42,6 @@ Run: **`more_picks_fuse`** (Auto CLI, **12** `max_picks`, fusion on), same JSON 
 
 ---
 
+**See also:** [comparisons.md](comparisons.md) (measured wiki-llm rows), repo [benchmarks/README.md](../../../benchmarks/README.md) (*Forward-only micro-optimization*, *Batch iteration + chart*, `iterate_lme_rerank.py`).
+
 Use the fixture [`tests/fixtures/lme_misses_best_run.json`](../../../tests/fixtures/lme_misses_best_run.json) for regression tracking. Re-run full LME after pipeline changes and update that file when the last miss is fixed.
