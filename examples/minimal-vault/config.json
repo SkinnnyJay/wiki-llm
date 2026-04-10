@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "wiki_root": "llm-wiki",
+  "_meta": {
+    "setup_completed": false,
+    "setup_date": null,
+    "setup_version": null,
+    "_comment": "Set by wiki-setup wizard. When setup_completed=true, skills skip the 'run setup first' warning."
+  },
+  "persona": {
+    "name": "Gennie"
+  },
+  "viewer": {
+    "enabled": true,
+    "port": 8765,
+    "og_base_url": "",
+    "open_file_scheme": "file",
+    "_comment_scheme": "Options: file | cursor | vscode — controls 'Open file' links in the static viewer"
+  },
+  "graph": {
+    "port": 8890,
+    "tag_edges": true,
+    "include_raw_nodes": true,
+    "curated_by_edges": true
+  },
+  "integrations": {
+    "firecrawl": {
+      "enabled": true,
+      "api_key_env": "FIRECRAWL_API_KEY",
+      "api_base_url": "https://api.firecrawl.dev",
+      "_comment": "Clean markdown from any URL. Get key: https://firecrawl.dev/app/api-keys"
+    },
+    "perplexity": {
+      "enabled": true,
+      "api_key_env": "PERPLEXITY_API_KEY",
+      "model": "sonar",
+      "_comment": "AI-powered research queries. Get key: https://www.perplexity.ai/settings/api"
+    },
+    "twitter": {
+      "enabled": false,
+      "api_key_env": "TWITTER_AUTH_TOKEN",
+      "prefer_cli": true,
+      "_comment": "Fetch tweets/threads/search. Install bird CLI: npm install -g @steipete/bird — zero config for public tweets via FxTwitter API (no token needed). Get auth_token from browser DevTools → Application → Cookies."
+    },
+    "brave": {
+      "enabled": true,
+      "api_key_env": "BRAVE_SEARCH_API_KEY",
+      "default_mode": "llm-context",
+      "default_count": 10,
+      "_comment": "Brave Search API — best for RAG grounding. Modes: web | news | llm-context | answers. Free key: https://api.search.brave.com"
+    },
+    "annas_archive": {
+      "enabled": false,
+      "api_key_env": "ANNAS_ARCHIVE_KEY",
+      "_comment": "Anna's Archive — fast ebook/paper downloads. Requires membership. https://annas-archive.org/account"
+    }
+  },
+  "git": {
+    "enabled": false,
+    "init_on_setup": false,
+    "snapshot_after_ingest": false,
+    "snapshot_after_build": false,
+    "snapshot_message_prefix": "[ingest]",
+    "include_diff_in_skill_context": false,
+    "tracked_globs": [
+      "wiki/",
+      "raw/",
+      "CLAUDE.md",
+      "config.json"
+    ],
+    "lifecycle": {
+      "phases": {
+        "ingest": "[ingest]",
+        "prepare": "[prepare]",
+        "wiki": "[wiki]",
+        "build": "[build]",
+        "graph": "[graph]",
+        "research": "[research]",
+        "config": "[config]"
+      }
+    }
+  },
+  "research_loop": {
+    "enabled": false,
+    "max_items_per_run": 8,
+    "tasks_file": "research-tasks.json",
+    "delay_seconds_between_fetches": 1.0
+  },
+  "ingestion_security": {
+    "enabled": true,
+    "block_on_suspected": false,
+    "log_to_raw_frontmatter": true,
+    "llm_triage": false
+  },
+  "ingestion_tagging": {
+    "enabled": true,
+    "auto_detect": true,
+    "llm_detect": false
+  },
+  "ingestion_dedup": {
+    "enabled": true,
+    "block_on_duplicate": false
+  },
+  "hooks": {
+    "sound": {
+      "enabled": false,
+      "allow_arbitrary_command": false,
+      "_comment_allow_arbitrary": "If true, hooks.sound.command runs any argv (vault config is trusted). If false, only absolute paths to executables or known players (afplay, say, aplay, …).",
+      "command": [
+        "afplay",
+        "/System/Library/Sounds/Glass.aiff"
+      ],
+      "on_ingest": true,
+      "on_research_loop": true,
+      "timeout_seconds": 30
+    }
+  },
+  "pdf": {
+    "max_cost_usd": 1.00
+  },
+  "mcp": {
+    "enabled": true,
+    "transport": "stdio",
+    "port": 8891,
+    "host": "127.0.0.1",
+    "search_backend": "fts5",
+    "hybrid_rrf_k": 60,
+    "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
+    "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)"
+  },
+  "knowledge_graph": {
+    "enabled": true,
+    "backend": "json",
+    "auto_update_on_ingest": true,
+    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)"
+  },
+  "memory": {
+    "enabled": false,
+    "dir": "raw/memory",
+    "max_sessions": 50,
+    "_comment_enabled": "Per-session memory files under raw/memory/ (hooks + memory CLI).",
+    "_comment_dir": "Directory under vault for session memory markdown files.",
+    "_comment_max_sessions": "Auto-prune oldest sessions beyond this count (0 = unlimited)."
+  },
+  "storage": {
+    "search_db": ".search.sqlite3",
+    "kg_db": ".kg.json",
+    "kg_sqlite_db": ".kg.sqlite3",
+    "chromadb_dir": ".chromadb",
+    "metrics_db": ".metrics.jsonl",
+    "_comment": "Relative paths resolve from vault root. Absolute paths are used as-is (e.g. /tmp/fast-disk/search.db)."
+  },
+  "performance": {
+    "sqlite": {
+      "journal_mode": "wal",
+      "synchronous": "normal",
+      "cache_size": -8192,
+      "mmap_size": 67108864,
+      "busy_timeout": 5000,
+      "_comment_journal": "wal = best concurrent reads; delete = legacy default",
+      "_comment_sync": "normal = safe with WAL, 2-3x faster writes; full = max durability",
+      "_comment_cache": "Negative = KB; -8192 = 8 MB page cache; -32768 = 32 MB",
+      "_comment_mmap": "Bytes; 67108864 = 64 MB memory-mapped I/O; 0 = disabled",
+      "_comment_busy": "Milliseconds to wait on lock contention before SQLITE_BUSY"
+    },
+    "chromadb": {
+      "collection_name": "wiki_pages",
+      "distance_fn": "cosine",
+      "batch_size": 100,
+      "embedding_model": "default",
+      "_comment_distance": "Options: cosine | l2 | ip (inner product)"
+    }
+  },
+  "benchmark": {
+    "enabled": false,
+    "compress_method": "raw",
+    "data_cache_dir": "~/.cache/llm-wiki-benchmarks",
+    "results_dir": ".benchmarks",
+    "auto_record_metrics": true,
+    "search": {
+      "backend": "fts5",
+      "prf_rrf": true,
+      "tfidf_rrf": true,
+      "tfidf_head_tail": true,
+      "tfidf_rrf_weight": 1,
+      "or_late_rrf_weight": 0,
+      "and_rrf": true,
+      "rrf_boost_or": 2,
+      "final_borda": false,
+      "rerank_llm": {
+        "enabled": false,
+        "benchmark_auto": false,
+        "invoke": "anthropic_api",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "max_candidates": 80,
+        "max_chars": 3600,
+        "excerpt_mode": "head_tail",
+        "cli_argv": null,
+        "cli_timeout_s": 180,
+        "_comment": "invoke: anthropic_api | claude_cli | codex_cli | custom_cli (set cli_argv). LLM_WIKI_BENCHMARK_LLM=1 + key or CLI. ~500 calls / full LME run."
+      }
+    },
+    "_comment": "Retrieval benchmarks (llm-wiki benchmark run lme). See benchmarks/README.md."
+  },
+  "metrics": {
+    "enabled": false,
+    "max_file_size_mb": 50,
+    "_comment": "Opt-in operational metrics. Records to storage.metrics_db (default .metrics.jsonl). Enable to track search latency, KG operations, MCP tool calls."
+  }
+}
