@@ -12,21 +12,24 @@
 
 # llm-wiki — Claude Code plugin
 
-**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`** so the static site is not processed by Jekyll). The published home page is **`docs/index.html`** at `https://<user-or-org>.github.io/<repo>/` — see [`docs/README.md`](docs/README.md). The landing page credits **inspiration** from [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [MemPalace](https://github.com/milla-jovovich/mempalace) ([Ben Sigman on X](https://x.com/bensig/status/2041229266432733356)), and quotes Newton’s letter to Hooke (shoulders of giants).
+**New here?** Start with **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (five-minute vault path + basic / intermediate / advanced tiers). **Vault** = your `llm-wiki/` folder; **plugin repo** = this repository.
 
-Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`** (ingested sources), **`wiki/`** (your markdown), optional **`outputs/`** (generated briefings and drafts—review before treating as canonical), and **`CLAUDE.md`** (vault rules). Same “folders + text files” idea as a plain **raw/ wiki/ outputs/** layout, with plugin tooling on top. Optional **vault-scoped Git**, **static graph viewer** (`wiki/.og/`), **on-demand D3 graphs** in **`.tmp/llm-wiki-graph/`** (link view + knowledge clusters), **ingest adapters**, **ingestion security** (heuristic prompt-injection scan), and **opt-in session memory** (`memory.enabled`) — per-chat notes under **`raw/memory/`**, CLI + MCP + hooks.
+**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`**). Published home: **`docs/index.html`** — see [`docs/README.md`](docs/README.md) and [`docs/PUBLISHING.md`](docs/PUBLISHING.md). Inspiration: [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [MemPalace](https://github.com/milla-jovovich/mempalace) ([Ben Sigman on X](https://x.com/bensig/status/2041229266432733356)), Newton’s letter to Hooke (shoulders of giants).
 
-**Cursor & OpenAI Codex:** see **[`AGENTS.md`](AGENTS.md)** for how each tool loads instructions (Claude Code vs [Cursor plugins](https://cursor.com/docs/plugins) vs [Codex `AGENTS.md` discovery](https://developers.openai.com/codex/guides/agents-md/)). This repo ships **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)** (Cursor project rules; mirrored under **`.cursor/rules/`**), **[`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json)** (for [Cursor Marketplace](https://cursor.com/marketplace/publish) packaging alongside **`.claude-plugin/`**), plus **`commands/`** and **`bin/llm-wiki`**. Shared workflow text is edited once in **[`docs/AGENTS.shared.md`](docs/AGENTS.shared.md)** and synced with **`bin/llm-wiki sync-agent-docs`**. Codex project knobs: **[`.codex/config.toml`](.codex/config.toml)** (see **[`.codex/README.md`](.codex/README.md)**).
+Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`**, **`wiki/`**, optional **`outputs/`**, **`CLAUDE.md`**. Plugin tooling: ingest, validate, static viewer, optional Git, MCP, KG, benchmarks, **opt-in session memory** (`memory.enabled`, **`raw/memory/`**).
+
+**Cursor & OpenAI Codex:** **[`AGENTS.md`](AGENTS.md)** — [Cursor plugins](https://cursor.com/docs/plugins), [Codex discovery](https://developers.openai.com/codex/guides/agents-md/). Rules: **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)**; shared text in **[`docs/AGENTS.shared.md`](docs/AGENTS.shared.md)** → **`bin/llm-wiki sync-agent-docs`**. Codex: **[`.codex/config.toml`](.codex/config.toml)**.
 
 | You want… | Use |
 |-----------|-----|
+| Fast onboarding + capability tiers | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
 | Shared plugin instructions (single source) | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) — then **`bin/llm-wiki sync-agent-docs`** |
 | Cursor rules (clone & open) | [`rules/llm-wiki.mdc`](rules/llm-wiki.mdc) |
 | Full slash-command prompts | [`commands/`](commands/) (one `.md` per command) |
 | Full skill instructions | [`skills/*/SKILL.md`](skills/) |
 | Agent definitions | [`agents/`](agents/) |
-| Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian/persona.md`](agents/wiki-librarian/persona.md), [`agents/research-runner/persona.md`](agents/research-runner/persona.md) |
+| Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian.md`](agents/wiki-librarian.md), [`agents/research-runner.md`](agents/research-runner.md) |
 | Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
 | Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
 | MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
@@ -59,6 +62,7 @@ Invoked in Claude Code after loading the plugin. Each file under [`commands/`](c
 | `/llm-wiki:git-lifecycle` | Audit commits by **lifecycle phase** (prefix tags) — flow progression, JSON export. |
 | `/llm-wiki:memory` | Session memory — list/recall/save/prune per-chat notes in `raw/memory/` when `memory.enabled`. |
 | `/llm-wiki:mcp` | MCP server — stdio or HTTP (`--transport sse`), `mcp install`, backends and config in **`skills/references/mcp-and-kg.md`**. |
+| `/llm-wiki:benchmark` | Run retrieval benchmarks (LME / LoCoMo / ConvoMem) from the vault; optional LLM rerank. |
 
 ---
 
@@ -87,7 +91,7 @@ Security note for **wiki-ingest**: when `ingestion_security` flags content, foll
 | Agent | Role |
 |-------|------|
 | **wiki-librarian** | Large multi-file wiki edits, batch cross-links; prefers `llm-wiki git *` when `git.enabled`. |
-| **wiki-raw-prepare** | Cleans and validates **`raw/`** before wiki merge; see [`agents/wiki-raw-prepare/AGENT.md`](agents/wiki-raw-prepare/AGENT.md). |
+| **wiki-raw-prepare** | Cleans and validates **`raw/`** before wiki merge; see [`agents/wiki-raw-prepare.md`](agents/wiki-raw-prepare.md). |
 | **research-runner** | Long research passes (many URLs/HN items); uses ingest + wiki-ingest patterns. |
 
 ---
@@ -127,6 +131,8 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 **Optional APIs:** set env vars as needed — e.g. `FIRECRAWL_API_KEY`, `PERPLEXITY_API_KEY` (see `llm-wiki integrations status`). Perplexity: `llm-wiki ingest perplexity "your question"` or `--prompt-file`.
 
 **PDF ingest (`ingest pdf`):** install pip extras in a venv (recommended): `python3 -m venv .venv && .venv/bin/pip install -r requirements-optional.txt`. Scanned PDFs need **PyMuPDF** + system **Tesseract** (`brew install tesseract` on macOS). Text-only PDFs use **MarkItDown** (`markitdown[pdf]` in that file).
+
+**PEP 668 (externally managed Python):** On many Linux distributions, installing into the system interpreter with `pip` fails or is discouraged. Use a **venv** (as above), **pipx** for isolated CLIs, or your distro’s packages — avoid `sudo pip install` to the system Python.
 
 ---
 
@@ -235,7 +241,7 @@ All toggles live in **`llm-wiki/config.json`**: `viewer` (including `open_file_s
 
 **Ingest URLs:** `ingest url` and `ingest firecrawl` only allow **http(s)** targets that resolve to **public** addresses (not `file://`, loopback, or RFC1918). Integration API calls use **allowlisted hosts** for Firecrawl and Perplexity (`api_base_url` cannot point credentials at arbitrary servers).
 
-**Persona:** The plugin ships **[`prompts/PERSONA.md`](prompts/PERSONA.md)** (warm, evidence-first librarian-robot; no fluff; verify don’t trust; iterate). Each agent adds **[`agents/wiki-librarian/persona.md`](agents/wiki-librarian/persona.md)** and **[`agents/research-runner/persona.md`](agents/research-runner/persona.md)**. Skills may optionally inject **`skills/references/context-persona.md`** when invoking tools.
+**Persona:** The plugin ships **[`prompts/PERSONA.md`](prompts/PERSONA.md)** (warm, evidence-first librarian-robot; no fluff; verify don’t trust; iterate). Each agent definition (**[`agents/wiki-librarian.md`](agents/wiki-librarian.md)**, **[`agents/research-runner.md`](agents/research-runner.md)**) inlines role-specific persona emphasis. Skills may optionally inject **`skills/references/context-persona.md`** when invoking tools.
 
 **Viewer:** after `build-site`, serve `wiki/.og/` over HTTP (not raw `file://`) so the browser can load `wiki-data.json`. The viewer can link **Open file** via `viewer.open_file_scheme` (`file`, `vscode`, `cursor`). The header uses **`persona.name`** from `wiki-data.json`. Rendered page bodies go through **DOMPurify**; git ledger lines are escaped.
 
@@ -261,6 +267,10 @@ Install gstack per [their README](https://github.com/garrytan/gstack#install--30
 ## Marketplace
 
 See [`marketplace.json`](marketplace.json) for a local marketplace entry.
+
+## Privacy and telemetry
+
+This plugin does **not** ship phone-home telemetry. Optional integrations (Firecrawl, Perplexity, Anthropic for benchmarks, etc.) use **your** API keys and those providers’ policies. Session memory and vault files stay **local** under your `llm-wiki/` path unless you sync or upload them yourself.
 
 ## License
 

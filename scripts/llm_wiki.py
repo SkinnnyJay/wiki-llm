@@ -138,7 +138,7 @@ def _setup_wizard(vault: Path, cfg: dict) -> None:
     print("─── MCP server (lets agents query your wiki via tools) ───")
     print()
     print("  The MCP server gives AI agents direct access to your wiki")
-    print("  through 21 tools: search, knowledge graph, ingest, validate.")
+    print("  through 28 tools: search, knowledge graph, ingest, validate, memory.")
     print("  Without it, agents must shell out to the CLI for every operation.")
     print()
     if _yn("  Enable MCP server", default=True):
@@ -155,9 +155,11 @@ def _setup_wizard(vault: Path, cfg: dict) -> None:
     print("          Simplest option, no index file.")
     print("  (chromadb) Semantic embeddings — finds conceptually similar content")
     print("          even without keyword overlap. Requires: pip install chromadb")
+    print("  (hybrid)   FTS5 + Chroma reciprocal-rank fusion — needs chromadb;")
+    print("          falls back to fts5 if Chroma is unavailable.")
     print()
     sb = input("  Search backend [fts5]: ").strip().lower() or "fts5"
-    if sb in ("fts5", "grep", "chromadb"):
+    if sb in ("fts5", "grep", "chromadb", "hybrid"):
         cfg.setdefault("mcp", {})["search_backend"] = sb
     else:
         print(f"  Unknown backend '{sb}', using fts5.")
@@ -298,7 +300,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
     for p in [vault / "config.json", vault / "wiki" / "index.md", vault / "CLAUDE.md"]:
         if not p.is_file():
             errs.append(f"missing {p.relative_to(vault) if vault in p.parents or p == vault else p}")
-    cfg = load_config(vault)
+    try:
+        cfg = load_config(vault)
+    except json.JSONDecodeError as e:
+        print(f"Invalid config.json: {e}", file=sys.stderr)
+        return 1
     try:
         json.dumps(cfg)
     except Exception as e:
@@ -738,6 +744,17 @@ def _mcp_tcp_listening(host: str, port: int, *, timeout: float = 0.35) -> bool:
         return False
 
 
+def _terminate_child_process(proc: subprocess.Popen, *, wait_s: float = 5.0) -> None:
+    """Stop a child started for MCP HTTP; no-op if already exited."""
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=wait_s)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
 def _mcp_start_background(args: argparse.Namespace) -> int:
     """
     Ensure the HTTP (SSE) MCP listener is running: if nothing is bound on the
@@ -764,66 +781,90 @@ def _mcp_start_background(args: argparse.Namespace) -> int:
         print(f"MCP HTTP already listening — {url}")
         return 0
 
-    root = plugin_root()
-    script = root / "scripts" / "llm_wiki.py"
-    log_path = vault / ".mcp-sse.log"
-    env = os.environ.copy()
-    env["LLM_WIKI_VAULT"] = str(vault.resolve())
-
-    cmd = [
-        sys.executable,
-        str(script),
-        "mcp",
-        "--transport",
-        "sse",
-        "--port",
-        str(port),
-        "--host",
-        host,
-    ]
-
-    log_file = open(log_path, "ab", buffering=0)
-    popen_kw: dict = {
-        "cwd": str(root),
-        "env": env,
-        "stdin": subprocess.DEVNULL,
-        "stdout": log_file,
-        "stderr": subprocess.STDOUT,
-    }
-    if sys.platform == "win32":
-        # Background process without a console; child keeps inherited log fd.
-        popen_kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
-            subprocess, "DETACHED_PROCESS", 0
-        )
-    else:
-        popen_kw["start_new_session"] = True
-
+    lock_path = vault / ".mcp-sse-start.lock"
+    lock_fd = open(lock_path, "a+", encoding="utf-8")
     try:
-        proc = subprocess.Popen(cmd, **popen_kw)
-    except OSError as e:
-        log_file.close()
-        print(f"Failed to start MCP: {e}", file=sys.stderr)
-        return 1
+        if sys.platform != "win32":
+            import fcntl
 
-    deadline = time.monotonic() + 15.0
-    while time.monotonic() < deadline:
+            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+        # Another concurrent `mcp start` may have finished while we waited for the lock.
         if _mcp_tcp_listening(host, port):
-            print(f"Started MCP HTTP in background — {url}")
-            print(f"Log: {log_path}")
+            print(f"MCP HTTP already listening — {url}")
             return 0
-        if proc.poll() is not None:
-            print(
-                f"MCP server exited immediately (exit code {proc.returncode}). See {log_path}",
-                file=sys.stderr,
-            )
-            return 1
-        time.sleep(0.15)
 
-    print(
-        f"MCP did not become ready on {host}:{port} within 15s. See {log_path}",
-        file=sys.stderr,
-    )
-    return 1
+        root = plugin_root()
+        script = root / "scripts" / "llm_wiki.py"
+        log_path = vault / ".mcp-sse.log"
+        env = os.environ.copy()
+        env["LLM_WIKI_VAULT"] = str(vault.resolve())
+
+        cmd = [
+            sys.executable,
+            str(script),
+            "mcp",
+            "--transport",
+            "sse",
+            "--port",
+            str(port),
+            "--host",
+            host,
+        ]
+
+        log_file = open(log_path, "ab", buffering=0)
+        popen_kw: dict = {
+            "cwd": str(root),
+            "env": env,
+            "stdin": subprocess.DEVNULL,
+            "stdout": log_file,
+            "stderr": subprocess.STDOUT,
+        }
+        if sys.platform == "win32":
+            # Background process without a console; child keeps inherited log fd.
+            popen_kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+                subprocess, "DETACHED_PROCESS", 0
+            )
+        else:
+            popen_kw["start_new_session"] = True
+
+        try:
+            proc = subprocess.Popen(cmd, **popen_kw)
+        except OSError as e:
+            log_file.close()
+            print(f"Failed to start MCP: {e}", file=sys.stderr)
+            return 1
+
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline:
+            if _mcp_tcp_listening(host, port):
+                print(f"Started MCP HTTP in background — {url}")
+                print(f"Log: {log_path}")
+                return 0
+            if proc.poll() is not None:
+                log_file.close()
+                print(
+                    f"MCP server exited immediately (exit code {proc.returncode}). See {log_path}",
+                    file=sys.stderr,
+                )
+                return 1
+            time.sleep(0.15)
+
+        print(
+            f"MCP did not become ready on {host}:{port} within 15s. See {log_path}",
+            file=sys.stderr,
+        )
+        _terminate_child_process(proc)
+        log_file.close()
+        return 1
+    finally:
+        if sys.platform != "win32":
+            import fcntl
+
+            try:
+                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+        lock_fd.close()
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
@@ -1226,15 +1267,22 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
     bcfg = cfg.get("benchmark") or {}
-    if not bcfg.get("enabled", True):
+    sub = getattr(args, "benchmark_sub", None)
+    if not bcfg.get("enabled", True) and sub not in ("analyze", "suites"):
         print("benchmark.enabled is false in config.json", file=sys.stderr)
         return 1
 
-    sub = getattr(args, "benchmark_sub", None)
+    if sub == "suites":
+        from benchmarks.suite_help import describe_benchmark_suites
+
+        print(describe_benchmark_suites(), end="")
+        return 0
+
     if sub == "run":
         raw_suite = getattr(args, "benchmark_suite", None) or "lme"
         suite = "lme" if raw_suite in ("lme", "longmemeval") else raw_suite
-        if getattr(args, "benchmark_no_metrics", False):
+        no_metrics = getattr(args, "benchmark_no_metrics", False)
+        if no_metrics:
             cfg.setdefault("benchmark", {})["auto_record_metrics"] = False
         compress_arg = getattr(args, "benchmark_compress", None)
         compress = compress_arg if compress_arg is not None else bcfg.get("compress_method", "raw")
@@ -1265,7 +1313,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             for be in backends:
                 for comp in compressors:
                     cfg_run = load_config(vault)
-                    if getattr(args, "benchmark_no_metrics", False):
+                    if no_metrics:
                         cfg_run.setdefault("benchmark", {})["auto_record_metrics"] = False
                     cfg_run.setdefault("benchmark", {})["compress_method"] = comp
                     result = run_lme(
@@ -1284,30 +1332,19 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
                         result,
                         backend=be,
                         compressor=comp,
+                        limit=limit,
                     )
             if last_fail is not None:
                 print(f"Failures log (last run): {last_fail}", file=sys.stderr)
             return 0
-        if suite == "locomo":
-            from benchmarks.locomo_bench import run_locomo
+        if suite in ("locomo", "convomem"):
+            if suite == "locomo":
+                from benchmarks.locomo_bench import run_locomo as run_peer
+            else:
+                from benchmarks.convomem_bench import run_convomem as run_peer
 
-            out = run_locomo(
-                vault,
-                cfg,
-                limit=limit,
-                data_path=Path(data_arg).resolve() if data_arg else None,
-            )
-            print(json.dumps(out.get("summary", out), indent=2))
-            return 0
-        if suite == "convomem":
-            from benchmarks.convomem_bench import run_convomem
-
-            out = run_convomem(
-                vault,
-                cfg,
-                limit=limit,
-                data_path=Path(data_arg).resolve() if data_arg else None,
-            )
+            data_path = Path(data_arg).resolve() if data_arg else None
+            out = run_peer(vault, cfg, limit=limit, data_path=data_path)
             print(json.dumps(out.get("summary", out), indent=2))
             return 0
 
@@ -1338,7 +1375,59 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             print(f"{r.get('ts', '')[:19]}  {r.get('key')}={r.get('value')}")
         return 0
 
-    print("Usage: llm-wiki benchmark {run|report|history}", file=sys.stderr)
+    if sub == "compare":
+        from lib.metrics_report import iter_benchmark_lme_snapshots
+
+        rows = iter_benchmark_lme_snapshots(vault, cfg, limit=500)
+        if len(rows) < 2:
+            print(
+                "Need at least two benchmark.lme.recall_at_5 records in metrics JSONL.",
+                file=sys.stderr,
+            )
+            return 1
+        ia = int(getattr(args, "benchmark_compare_a", -2))
+        ib = int(getattr(args, "benchmark_compare_b", -1))
+        ra = rows[ia]
+        rb = rows[ib]
+        out = {
+            "a": {
+                "ts": ra.get("ts"),
+                "recall_at_5": ra.get("value"),
+                "meta": ra.get("meta"),
+            },
+            "b": {
+                "ts": rb.get("ts"),
+                "recall_at_5": rb.get("value"),
+                "meta": rb.get("meta"),
+            },
+        }
+        print(json.dumps(out, indent=2, default=str))
+        return 0
+
+    if sub == "analyze":
+        from benchmarks.lme_bench import analyze_lme_failures_log, format_lme_failures_analysis
+
+        suite = getattr(args, "benchmark_analyze_suite", "lme") or "lme"
+        if suite != "lme":
+            print("benchmark analyze: only --suite lme is supported", file=sys.stderr)
+            return 1
+        raw_path = getattr(args, "benchmark_failures_path", None)
+        if raw_path:
+            fail_path = Path(str(raw_path)).resolve()
+        else:
+            results_dir = vault / str(bcfg.get("results_dir") or ".benchmarks")
+            fail_path = results_dir / "lme_failures.jsonl"
+        summary = analyze_lme_failures_log(fail_path)
+        if getattr(args, "benchmark_analyze_json", False):
+            print(json.dumps(summary, indent=2, default=str))
+        else:
+            print(format_lme_failures_analysis(summary), end="")
+        return 0
+
+    print(
+        "Usage: llm-wiki benchmark {run|suites|report|history|compare|analyze}",
+        file=sys.stderr,
+    )
     return 1
 
 
@@ -1373,14 +1462,14 @@ def cmd_interactive_configure() -> int:
     print()
     print("─── MCP server ───")
     mcp_cur = (cfg.get("mcp") or {}).get("enabled", True)
-    v = input(f"  MCP server — agents query wiki via 21 tools (y/n) [{'y' if mcp_cur else 'n'}]: ").strip().lower()
+    v = input(f"  MCP server — agents query wiki via 28 tools (y/n) [{'y' if mcp_cur else 'n'}]: ").strip().lower()
     if v in ("y", "n"):
         cfg.setdefault("mcp", {})["enabled"] = v == "y"
 
     sb_cur = (cfg.get("mcp") or {}).get("search_backend", "fts5")
-    print(f"  Search backend: fts5 (ranked) | grep (simple) | chromadb (semantic)")
+    print(f"  Search backend: fts5 (ranked) | grep (simple) | chromadb (semantic) | hybrid (FTS+Chroma RRF)")
     sb = input(f"  Search backend [{sb_cur}]: ").strip().lower()
-    if sb in ("fts5", "grep", "chromadb"):
+    if sb in ("fts5", "grep", "chromadb", "hybrid"):
         cfg.setdefault("mcp", {})["search_backend"] = sb
 
     print()
@@ -1460,7 +1549,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         default="check",
         choices=["check"],
-        help="check: verify MarkItDown/PyMuPDF for ingest pdf (default)",
+        help="check: verify pdf2image/anthropic for PDF Vision ingest (default)",
     )
     pdeps.set_defaults(func=cmd_deps)
 
@@ -1823,6 +1912,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pbench_sub = pbench.add_subparsers(dest="benchmark_sub", required=True)
 
+    pbench_sub.add_parser(
+        "suites",
+        help="Describe peer benchmark suites (LME, LoCoMo, ConvoMem) and example commands",
+    )
+
     pbench_run = pbench_sub.add_parser("run", help="Run a benchmark suite")
     pbench_run.add_argument(
         "benchmark_suite",
@@ -1891,6 +1985,55 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=30,
         help="Max benchmark lines (default: 30)",
+    )
+
+    pbench_cmp = pbench_sub.add_parser(
+        "compare",
+        help="Diff two LME snapshots (benchmark.lme.recall_at_5) by index into recent runs",
+    )
+    pbench_cmp.add_argument(
+        "--a",
+        dest="benchmark_compare_a",
+        type=int,
+        default=-2,
+        help="Index into recent LME snapshots (default: -2)",
+    )
+    pbench_cmp.add_argument(
+        "--b",
+        dest="benchmark_compare_b",
+        type=int,
+        default=-1,
+        help="Index into recent LME snapshots (default: -1)",
+    )
+    pbench_cmp.add_argument(
+        "--json",
+        dest="benchmark_compare_json",
+        action="store_true",
+        help="Same as default (JSON output)",
+    )
+
+    pbench_analyze = pbench_sub.add_parser(
+        "analyze",
+        help="Summarize lme_failures.jsonl (buckets, question ids, LLM flags)",
+    )
+    pbench_analyze.add_argument(
+        "--suite",
+        dest="benchmark_analyze_suite",
+        default="lme",
+        choices=["lme"],
+        help="Which failure log (default: lme)",
+    )
+    pbench_analyze.add_argument(
+        "--failures",
+        dest="benchmark_failures_path",
+        default=None,
+        help="Path to JSONL (default: <vault>/.benchmarks/lme_failures.jsonl)",
+    )
+    pbench_analyze.add_argument(
+        "--json",
+        dest="benchmark_analyze_json",
+        action="store_true",
+        help="Emit full JSON (includes per-row records)",
     )
 
     pbench.set_defaults(func=cmd_benchmark)

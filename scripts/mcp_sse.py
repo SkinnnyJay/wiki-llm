@@ -2,6 +2,9 @@
 """
 HTTP JSON-RPC bridge for MCP (started with: llm-wiki mcp --transport sse).
 
+The --transport sse flag name is a legacy convention; the actual protocol is
+synchronous HTTP POST with JSON-RPC request/response (not Server-Sent Events).
+
 Uses stdlib only. Clients POST a single JSON-RPC object; the response is returned
 as application/json. Set LLM_WIKI_VAULT before importing mcp_server (done by run_sse_server).
 """

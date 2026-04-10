@@ -21,9 +21,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from lib.config_loader import load_config, save_config
+from lib.config_loader import load_config, save_config, storage_warnings
 from lib.paths import resolve_vault, plugin_root
-from lib.search import get_search_backend, SearchResult
+from lib.search import get_search_backend
 from lib.knowledge_graph import get_kg_backend
 from lib.metrics import get_metrics
 
@@ -86,17 +86,24 @@ def tool_wiki_status() -> dict[str, Any]:
     idx = _search.index_status()
     configured_sb = mcp_cfg.get("search_backend", "fts5")
     active_sb = idx.get("backend", "?")
-    return {
+    fallback = (configured_sb == "chromadb" and active_sb == "grep") or (
+        configured_sb == "hybrid" and active_sb == "fts5"
+    )
+    sw = storage_warnings(_vault, _cfg)
+    out: dict[str, Any] = {
         "vault_path": str(_vault),
         "raw_files": raw_count,
         "wiki_pages": wiki_count,
         "persona": (_cfg.get("persona") or {}).get("name", "Gennie"),
         "search_backend": configured_sb,
         "search_backend_active": active_sb,
-        "search_backend_fallback": configured_sb == "chromadb" and active_sb == "grep",
+        "search_backend_fallback": fallback,
         "kg_backend": kg_cfg.get("backend", "json"),
         "git_enabled": (_cfg.get("git") or {}).get("enabled", False),
     }
+    if sw:
+        out["storage_warnings"] = sw
+    return out
 
 
 def tool_wiki_list_topics() -> dict[str, Any]:
@@ -240,7 +247,7 @@ def tool_wiki_ingest(adapter: str, source: str, tags: str = "", out: str = "") -
     if out:
         argv.extend(["--out", out])
     try:
-        result = run_ingest(_vault, _cfg, argv)
+        result = run_ingest(_vault, _cfg, adapter, argv[1:])
         return {"success": True, "adapter": adapter, "result": str(result)}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -365,6 +372,33 @@ def tool_memory_save(
         compact_summary=compact_summary or None,
         tags=tag_list,
         metadata=meta,
+    )
+    return {"path": path.relative_to(_vault).as_posix(), "ok": True}
+
+
+def tool_memory_log(
+    session_id: str = "",
+    current: bool = False,
+    message_preview: str = "",
+) -> dict[str, Any]:
+    """Append a conversation round to session memory. Prefer CLI when local."""
+    from lib import session_memory as mem
+
+    if not _vault_ok():
+        return _no_vault()
+    if not mem.memory_enabled(_cfg):
+        return {"skipped": True, "reason": "memory.enabled is false"}
+    try:
+        sid = mem.resolve_current_session(_vault) if current else session_id.strip()
+        if not sid:
+            return {"error": "Pass session_id or current=true"}
+    except (ValueError, FileNotFoundError) as e:
+        return {"error": str(e)}
+    path = mem.memory_log_round(
+        _vault,
+        _cfg,
+        sid,
+        message_preview=message_preview or None,
     )
     return {"path": path.relative_to(_vault).as_posix(), "ok": True}
 
@@ -732,6 +766,18 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
         "handler": tool_memory_save,
+    },
+    "memory_log": {
+        "description": "Append a conversation round to session memory. Prefer: llm-wiki memory log",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string", "description": "Chat session id (omit if current=true)"},
+                "current": {"type": "boolean", "description": "Use .current-session in vault"},
+                "message_preview": {"type": "string", "description": "Short preview of the conversation round (max 500 chars)"},
+            },
+        },
+        "handler": tool_memory_log,
     },
     "memory_list": {
         "description": "List session memory files. Prefer: llm-wiki memory list",

@@ -23,5 +23,19 @@
       "args": ["scripts/mcp_server.py"]
     }
   },
+  "userConfig": {
+    "firecrawl_api_key": {
+      "description": "Firecrawl API key for web extraction (optional)",
+      "sensitive": true
+    },
+    "brave_search_api_key": {
+      "description": "Brave Search API key (optional)",
+      "sensitive": true
+    },
+    "perplexity_api_key": {
+      "description": "Perplexity API key for news/current events research (optional)",
+      "sensitive": true
+    }
+  },
   "logo": "docs/assets/logo-square.png"
 }

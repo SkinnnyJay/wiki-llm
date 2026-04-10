@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-import os
+import logging
 import re
 import shutil
 import sqlite3
@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from lib.config_loader import DEFAULTS, resolve_storage_path
+from lib.rank_fusion import reciprocal_rank_fusion
+
+_log = logging.getLogger("llm_wiki.search")
 
 
 @dataclass
@@ -419,8 +422,8 @@ class FTS5SearchBackend:
                             tags=[t.strip() for t in (row["tags"] or "").split(",") if t.strip()],
                         )
                     )
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as exc:
+            _log.warning("FTS5 search failed: %s (query=%r)", exc, query[:100])
         if self._metrics:
             elapsed_ms = round((time.monotonic() - t0) * 1000, 1)
             self._metrics.record(
@@ -606,6 +609,88 @@ class GrepSearchBackend:
 
 
 # ---------------------------------------------------------------------------
+# Hybrid (FTS5 + ChromaDB RRF)
+# ---------------------------------------------------------------------------
+
+
+class HybridSearchBackend:
+    """BM25 + semantic similarity via reciprocal rank fusion."""
+
+    def __init__(self, vault: Path, cfg: dict[str, Any], chroma: Any) -> None:
+        self._vault = vault
+        self._cfg = cfg
+        self._fts = FTS5SearchBackend(vault, cfg)
+        self._chroma = chroma
+        mcp = cfg.get("mcp") or {}
+        self._rrf_k = int(mcp.get("hybrid_rrf_k", 60))
+        self._metrics: Any = None
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        object.__setattr__(self, name, value)
+        if name == "_metrics":
+            if getattr(self, "_fts", None) is not None:
+                self._fts._metrics = value  # type: ignore[attr-defined]
+            if getattr(self, "_chroma", None) is not None:
+                self._chroma._metrics = value  # type: ignore[attr-defined]
+
+    @staticmethod
+    def _merge_rrf_results(
+        fused_paths: list[str],
+        fts_results: list[SearchResult],
+        chroma_results: list[SearchResult],
+    ) -> list[SearchResult]:
+        fts_map = {r.path: r for r in fts_results}
+        chroma_map = {r.path: r for r in chroma_results}
+        out: list[SearchResult] = []
+        for path in fused_paths:
+            fts_r = fts_map.get(path)
+            chroma_r = chroma_map.get(path)
+            if fts_r and chroma_r:
+                out.append(
+                    SearchResult(
+                        path=path,
+                        title=fts_r.title or chroma_r.title,
+                        snippet=fts_r.snippet,
+                        score=max(fts_r.score, chroma_r.score),
+                        tags=fts_r.tags if fts_r.tags else chroma_r.tags,
+                    )
+                )
+            elif fts_r:
+                out.append(fts_r)
+            elif chroma_r:
+                out.append(chroma_r)
+        return out
+
+    def search(
+        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+    ) -> list[SearchResult]:
+        n = max(limit * 4, 20)
+        fts_results = self._fts.search(query, limit=n, tag=tag, scope=scope)
+        chroma_results = self._chroma.search(query, limit=n, tag=tag, scope=scope)
+        paths_a = [r.path for r in fts_results]
+        paths_b = [r.path for r in chroma_results]
+        fused = reciprocal_rank_fusion([paths_a, paths_b], k=self._rrf_k)
+        merged = self._merge_rrf_results(fused, fts_results, chroma_results)
+        return merged[:limit]
+
+    def find_related(self, page_path: str, *, limit: int = 5) -> list[SearchResult]:
+        return self._chroma.find_related(page_path, limit=limit)
+
+    def index_status(self) -> dict[str, Any]:
+        return {
+            "backend": "hybrid",
+            "chromadb_available": True,
+            "fts": self._fts.index_status(),
+            "chromadb": self._chroma.index_status(),
+        }
+
+    def reindex(self) -> dict[str, Any]:
+        fts_r = self._fts.reindex()
+        chroma_r = self._chroma.reindex()
+        return {"backend": "hybrid", "fts": fts_r, "chromadb": chroma_r}
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -627,6 +712,20 @@ def get_search_backend(vault: Path, cfg: dict[str, Any]) -> SearchBackend:
         except Exception as e:
             log.warning("ChromaDB init failed (%s); falling back to grep.", e)
             return GrepSearchBackend(vault)
+    if backend_name == "hybrid":
+        try:
+            from lib.search_chromadb import ChromaDBSearchBackend
+
+            chroma = ChromaDBSearchBackend(vault, cfg)
+            return HybridSearchBackend(vault, cfg, chroma)
+        except ImportError:
+            log.warning(
+                "chromadb not installed; hybrid search requires chromadb. Falling back to fts5. Install: pip install chromadb"
+            )
+            return FTS5SearchBackend(vault, cfg)
+        except Exception as e:
+            log.warning("ChromaDB init failed (%s); hybrid falling back to fts5.", e)
+            return FTS5SearchBackend(vault, cfg)
     if backend_name == "fts5":
         return FTS5SearchBackend(vault, cfg)
     return GrepSearchBackend(vault)
