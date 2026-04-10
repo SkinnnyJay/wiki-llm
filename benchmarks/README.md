@@ -32,6 +32,16 @@ The **LME** runner (`benchmarks/lme_bench.py`) downloads the public Hugging Face
    - **Parallel LLM rerank:** `parallel_workers` (default **1**) — when **> 1**, LME defers LLM rerank to a thread pool after retrieval (each question uses a separate vault under `.benchmark_run/q_<idx>/` so vaults stay concurrent-safe). Combine with **`rerank_llm.enabled`** / `LLM_WIKI_BENCHMARK_LLM=1`. Typical **4–8** workers for wall-clock speedup on CLI/API rerank.
    - **Persistent Claude CLI pool:** `persistent_cli_pool` (default **false**), **`persistent_pool_size`** (default **4**) — keep a long-lived **`claude`** stream-json session per pool worker (Unix/macOS); falls back to one-shot `claude --print` on Windows or when the stream fails. Only applies to **`claude_cli`** / **`invoke: auto`** when Claude is selected.
 
+### Forward-only micro-optimization (LME + LLM rerank)
+
+Tune **one knob per experiment** and **merge only if quality does not regress** (use data, not intuition):
+
+1. **Baseline** — Save summary JSON + miss `question_id`s (from `lme_failures.jsonl` or a tracked run under `docs/memory/benchmarks/runs/`). Use **`--limit 250`** for faster iteration; **confirm** headline numbers on full **500** (`--limit 0`).
+2. **Gate** — Keep the change if **`recall_at_5` ≥ baseline** and **`failures` ≤ baseline**. If optimizing wall time, also require **`elapsed_s`** (or measured wall) not worse unless quality improved. Otherwise **revert**.
+3. **Record** — Document the run (path, config hash, key knobs). With **`benchmark.append_repo_runs_jsonl`** enabled, use **`python3 scripts/llm_wiki.py benchmark compare`** for last-two snapshots.
+
+**Knobs worth trying next (usually one at a time):** `fuse_original_weight` (lower → trust LLM order more; raise if R@5 drops), `max_picks` / `max_candidates`, `max_chars` / `excerpt_mode`, `invoke_when: adaptive` + `adaptive_confidence_threshold` (fewer LLM calls; validate R@5 on 500), `parallel_workers` (throughput only; should not change R@5).
+
 ### Eval size (`--limit`)
 
 | `--limit` | Typical use |
