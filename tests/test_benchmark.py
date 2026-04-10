@@ -128,6 +128,29 @@ def test_lexical_overlap_score_path_positive(tmp_path):
     assert s > 5.0
 
 
+def test_compute_rerank_confidence_in_range(tmp_path):
+    q = "alpha beta gamma delta epsilon"
+    for i in range(5):
+        _bench_md(tmp_path, f"raw/bench/h{i}.md", q + " " + "filler " * 40)
+    for j in range(5):
+        _bench_md(tmp_path, f"raw/bench/t{j}.md", "zzz unrelated noise " * 60)
+    paths = [f"raw/bench/h{i}.md" for i in range(5)] + [
+        f"raw/bench/t{j}.md" for j in range(5)
+    ]
+    from benchmarks.bench_harness import compute_rerank_confidence
+
+    c = compute_rerank_confidence(
+        q,
+        paths,
+        tmp_path,
+        head=5,
+        lookback=5,
+        tail_margin=0.12,
+        min_head_lex=3.5,
+    )
+    assert 0.0 <= c <= 1.0
+
+
 def test_adaptive_skips_llm_when_head_strong_tail_weak(tmp_path):
     q = "alpha beta gamma delta epsilon"
     for i in range(5):

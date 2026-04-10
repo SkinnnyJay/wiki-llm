@@ -1,0 +1,21 @@
+{
+  "name": "cli-smoke",
+  "recorded_at": "2026-04-10T00:00:00Z",
+  "steps": [
+    {
+      "argv": ["validate"],
+      "expect_exit_0": true,
+      "stdout_contains": ["OK"]
+    },
+    {
+      "argv": ["list-topics"],
+      "expect_exit_0": true,
+      "stdout_contains": []
+    }
+  ],
+  "file_checks": [
+    {"path": "wiki/index.md", "exists": true},
+    {"path": "config.json", "exists": true}
+  ],
+  "purge_vault_after": true
+}

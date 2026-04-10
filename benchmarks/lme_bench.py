@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import os
 import shutil
@@ -22,10 +23,12 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from benchmarks.bench_harness import (
+    PersistentCLIPool,
     _resolve_auto_invoke,
     append_repo_benchmark_runs_jsonl,
     build_benchmark_record_meta,
     config_hash,
+    compute_rerank_confidence,
     ensure_vault_config,
     get_benchmark_search_fn,
     ndcg_at_k,
@@ -126,13 +129,17 @@ def run_lme(
     if limit > 0:
         data = data[:limit]
 
-    bench_root = vault / ".benchmark_run"
-    if bench_root.exists():
-        shutil.rmtree(bench_root)
-    bench_root.mkdir(parents=True)
+    bench_parent = vault / ".benchmark_run"
+    if bench_parent.exists():
+        shutil.rmtree(bench_parent)
+    bench_parent.mkdir(parents=True)
     cfg_run = deep_merge(cfg, {})
     cfg_run["mcp"] = {**(cfg_run.get("mcp") or {}), "search_backend": backend if backend != "hybrid" else "fts5"}
-    ensure_vault_config(bench_root, cfg_run)
+    ensure_vault_config(bench_parent, cfg_run)
+
+    bcfg0 = (cfg_run.get("benchmark") or {}).get("search") or {}
+    rl0 = bcfg0.get("rerank_llm") or {}
+    parallel_workers = max(1, int(rl0.get("parallel_workers", 1)))
 
     comp = get_compressor(compressor_name, cfg_run)
     all_ratios: list[float] = []
@@ -142,12 +149,33 @@ def run_lme(
     failures: list[dict] = []
     failure_bucket_counts: dict[str, int] = {"P": 0, "R": 0, "M": 0, "L": 0}
     llm_adaptive_skips = 0
+    adaptive_confidence_scores: list[float] = []
 
     t0 = time.monotonic()
+    rows: list[dict[str, Any]] = []
+    cli_pool_serial: PersistentCLIPool | None = None
+
+    def _serial_cli_pool(inv: str, cli_l: list[str] | None) -> PersistentCLIPool | None:
+        nonlocal cli_pool_serial
+        if not bool(rl0.get("persistent_cli_pool", False)) or parallel_workers > 1:
+            return None
+        if inv != "claude_cli":
+            return None
+        if cli_pool_serial is None:
+            cli_pool_serial = PersistentCLIPool(
+                int(rl0.get("persistent_pool_size", 4)),
+                invoke=inv,
+                cli_argv=cli_l,
+            )
+        return cli_pool_serial
+
     for idx, entry in enumerate(data):
         # One haystack per question — do not accumulate prior questions' sessions.
+        bench_root = bench_parent if parallel_workers == 1 else bench_parent / f"q_{idx:05d}"
+        if parallel_workers > 1:
+            bench_root.mkdir(parents=True)
         bench_raw = bench_root / "raw" / "bench"
-        if bench_raw.exists():
+        if parallel_workers == 1 and bench_raw.exists():
             shutil.rmtree(bench_raw)
 
         sessions = entry["haystack_sessions"]
@@ -316,10 +344,9 @@ def run_lme(
         ) or (env_on and can_run)
         run_llm = bool(want_llm and can_run)
         adaptive_skip = False
+        confidence_score: float | None = None
         if run_llm and str(rl.get("invoke_when", "always")).strip().lower() == "adaptive":
-            from benchmarks.bench_harness import adaptive_should_run_llm_rerank
-
-            if not adaptive_should_run_llm_rerank(
+            confidence_score = compute_rerank_confidence(
                 question,
                 paths_before_llm,
                 bench_root,
@@ -328,13 +355,17 @@ def run_lme(
                 tail_margin=float(rl.get("adaptive_tail_margin", 0.12)),
                 min_head_lex=float(rl.get("adaptive_min_head_lex", 3.5)),
                 max_chars=int(rl.get("adaptive_max_chars", 12000)),
-            ):
+            )
+            adaptive_confidence_scores.append(float(confidence_score))
+            thr = float(rl.get("adaptive_confidence_threshold", 0.5))
+            if confidence_score >= thr:
                 run_llm = False
                 adaptive_skip = True
                 llm_adaptive_skips += 1
         llm_invoked = run_llm
         cap = int(rl.get("max_candidates", 80))
         max_candidates_used = min(cap, max(len(paths_before_llm), 5)) if llm_invoked else 0
+        deferred_parallel_rerank = False
         if llm_invoked and cross_encoder_mode:
             paths = rerank_paths_cross_encoder(
                 question,
@@ -345,6 +376,25 @@ def run_lme(
                 max_chars=int(rl.get("max_chars", 10000)),
                 top_k=int(rl.get("max_picks", 10)),
             )
+        elif llm_invoked and parallel_workers > 1:
+            deferred_parallel_rerank = True
+            paths = list(paths_before_llm)
+            model = rl.get("model", "claude-sonnet-4-6")
+            cli_argv = rl.get("cli_argv")
+            if isinstance(cli_argv, list):
+                cli_list = [str(x) for x in cli_argv]
+            else:
+                cli_list = None
+            dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
+                os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
+            ).lower() in ("1", "true", "yes")
+            if dbg:
+                print(
+                    f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
+                    f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
+                    f"max_cand={max_candidates_used} deferred_parallel=1",
+                    file=sys.stderr,
+                )
         elif llm_invoked:
             model = rl.get("model", "claude-sonnet-4-6")
             cli_argv = rl.get("cli_argv")
@@ -380,7 +430,103 @@ def run_lme(
                 fuse_rrf_k=int(rl.get("fuse_rrf_k", 60)),
                 session_dedup=bool(rl.get("session_dedup", False)),
                 path_to_sid=path_to_sid,
+                persistent_cli_pool=_serial_cli_pool(invoke, cli_list),
             )
+
+        rows.append(
+            {
+                "idx": idx,
+                "entry": entry,
+                "bench_root": bench_root,
+                "path_to_sid": path_to_sid,
+                "corpus_sids": corpus_sids,
+                "paths_before_llm": list(paths_before_llm),
+                "paths": list(paths),
+                "n_fetch": n_fetch,
+                "gold": gold,
+                "question": question,
+                "qid": qid,
+                "sessions": sessions,
+                "want_llm": want_llm,
+                "can_run": can_run,
+                "llm_invoked": llm_invoked,
+                "adaptive_skip": adaptive_skip,
+                "confidence_score": confidence_score,
+                "max_candidates_used": max_candidates_used,
+                "env_on": env_on,
+                "deferred_parallel_rerank": deferred_parallel_rerank,
+                "rl": rl,
+                "invoke": invoke,
+                "api_key": api_key,
+            }
+        )
+
+    pending_parallel = [r for r in rows if r.get("deferred_parallel_rerank")]
+    parallel_pool: PersistentCLIPool | None = None
+    if pending_parallel and bool(rl0.get("persistent_cli_pool", False)):
+        p0 = pending_parallel[0]
+        if str(p0.get("invoke", "")).strip().lower() == "claude_cli":
+            parallel_pool = PersistentCLIPool(
+                int(rl0.get("persistent_pool_size", 4)),
+                invoke="claude_cli",
+                cli_argv=p0["rl"].get("cli_argv")
+                if isinstance(p0["rl"].get("cli_argv"), list)
+                else None,
+            )
+
+    def _parallel_rerank_one(p: dict[str, Any]) -> list[str]:
+        rll = p["rl"]
+        cli_argv = rll.get("cli_argv")
+        cli_list = [str(x) for x in cli_argv] if isinstance(cli_argv, list) else None
+        return rerank_paths_llm(
+            p["question"],
+            p["paths_before_llm"],
+            p["bench_root"],
+            api_key=p["api_key"],
+            invoke=p["invoke"],
+            model=rll.get("model", "claude-sonnet-4-6"),
+            max_chars=int(rll.get("max_chars", 3600)),
+            max_candidates=p["max_candidates_used"],
+            max_picks=int(rll.get("max_picks", 5)),
+            excerpt_mode=str(rll.get("excerpt_mode", "head_tail")),
+            cli_argv=cli_list,
+            cli_timeout_s=int(rll.get("cli_timeout_s", 180)),
+            fuse_original_rrf=bool(rll.get("fuse_original_rrf", True)),
+            fuse_original_weight=float(rll.get("fuse_original_weight", 0.35)),
+            fuse_rrf_k=int(rll.get("fuse_rrf_k", 60)),
+            session_dedup=bool(rll.get("session_dedup", False)),
+            path_to_sid=p["path_to_sid"],
+            persistent_cli_pool=parallel_pool,
+        )
+
+    if pending_parallel:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_workers) as ex:
+            new_paths_list = list(ex.map(_parallel_rerank_one, pending_parallel))
+        for row, np in zip(pending_parallel, new_paths_list):
+            rows[row["idx"]]["paths"] = np
+    if parallel_pool is not None:
+        parallel_pool.close()
+
+    for row in rows:
+        idx = row["idx"]
+        entry = row["entry"]
+        bench_root = row["bench_root"]
+        path_to_sid = row["path_to_sid"]
+        corpus_sids = row["corpus_sids"]
+        paths_before_llm = row["paths_before_llm"]
+        paths = row["paths"]
+        n_fetch = row["n_fetch"]
+        gold = row["gold"]
+        question = row["question"]
+        qid = row["qid"]
+        sessions = row["sessions"]
+        want_llm = row["want_llm"]
+        can_run = row["can_run"]
+        llm_invoked = row["llm_invoked"]
+        adaptive_skip = row["adaptive_skip"]
+        confidence_score = row.get("confidence_score")
+        max_candidates_used = row["max_candidates_used"]
+        env_on = row["env_on"]
 
         paths_after_llm = list(paths)
         gold_in_pool = _gold_sid_in_paths(paths_before_llm, gold, path_to_sid)
@@ -417,27 +563,28 @@ def run_lme(
             )
             if bucket:
                 failure_bucket_counts[bucket] = failure_bucket_counts.get(bucket, 0) + 1
-            failures.append(
-                {
-                    "question_id": qid,
-                    "question": question,
-                    "gold_sessions": list(gold),
-                    "failure_bucket": bucket,
-                    "gold_in_pool_pre_llm": gold_in_pool,
-                    "gold_in_paths_slice_n_fetch": gold_in_n_fetch,
-                    "llm_want": want_llm,
-                    "llm_can_run": can_run,
-                    "llm_invoked": llm_invoked,
-                    "llm_adaptive_skip": adaptive_skip,
-                    "llm_rerank_reordered": (
-                        paths_before_llm != paths_after_llm if llm_invoked else None
-                    ),
-                    "n_fetch": n_fetch,
-                    "max_candidates_used": max_candidates_used,
-                    "top_paths": paths[:10],
-                    "ordered_sessions": ordered_sids[:10],
-                }
-            )
+            fail_row: dict[str, Any] = {
+                "question_id": qid,
+                "question": question,
+                "gold_sessions": list(gold),
+                "failure_bucket": bucket,
+                "gold_in_pool_pre_llm": gold_in_pool,
+                "gold_in_paths_slice_n_fetch": gold_in_n_fetch,
+                "llm_want": want_llm,
+                "llm_can_run": can_run,
+                "llm_invoked": llm_invoked,
+                "llm_adaptive_skip": adaptive_skip,
+                "llm_rerank_reordered": (
+                    paths_before_llm != paths_after_llm if llm_invoked else None
+                ),
+                "n_fetch": n_fetch,
+                "max_candidates_used": max_candidates_used,
+                "top_paths": paths[:10],
+                "ordered_sessions": ordered_sids[:10],
+            }
+            if confidence_score is not None:
+                fail_row["confidence_score"] = confidence_score
+            failures.append(fail_row)
 
         raw_body = "\n".join(
             "\n".join(t.get("content", "") for t in sess if t.get("role") == "user")
@@ -446,6 +593,9 @@ def run_lme(
         cbody = comp.compress(raw_body, metadata={})
         st = comp.stats(raw_body, cbody)
         all_ratios.append(float(st.get("ratio", 1.0)))
+
+    if cli_pool_serial is not None:
+        cli_pool_serial.close()
 
     elapsed = time.monotonic() - t0
 
@@ -465,6 +615,11 @@ def run_lme(
         "failures": len(failures),
         "failure_bucket_counts": dict(failure_bucket_counts),
         "llm_adaptive_skips": llm_adaptive_skips,
+        "llm_adaptive_confidence_mean": (
+            round(sum(adaptive_confidence_scores) / len(adaptive_confidence_scores), 4)
+            if adaptive_confidence_scores
+            else None
+        ),
         "token_ratio_mean": round(sum(all_ratios) / max(len(all_ratios), 1), 3),
     }
     return {"summary": summary, "failures": failures}

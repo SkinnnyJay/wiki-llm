@@ -7,7 +7,9 @@ import json
 import math
 import os
 import re
+import select
 import subprocess
+import threading
 from datetime import datetime, timezone
 from collections import Counter
 import time
@@ -560,6 +562,56 @@ def lexical_overlap_score_path(
     return float(overlap) * 3.0 + float(substr_hits) * 0.15
 
 
+def compute_rerank_confidence(
+    question: str,
+    paths: list[str],
+    vault: Path,
+    *,
+    head: int = 5,
+    lookback: int = 24,
+    tail_margin: float = 0.12,
+    min_head_lex: float = 3.5,
+    max_chars: int = 12000,
+) -> float:
+    """
+    Cheap heuristic: **higher** confidence means BM25/lexical retrieval is strong
+    enough that skipping LLM rerank is reasonable (fewer API calls; intended to
+    avoid regressions on easy questions).
+
+    Does **not** use gold labels. Returns a value in ``[0.0, 1.0]``:
+    - ``0.0`` — always spend an LLM rerank (weak head, tail competitive with head,
+      or too few paths to compare).
+    - Otherwise ``min(1.0, (max_h - max_t) / max(max_h, 0.01))`` where ``max_h`` is
+      the best lexical score in the top ``head`` paths and ``max_t`` in the
+      ``lookback`` window below ``head``.
+
+    Pair with ``adaptive_confidence_threshold``: skip LLM when
+    ``confidence >= threshold``.
+    """
+    if not paths:
+        return 0.0
+    if len(paths) < 2:
+        return 0.0
+    head_n = max(1, min(int(head), len(paths)))
+    max_h = max(
+        lexical_overlap_score_path(question, vault, p, max_chars=max_chars)
+        for p in paths[:head_n]
+    )
+    end = min(len(paths), head_n + max(0, int(lookback)))
+    if end <= head_n:
+        # No tail window: same as old branch — run LLM only when head is weak.
+        return 0.0 if max_h < float(min_head_lex) else 1.0
+    max_t = max(
+        lexical_overlap_score_path(question, vault, p, max_chars=max_chars)
+        for p in paths[head_n:end]
+    )
+    if max_h < float(min_head_lex):
+        return 0.0
+    if max_t >= max_h - float(tail_margin):
+        return 0.0
+    return min(1.0, (max_h - max_t) / max(max_h, 0.01))
+
+
 def adaptive_should_run_llm_rerank(
     question: str,
     paths: list[str],
@@ -570,6 +622,7 @@ def adaptive_should_run_llm_rerank(
     tail_margin: float = 0.12,
     min_head_lex: float = 3.5,
     max_chars: int = 12000,
+    confidence_threshold: float = 0.5,
 ) -> bool:
     """
     Cheap heuristic: spend an LLM rerank call when (a) the best lexical match among
@@ -577,30 +630,23 @@ def adaptive_should_run_llm_rerank(
     ``head`` paths (suggests a better session may sit below the RRF top-5), or (b)
     the best lexical score in the top ``head`` is weak (ambiguous / paraphrase-heavy).
 
-    Does **not** use gold labels. When this returns False, BM25/RRF + top-5 lexical
+    Does **not** use gold labels. When this returns **False**, BM25/RRF + top-5 lexical
     look strong enough that we skip LLM to avoid regressions on easy questions.
+
+    Equivalent to ``compute_rerank_confidence(...) < confidence_threshold`` for
+    ``invoke_when: adaptive`` (default threshold ``0.5``).
     """
-    if not paths:
-        return False
-    if len(paths) < 2:
-        return True
-    head = max(1, min(int(head), len(paths)))
-    max_h = max(
-        lexical_overlap_score_path(question, vault, p, max_chars=max_chars)
-        for p in paths[:head]
+    conf = compute_rerank_confidence(
+        question,
+        paths,
+        vault,
+        head=head,
+        lookback=lookback,
+        tail_margin=tail_margin,
+        min_head_lex=min_head_lex,
+        max_chars=max_chars,
     )
-    end = min(len(paths), head + max(0, int(lookback)))
-    if end <= head:
-        return max_h < float(min_head_lex)
-    max_t = max(
-        lexical_overlap_score_path(question, vault, p, max_chars=max_chars)
-        for p in paths[head:end]
-    )
-    if max_h < float(min_head_lex):
-        return True
-    if max_t >= max_h - float(tail_margin):
-        return True
-    return False
+    return conf < float(confidence_threshold)
 
 
 def rerank_paths_lexical(
@@ -897,30 +943,228 @@ def _rerank_paths_llm_cli(
     n_paths: int,
     paths: list[str],
     max_picks: int = 5,
+    persistent_cli_pool: PersistentCLIPool | None = None,
 ) -> list[str] | None:
     if not argv:
         return None
-    try:
-        proc = subprocess.run(
-            argv,
-            input=prompt,
-            text=True,
-            capture_output=True,
-            timeout=timeout_s,
-            env=os.environ.copy(),
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        print(f"[rerank] CLI error: {exc}", file=sys.stderr)
-        return None
-    raw = _strip_rerank_model_output((proc.stdout or "").strip())
-    if proc.returncode != 0 and not raw:
-        raw = _strip_rerank_model_output((proc.stderr or "").strip())
+    raw: str | None = None
+    if persistent_cli_pool is not None:
+        raw = persistent_cli_pool.invoke(prompt, timeout_s=int(timeout_s))
+        raw = _strip_rerank_model_output((raw or "").strip())
+    else:
+        try:
+            proc = subprocess.run(
+                argv,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                timeout=timeout_s,
+                env=os.environ.copy(),
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            print(f"[rerank] CLI error: {exc}", file=sys.stderr)
+            return None
+        raw = _strip_rerank_model_output((proc.stdout or "").strip())
+        if proc.returncode != 0 and not raw:
+            raw = _strip_rerank_model_output((proc.stderr or "").strip())
     picked = _parse_rerank_doc_indices(raw, n_paths, max_picks=max_picks)
     if not picked:
         return None
     head = [paths[i - 1] for i in picked]
     tail = [p for p in paths if p not in head]
     return head + tail
+
+
+def _claude_stream_json_collect_text(lines: list[str]) -> str:
+    """Best-effort extract assistant text from Claude ``--output-format stream-json`` lines."""
+    chunks: list[str] = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        t = d.get("type")
+        if t == "assistant":
+            msg = d.get("message")
+            if isinstance(msg, dict):
+                c = msg.get("content")
+                if isinstance(c, str) and c.strip():
+                    chunks.append(c.strip())
+        if isinstance(d.get("message"), dict):
+            m = d["message"]
+            if m.get("role") == "assistant":
+                c = m.get("content")
+                if isinstance(c, str) and c.strip():
+                    chunks.append(c.strip())
+        # Some builds nest text under result / delta
+        for key in ("text", "result", "content"):
+            v = d.get(key)
+            if isinstance(v, str) and v.strip() and len(v) < 50000:
+                chunks.append(v.strip())
+    return "\n".join(chunks).strip()
+
+
+class _ClaudeStreamWorker:
+    """One long-lived Claude CLI process (stream-json) or one-shot fallback."""
+
+    def __init__(self, stream_argv: list[str], oneshot_argv: list[str]) -> None:
+        self._stream_argv = stream_argv
+        self._oneshot_argv = oneshot_argv
+        self._proc: subprocess.Popen[str] | None = None
+        self._lock = threading.Lock()
+
+    def close(self) -> None:
+        if self._proc is not None and self._proc.poll() is None:
+            try:
+                self._proc.terminate()
+                self._proc.wait(timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                try:
+                    self._proc.kill()
+                except OSError:
+                    pass
+        self._proc = None
+
+    def send(self, prompt: str, timeout_s: int) -> str | None:
+        with self._lock:
+            return self._send_locked(prompt, timeout_s)
+
+    def _send_locked(self, prompt: str, timeout_s: int) -> str | None:
+        # ``select`` on pipes is not portable on Windows; use one-shot CLI there.
+        if sys.platform == "win32":
+            return self._oneshot(prompt, timeout_s)
+        # Prefer persistent stream-json when the process is healthy
+        if self._proc is None or self._proc.poll() is not None:
+            self._spawn_stream()
+        if self._proc is not None and self._proc.stdin and self._proc.stdout:
+            try:
+                line = json.dumps({"type": "user_message", "content": prompt}) + "\n"
+                self._proc.stdin.write(line)
+                self._proc.stdin.flush()
+            except (BrokenPipeError, OSError):
+                self.close()
+                self._proc = None
+                return self._oneshot(prompt, timeout_s)
+            out_lines: list[str] = []
+            deadline = time.monotonic() + float(timeout_s)
+            while time.monotonic() < deadline:
+                remaining = max(0.1, deadline - time.monotonic())
+                if self._proc.stdout is None:
+                    break
+                rlist, _, _ = select.select([self._proc.stdout], [], [], min(remaining, 2.0))
+                if not rlist:
+                    continue
+                ln = self._proc.stdout.readline()
+                if not ln:
+                    break
+                out_lines.append(ln.rstrip("\n"))
+                text = _claude_stream_json_collect_text(out_lines)
+                if text and re.search(r"\b\d+\b", text):
+                    # Heuristic: model returned something with digits (indices)
+                    return text
+                if len(out_lines) > 8000:
+                    break
+            text = _claude_stream_json_collect_text(out_lines)
+            if text.strip():
+                return text
+        return self._oneshot(prompt, timeout_s)
+
+    def _spawn_stream(self) -> None:
+        self.close()
+        try:
+            self._proc = subprocess.Popen(
+                self._stream_argv,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                env=os.environ.copy(),
+            )
+        except OSError:
+            self._proc = None
+
+    def _oneshot(self, prompt: str, timeout_s: int) -> str | None:
+        try:
+            proc = subprocess.run(
+                self._oneshot_argv,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                timeout=timeout_s,
+                env=os.environ.copy(),
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            print(f"[rerank] CLI error: {exc}", file=sys.stderr)
+            return None
+        raw = (proc.stdout or "").strip()
+        if proc.returncode != 0 and not raw:
+            raw = (proc.stderr or "").strip()
+        return raw if raw else None
+
+
+class PersistentCLIPool:
+    """
+    Round-robin pool of Claude CLI workers for benchmark reranking.
+
+    Each worker keeps a ``stream-json`` session when possible; falls back to the
+    same one-shot argv as :func:`_default_rerank_cli_argv` on parse/IPC failure.
+    ``codex_cli`` is not supported here — use one-shot ``codex exec`` via
+    :func:`rerank_paths_llm` instead.
+    """
+
+    def __init__(
+        self,
+        pool_size: int,
+        *,
+        invoke: str = "claude_cli",
+        cli_argv: list[str] | None = None,
+    ) -> None:
+        self._invoke = invoke
+        oneshot = list(cli_argv) if cli_argv else _default_rerank_cli_argv(invoke)
+        if invoke != "claude_cli" or not oneshot:
+            self._workers: list[_ClaudeStreamWorker] = []
+            return
+        stream_argv = (
+            [oneshot[0]]
+            + [
+                "--print",
+                "--input-format",
+                "stream-json",
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--tools",
+                "",
+                "--no-session-persistence",
+            ]
+        )
+        n = max(1, int(pool_size))
+        self._workers = [_ClaudeStreamWorker(stream_argv, oneshot) for _ in range(n)]
+        self._rr = 0
+        self._glob = threading.Lock()
+
+    def invoke(self, prompt: str, timeout_s: int) -> str | None:
+        """Return raw model text (stdout-like) or ``None`` on failure."""
+        if not self._workers:
+            return None
+        with self._glob:
+            w = self._workers[self._rr % len(self._workers)]
+            self._rr += 1
+        return w.send(prompt, timeout_s)
+
+    def close(self) -> None:
+        for w in self._workers:
+            w.close()
+
+    def __enter__(self) -> PersistentCLIPool:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
 
 def rerank_paths_cross_encoder(
@@ -1003,6 +1247,7 @@ def rerank_paths_llm(
     fuse_rrf_k: int = 60,
     session_dedup: bool = False,
     path_to_sid: dict[str, str] | None = None,
+    persistent_cli_pool: PersistentCLIPool | None = None,
 ) -> list[str]:
     """
     Ask an LLM for up to 5 document indices (best first) among the first
@@ -1018,6 +1263,9 @@ def rerank_paths_llm(
       - ``claude_cli`` / ``codex_cli`` — local CLI; prompt on stdin.
         Set ``cli_argv`` to match your installed CLI.
       - ``custom_cli`` — ``cli_argv`` required (e.g. ``["my-cli", "--prompt", "-"]``).
+
+    ``persistent_cli_pool`` — optional :class:`PersistentCLIPool` (``claude_cli`` only)
+    to reuse stream-json CLI sessions and cut subprocess startup overhead.
     """
     if not paths:
         return paths
@@ -1143,16 +1391,21 @@ def rerank_paths_llm(
         argv = list(cli_argv or [])
         if not argv:
             return paths
-        try:
-            proc = subprocess.run(
-                argv, input=prompt, text=True, capture_output=True,
-                timeout=int(cli_timeout_s), env=os.environ.copy())
-        except (OSError, subprocess.TimeoutExpired):
-            return _maybe_fuse(None)
-        raw_out = _strip_rerank_model_output((proc.stdout or "").strip())
-        if proc.returncode != 0 and not raw_out:
-            raw_out = _strip_rerank_model_output((proc.stderr or "").strip())
-        return _maybe_fuse(_dispatch_dedup(raw_out))
+        raw_out: str | None = None
+        if persistent_cli_pool is not None:
+            raw_out = persistent_cli_pool.invoke(prompt, timeout_s=int(cli_timeout_s))
+            raw_out = _strip_rerank_model_output((raw_out or "").strip())
+        else:
+            try:
+                proc = subprocess.run(
+                    argv, input=prompt, text=True, capture_output=True,
+                    timeout=int(cli_timeout_s), env=os.environ.copy())
+            except (OSError, subprocess.TimeoutExpired):
+                return _maybe_fuse(None)
+            raw_out = _strip_rerank_model_output((proc.stdout or "").strip())
+            if proc.returncode != 0 and not raw_out:
+                raw_out = _strip_rerank_model_output((proc.stderr or "").strip())
+        return _maybe_fuse(_dispatch_dedup(raw_out or ""))
 
     # Standard path-level reranking (no session dedup)
     blocks: list[str] = []
@@ -1193,6 +1446,7 @@ def rerank_paths_llm(
         n_paths=n,
         paths=paths,
         max_picks=max_picks,
+        persistent_cli_pool=persistent_cli_pool,
     )
     return _maybe_fuse(out)
 
@@ -1276,7 +1530,7 @@ def append_repo_benchmark_runs_jsonl(
             "suite", "backend", "compressor", "questions", "elapsed_s", "config_hash",
             "recall_at_1", "recall_at_3", "recall_at_5", "recall_at_10",
             "ndcg_at_5", "ndcg_at_10", "failures", "failure_bucket_counts", "token_ratio_mean",
-            "llm_adaptive_skips",
+            "llm_adaptive_skips", "llm_adaptive_confidence_mean",
         )},
         "llm_flag": str(os.environ.get("LLM_WIKI_BENCHMARK_LLM", "")).lower()
         in ("1", "true", "yes"),

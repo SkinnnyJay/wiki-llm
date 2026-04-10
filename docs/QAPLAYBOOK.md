@@ -3,8 +3,8 @@
 Manual test suite for verifying the full plugin flow before releases.
 Run through each section after significant changes; mark pass/fail in your notes.
 
-> **Quick smoke:** `bin/llm-wiki smoke-test -v` covers automated unit/contract checks.
-> This playbook covers the **manual, interactive, and integration** tests that automation cannot.
+> **Quick smoke:** `bin/llm-wiki smoke-test -v` runs the full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay). See **§25** for tiers and recording.
+> This playbook also covers **manual** steps (viewer UI, marketplace install, cross-tool parity) that are not fully automated.
 
 ---
 
@@ -469,7 +469,8 @@ echo "=== E2E scenario complete ==="
 
 After any code change, verify these do not regress:
 
-- [ ] `bin/llm-wiki smoke-test -v` passes
+- [ ] `bin/llm-wiki smoke-test -v` passes (includes E2E, hooks, MCP stdio, golden replay)
+- [ ] `bin/llm-wiki smoke-test --replay` passes (replay-only quick check)
 - [ ] `bin/llm-wiki sync-agent-docs --check` passes
 - [ ] `bin/llm-wiki check --plugin-repo` passes
 - [ ] `python3 -m compileall scripts/ -q` passes
@@ -483,8 +484,45 @@ After any code change, verify these do not regress:
 
 ---
 
+## 25 — Automation harness (tiers, recording, cleanup)
+
+**Tiers**
+
+| Tier | What | Command | Cost |
+|------|------|---------|------|
+| 1–2 | Contracts + CLI `--help` | `bin/llm-wiki smoke-test -v` | Free |
+| 3 | Deterministic E2E (`tests/test_e2e_flow.py`) | same | Free |
+| 4 | Hook scripts (`tests/test_hooks.py`, needs `jq`) | same | Free |
+| 5 | MCP stdio JSON-RPC (`tests/test_mcp_contract.py`) | same | Free |
+| 6 | Golden replay (`tests/test_replay_golden.py`, `tests/fixtures/golden/*.json`) | `bin/llm-wiki smoke-test -v` or `bin/llm-wiki smoke-test --replay` | Free |
+| 7 | Agent skill evals (`tests/test_skill_evals.py`) | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | API usage |
+
+**Golden replay**
+
+- Committed fixtures live under `tests/fixtures/golden/*.json` (schema: `steps` with `argv`, optional `file_checks`, `purge_vault_after`).
+- Run **only** replay-marked tests: `bin/llm-wiki smoke-test --replay` (equivalent to `pytest tests -m replay`).
+
+**Record → extract (optional, one-time / when changing flows)**
+
+1. `python3 scripts/qa_record.py --scenario <name>` (requires `claude` on PATH and credentials). Writes `tests/fixtures/recordings/*.jsonl` (gitignored).
+2. `python3 scripts/qa_extract_fixture.py tests/fixtures/recordings/<file>.jsonl -o tests/fixtures/golden/<name>.json`
+3. Review and edit the JSON; commit the golden file.
+
+**Claude CLI isolation (for evals and recording)**
+
+Use `claude -p --bare --no-session-persistence --dangerously-skip-permissions --max-budget-usd <n>` so sessions are not persisted to disk and spend is capped. The harness in `tests/conftest.py` (`claude_runner`) follows this pattern. For maximum isolation, run with `HOME` pointing at a temp directory (optional).
+
+**Cleanup**
+
+- Pytest `tmp_path` removes per-test vaults.
+- E2E and golden replay tests end with `teardown --purge --yes` where applicable.
+- Session finalizer in `tests/conftest.py` prunes dead `~/.claude/sessions/*.json` locks and empty `~/.claude/session-env/` dirs after the test session.
+
+---
+
 ## Version history
 
 | Date | Change |
 |------|--------|
 | 2026-04-09 | Initial playbook covering all CLI, MCP, skill, and integration tests |
+| 2026-04-10 | §25 automation harness (tiers, golden replay, recording, cleanup) |

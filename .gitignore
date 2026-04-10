@@ -6,6 +6,8 @@ __pycache__/
 # Local dev / scratch scripts (not part of the published plugin)
 scripts/.tmp/
 .pytest_cache/
+# QA automation: raw stream-json recordings (large)
+tests/fixtures/recordings/
 .cursor/
 .claude/settings.local.json
 .venv-*/

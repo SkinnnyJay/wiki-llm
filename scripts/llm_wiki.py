@@ -1731,7 +1731,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pst = sub.add_parser(
         "smoke-test",
-        help="Run full pytest suite (contracts, CLI help, vault flow, adapters) from plugin root",
+        help="Run full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay, adapters) from plugin root",
     )
     pst.add_argument("-v", "--verbose", action="store_true", help="pytest -v")
     pst.add_argument(
@@ -1748,6 +1748,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--only-contracts",
         action="store_true",
         help="Run only tests/plugin_contracts.test.py",
+    )
+    pst.add_argument(
+        "--replay",
+        action="store_true",
+        help="Run only golden replay tests (tests marked @pytest.mark.replay)",
     )
     pst.add_argument(
         "pytest_args",

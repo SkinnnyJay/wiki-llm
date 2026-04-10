@@ -68,7 +68,8 @@ def cmd_check(args) -> int:
     print("  llm-wiki sync-agent-docs --check # verify AGENTS.md / rules match docs/AGENTS.shared.md")
     print("  llm-wiki smoke-test              # full pytest (offline by default)")
     print("  llm-wiki smoke-test --network    # also run network reachability tests")
-    print("  llm-wiki smoke-test --claude      # also run `claude plugin validate`")
+    print("  llm-wiki smoke-test --replay      # only replay tests (@pytest.mark.replay)")
+    print("  llm-wiki smoke-test --claude      # also run `claude plugin validate` + skill evals")
     print("  llm-wiki test-report             # executable CLI + vault + doc harvest (PASS/FAIL table)")
     print("  Each commands/*.md and skills/*/SKILL.md has a ## Smoke check section (CLI + agent prompt).")
     return 1 if errs else 0
@@ -85,6 +86,8 @@ def cmd_smoke_test(args) -> int:
     cmd: list[str] = [sys.executable, "-m", "pytest"]
     if getattr(args, "only_contracts", False):
         cmd.append(str(tests_dir / "plugin_contracts.test.py"))
+    elif getattr(args, "replay", False):
+        cmd.extend([str(tests_dir), "-m", "replay"])
     else:
         cmd.append(str(tests_dir))
     if getattr(args, "verbose", False):
