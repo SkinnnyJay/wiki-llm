@@ -1,0 +1,55 @@
+{
+  "updated": "2026-04-09",
+  "source_note": "Update this JSON when serious benchmark runs land; keep aligned with docs/memory/benchmarks/comparisons.md. The memory hub charts read this file from the same directory.",
+  "headline": "LME (LongMemEval-cleaned) N=500: R@5 = 0.98, 10 failures — target R@5 = 1.0 (PLAN).",
+  "lme": {
+    "suite": "lme",
+    "dataset": "HF lme_s_cleaned.json",
+    "limit": 500,
+    "backend": "fts5",
+    "recall_at_5": 0.98,
+    "failures": 10,
+    "target_recall_at_5": 1.0,
+    "failure_buckets": { "P": 0, "R": 4, "M": 6, "L": 0 },
+    "baseline_label": "fts5 + raw, heuristic baseline"
+  },
+  "history": [
+    {
+      "date": "2026-04-09",
+      "recall_at_5": 0.98,
+      "failures": 10,
+      "label": "N=500 baseline + rerank experiments (no aggregate R@5 lift)"
+    }
+  ],
+  "wiki_llm_other_suites": [
+    {
+      "suite": "LoCoMo",
+      "metric": "R@10",
+      "value": 0.984,
+      "limit": 250,
+      "note": "locomo10.json via LME harness; not comparable to LME R@5"
+    }
+  ],
+  "externals": [
+    {
+      "name": "LongMemEval (paper)",
+      "note": "Reports end-to-end task metrics — not the same as retrieval-only R@5 on our cleaned JSON.",
+      "url": "https://huggingface.co/papers/2410.10813"
+    },
+    {
+      "name": "LoCoMo (reference site)",
+      "note": "Paper / site metrics use their split; align before comparing to our LoCoMo row.",
+      "url": "https://snap-research.github.io/locomo/"
+    },
+    {
+      "name": "Memory Palace",
+      "note": "Different tasks and metrics — see comparisons.md before claiming rank.",
+      "url": "https://github.com/milla-jovovich/mempalace"
+    },
+    {
+      "name": "ConvoMem (HF)",
+      "note": "Salesforce dataset; wiki-llm needs LME-shaped conversion for apples-to-apples retrieval.",
+      "url": "https://huggingface.co/datasets/Salesforce/ConvoMem"
+    }
+  ]
+}

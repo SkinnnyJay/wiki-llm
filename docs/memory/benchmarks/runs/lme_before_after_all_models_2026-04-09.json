@@ -1,0 +1,276 @@
+{
+  "date": "2026-04-09",
+  "limit": 500,
+  "notes": [
+    "openai_gpt_5_4: OPENAI_API_KEY was not set in plugin .env — llm_can_run=false, no rerank API calls; R@5 matches baseline but failure_bucket_counts show L=10 (classification when want_llm && env_on && !can_run). Set OPENAI_API_KEY and re-run only that experiment to measure real GPT-5.4 rerank."
+  ],
+  "before_snapshots": [
+    {
+      "path": "docs/memory/benchmarks/runs/lme_mode_compare_2026-04-09.json",
+      "data": {
+        "date": "2026-04-09",
+        "dataset": "HF lme_s_cleaned.json",
+        "limit": 500,
+        "backend": "fts5",
+        "compressor": "raw",
+        "plugin_root": "wiki-llm repo",
+        "env": "load_plugin_dotenv (ANTHROPIC_API_KEY present); LLM_WIKI_BENCHMARK_LLM=1 for llm_* modes only",
+        "runs": [
+          {
+            "mode": "baseline_no_llm",
+            "rerank_llm": {
+              "enabled": false,
+              "invoke_when": "always"
+            },
+            "llm_env": false,
+            "elapsed_s": 83.13,
+            "config_hash": "ea3ea6e64e50",
+            "recall_at_5": 0.98,
+            "failures": 10,
+            "failure_bucket_counts": {
+              "P": 0,
+              "R": 4,
+              "M": 6,
+              "L": 0
+            },
+            "llm_adaptive_skips": 0,
+            "notes": "Heuristic retrieval only; no rerank_paths_llm"
+          },
+          {
+            "mode": "llm_always",
+            "rerank_llm": {
+              "enabled": true,
+              "invoke_when": "always",
+              "fuse_original_rrf": true,
+              "fuse_original_weight": 0.35
+            },
+            "llm_env": true,
+            "elapsed_s": 178.06,
+            "config_hash": "625a40067745",
+            "recall_at_5": 0.98,
+            "failures": 10,
+            "failure_bucket_counts": {
+              "P": 0,
+              "R": 4,
+              "M": 6,
+              "L": 0
+            },
+            "llm_adaptive_skips": 0,
+            "notes": "Anthropic Messages API (default model claude-3-5-haiku-20241022); same R@5/failures as baseline on this run"
+          },
+          {
+            "mode": "llm_adaptive",
+            "rerank_llm": {
+              "enabled": true,
+              "invoke_when": "adaptive",
+              "adaptive_head": 5,
+              "adaptive_lookback": 24,
+              "adaptive_tail_margin": 0.12,
+              "adaptive_min_head_lex": 3.5,
+              "fuse_original_rrf": true,
+              "fuse_original_weight": 0.35
+            },
+            "llm_env": true,
+            "elapsed_s": 94.75,
+            "config_hash": "3b391fa3a14e",
+            "recall_at_5": 0.98,
+            "failures": 10,
+            "failure_bucket_counts": {
+              "P": 0,
+              "R": 4,
+              "M": 6,
+              "L": 0
+            },
+            "llm_adaptive_skips": 454,
+            "llm_calls_approx": 46,
+            "notes": "454 questions skipped LLM; ~46 rerank_paths_llm calls; same R@5 as baseline"
+          }
+        ],
+        "takeaway": "On full 500 LME (prefix order), Haiku LLM rerank with default fusion did not reduce failures vs heuristic-only. Adaptive mode cut API usage (~91% fewer LLM calls vs always) with no R@5 regression."
+      }
+    },
+    {
+      "path": "docs/memory/benchmarks/runs/lme_followup_experiments_2026-04-09.json",
+      "data": {
+        "limit": 500,
+        "date": "2026-04-09",
+        "dataset": "HF lme_s_cleaned.json",
+        "summary": "Follow-up LME runs: Haiku fuse_weight=0.15, Haiku fuse_original_rrf=false, Sonnet 4.5 default fusion. All matched baseline recall_at_5=0.98 and failures=10 (R=4, M=6, P=0).",
+        "failure_analysis": {
+          "question_ids": [
+            "gpt4_f2262a51",
+            "75832dbd",
+            "06f04340",
+            "d6233ab6",
+            "8e91e7d9",
+            "gpt4_e061b84g",
+            "gpt4_1e4a8aec",
+            "gpt4_4929293b",
+            "eac54add",
+            "gpt4_8279ba03"
+          ],
+          "llm_rerank_reordered_true_on_misses": 0,
+          "note": "On all 10 misses with LLM rerank enabled, llm_rerank_reordered was false: final path order matched pre-LLM order (LLM+fuse agreed with retrieval or parse fell back). Gold sessions were in pool (gold_in_pool_pre_llm true) but session rank > 5."
+        },
+        "experiments": [
+          {
+            "name": "haiku_fuse_low",
+            "config": {
+              "model": "claude-3-5-haiku-20241022",
+              "fuse_original_rrf": true,
+              "fuse_original_weight": 0.15
+            },
+            "elapsed_s": 173.3,
+            "config_hash": "89ca738ff0f6",
+            "recall_at_5": 0.98,
+            "failures": 10
+          },
+          {
+            "name": "haiku_no_fuse",
+            "config": {
+              "model": "claude-3-5-haiku-20241022",
+              "fuse_original_rrf": false,
+              "fuse_original_weight": 0.35
+            },
+            "elapsed_s": 183.78,
+            "config_hash": "b655faf03541",
+            "recall_at_5": 0.98,
+            "failures": 10
+          },
+          {
+            "name": "sonnet_fuse_default",
+            "config": {
+              "model": "claude-sonnet-4-5-20250929",
+              "fuse_original_rrf": true,
+              "fuse_original_weight": 0.35
+            },
+            "elapsed_s": 188.35,
+            "config_hash": "28a04bb91507",
+            "recall_at_5": 0.98,
+            "failures": 10,
+            "failures_jsonl": "lme_failures_sonnet_fuse_default.jsonl"
+          }
+        ]
+      }
+    }
+  ],
+  "after_runs_this_session": [
+    {
+      "name": "baseline_no_llm",
+      "error": null,
+      "summary": {
+        "suite": "lme",
+        "backend": "fts5",
+        "compressor": "raw",
+        "questions": 500,
+        "elapsed_s": 86.99,
+        "config_hash": "241f74d2550e",
+        "recall_at_1": 0.852,
+        "recall_at_3": 0.956,
+        "recall_at_5": 0.98,
+        "recall_at_10": 0.988,
+        "ndcg_at_5": 0.9176,
+        "ndcg_at_10": 0.9181,
+        "failures": 10,
+        "failure_bucket_counts": {
+          "P": 0,
+          "R": 4,
+          "M": 6,
+          "L": 0
+        },
+        "llm_adaptive_skips": 0,
+        "token_ratio_mean": 1.0
+      },
+      "config_hash": "241f74d2550e",
+      "failures_jsonl": "REPO_ROOT/scripts/.tmp/lme_failures_baseline_no_llm.jsonl"
+    },
+    {
+      "name": "anthropic_claude_sonnet_4_6",
+      "error": null,
+      "summary": {
+        "suite": "lme",
+        "backend": "fts5",
+        "compressor": "raw",
+        "questions": 500,
+        "elapsed_s": 175.06,
+        "config_hash": "dfc1c6dac785",
+        "recall_at_1": 0.852,
+        "recall_at_3": 0.956,
+        "recall_at_5": 0.98,
+        "recall_at_10": 0.988,
+        "ndcg_at_5": 0.9176,
+        "ndcg_at_10": 0.9181,
+        "failures": 10,
+        "failure_bucket_counts": {
+          "P": 0,
+          "R": 4,
+          "M": 6,
+          "L": 0
+        },
+        "llm_adaptive_skips": 0,
+        "token_ratio_mean": 1.0
+      },
+      "config_hash": "dfc1c6dac785",
+      "failures_jsonl": "REPO_ROOT/scripts/.tmp/lme_failures_anthropic_claude_sonnet_4_6.jsonl"
+    },
+    {
+      "name": "anthropic_claude_opus_4_6",
+      "error": null,
+      "summary": {
+        "suite": "lme",
+        "backend": "fts5",
+        "compressor": "raw",
+        "questions": 500,
+        "elapsed_s": 225.91,
+        "config_hash": "7cd607487cf6",
+        "recall_at_1": 0.852,
+        "recall_at_3": 0.956,
+        "recall_at_5": 0.98,
+        "recall_at_10": 0.988,
+        "ndcg_at_5": 0.9176,
+        "ndcg_at_10": 0.9181,
+        "failures": 10,
+        "failure_bucket_counts": {
+          "P": 0,
+          "R": 4,
+          "M": 6,
+          "L": 0
+        },
+        "llm_adaptive_skips": 0,
+        "token_ratio_mean": 1.0
+      },
+      "config_hash": "7cd607487cf6",
+      "failures_jsonl": "REPO_ROOT/scripts/.tmp/lme_failures_anthropic_claude_opus_4_6.jsonl"
+    },
+    {
+      "name": "openai_gpt_5_4",
+      "note": "No OPENAI_API_KEY in environment — rerank not invoked (llm_invoked false on all questions). Aggregate R@5 still 0.98 vs same 10 misses as baseline.",
+      "error": null,
+      "summary": {
+        "suite": "lme",
+        "backend": "fts5",
+        "compressor": "raw",
+        "questions": 500,
+        "elapsed_s": 121.39,
+        "config_hash": "a40b0fb51996",
+        "recall_at_1": 0.852,
+        "recall_at_3": 0.956,
+        "recall_at_5": 0.98,
+        "recall_at_10": 0.988,
+        "ndcg_at_5": 0.9176,
+        "ndcg_at_10": 0.9181,
+        "failures": 10,
+        "failure_bucket_counts": {
+          "P": 0,
+          "R": 0,
+          "M": 0,
+          "L": 10
+        },
+        "llm_adaptive_skips": 0,
+        "token_ratio_mean": 1.0
+      },
+      "config_hash": "a40b0fb51996",
+      "failures_jsonl": "REPO_ROOT/scripts/.tmp/lme_failures_openai_gpt_5_4.jsonl"
+    }
+  ]
+}

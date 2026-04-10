@@ -1,0 +1,62 @@
+{
+  "limit": 500,
+  "date": "2026-04-09",
+  "dataset": "HF lme_s_cleaned.json",
+  "summary": "Follow-up LME runs: Haiku fuse_weight=0.15, Haiku fuse_original_rrf=false, Sonnet 4.5 default fusion. All matched baseline recall_at_5=0.98 and failures=10 (R=4, M=6, P=0).",
+  "failure_analysis": {
+    "question_ids": [
+      "gpt4_f2262a51",
+      "75832dbd",
+      "06f04340",
+      "d6233ab6",
+      "8e91e7d9",
+      "gpt4_e061b84g",
+      "gpt4_1e4a8aec",
+      "gpt4_4929293b",
+      "eac54add",
+      "gpt4_8279ba03"
+    ],
+    "llm_rerank_reordered_true_on_misses": 0,
+    "note": "On all 10 misses with LLM rerank enabled, llm_rerank_reordered was false: final path order matched pre-LLM order (LLM+fuse agreed with retrieval or parse fell back). Gold sessions were in pool (gold_in_pool_pre_llm true) but session rank > 5."
+  },
+  "experiments": [
+    {
+      "name": "haiku_fuse_low",
+      "config": {
+        "model": "claude-3-5-haiku-20241022",
+        "fuse_original_rrf": true,
+        "fuse_original_weight": 0.15
+      },
+      "elapsed_s": 173.3,
+      "config_hash": "89ca738ff0f6",
+      "recall_at_5": 0.98,
+      "failures": 10
+    },
+    {
+      "name": "haiku_no_fuse",
+      "config": {
+        "model": "claude-3-5-haiku-20241022",
+        "fuse_original_rrf": false,
+        "fuse_original_weight": 0.35
+      },
+      "elapsed_s": 183.78,
+      "config_hash": "b655faf03541",
+      "recall_at_5": 0.98,
+      "failures": 10
+    },
+    {
+      "name": "sonnet_fuse_default",
+      "config": {
+        "model": "claude-sonnet-4-5-20250929",
+        "fuse_original_rrf": true,
+        "fuse_original_weight": 0.35
+      },
+      "elapsed_s": 188.35,
+      "config_hash": "28a04bb91507",
+      "recall_at_5": 0.98,
+      "failures": 10,
+      "failures_jsonl": "lme_failures_sonnet_fuse_default.jsonl"
+    }
+  ],
+  "_warning": "INVALIDATED 2026-04-10: LLM rerank rows in this file are unreliable. The Anthropic API key was depleted during these runs; all API calls silently failed and fell back to heuristic BM25 order. Only baseline (no LLM) rows are valid. See docs/memory/benchmarks/comparisons.md for corrected results."
+}

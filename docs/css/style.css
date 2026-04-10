@@ -1346,3 +1346,86 @@ pre code {
     font-size: clamp(2.3rem, 15vw, 3rem);
   }
 }
+
+/* Memory hub (docs/memory/index.html) */
+.memory-hub-articles {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.memory-hub-articles .detail-heading h2 {
+  font-size: 1.25rem;
+}
+
+.memory-hub-back {
+  margin-top: 1.5rem;
+}
+
+/* Tighter spacing than hero .lineage-note (2.75rem) */
+.memory-hub-lineage {
+  margin-top: 1.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.memory-hub-cta {
+  margin-bottom: 1rem;
+}
+
+.memory-hub-cta .button {
+  display: inline-block;
+}
+
+.memory-metrics-section {
+  margin-top: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 1.5rem;
+}
+
+.memory-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .memory-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.memory-metrics-figure {
+  margin: 0;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(19, 26, 46, 0.45);
+}
+
+.memory-externals-card {
+  margin-top: 1.5rem;
+}
+
+.memory-externals-heading {
+  font-size: 1.1rem;
+}
+
+.memory-externals-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}

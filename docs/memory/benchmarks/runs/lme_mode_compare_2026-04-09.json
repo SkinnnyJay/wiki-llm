@@ -1,0 +1,82 @@
+{
+  "date": "2026-04-09",
+  "dataset": "HF lme_s_cleaned.json",
+  "limit": 500,
+  "backend": "fts5",
+  "compressor": "raw",
+  "plugin_root": "wiki-llm repo",
+  "env": "load_plugin_dotenv (ANTHROPIC_API_KEY present); LLM_WIKI_BENCHMARK_LLM=1 for llm_* modes only",
+  "runs": [
+    {
+      "mode": "baseline_no_llm",
+      "rerank_llm": {
+        "enabled": false,
+        "invoke_when": "always"
+      },
+      "llm_env": false,
+      "elapsed_s": 83.13,
+      "config_hash": "ea3ea6e64e50",
+      "recall_at_5": 0.98,
+      "failures": 10,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 4,
+        "M": 6,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "notes": "Heuristic retrieval only; no rerank_paths_llm"
+    },
+    {
+      "mode": "llm_always",
+      "rerank_llm": {
+        "enabled": true,
+        "invoke_when": "always",
+        "fuse_original_rrf": true,
+        "fuse_original_weight": 0.35
+      },
+      "llm_env": true,
+      "elapsed_s": 178.06,
+      "config_hash": "625a40067745",
+      "recall_at_5": 0.98,
+      "failures": 10,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 4,
+        "M": 6,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "notes": "Anthropic Messages API (default model claude-3-5-haiku-20241022); same R@5/failures as baseline on this run"
+    },
+    {
+      "mode": "llm_adaptive",
+      "rerank_llm": {
+        "enabled": true,
+        "invoke_when": "adaptive",
+        "adaptive_head": 5,
+        "adaptive_lookback": 24,
+        "adaptive_tail_margin": 0.12,
+        "adaptive_min_head_lex": 3.5,
+        "fuse_original_rrf": true,
+        "fuse_original_weight": 0.35
+      },
+      "llm_env": true,
+      "elapsed_s": 94.75,
+      "config_hash": "3b391fa3a14e",
+      "recall_at_5": 0.98,
+      "failures": 10,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 4,
+        "M": 6,
+        "L": 0
+      },
+      "llm_adaptive_skips": 454,
+      "llm_calls_approx": 46,
+      "notes": "454 questions skipped LLM; ~46 rerank_paths_llm calls; same R@5 as baseline"
+    }
+  ],
+  "takeaway": "On full 500 LME (prefix order), Haiku LLM rerank with default fusion did not reduce failures vs heuristic-only. Adaptive mode cut API usage (~91% fewer LLM calls vs always) with no R@5 regression.",
+  "_warning": "INVALIDATED 2026-04-10: LLM rerank rows in this file are unreliable. The Anthropic API key was depleted during these runs; all API calls silently failed and fell back to heuristic BM25 order. Only baseline (no LLM) rows are valid. See docs/memory/benchmarks/comparisons.md for corrected results."
+}

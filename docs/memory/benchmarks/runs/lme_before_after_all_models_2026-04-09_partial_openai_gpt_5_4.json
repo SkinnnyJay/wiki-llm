@@ -1,0 +1,40 @@
+{
+  "date": "2026-04-09",
+  "limit": 500,
+  "note": "OPENAI_API_KEY loaded from .env.local; 500 real rerank calls (~247s wall). Same R@5/failures as Anthropic/heuristic.",
+  "lme_only": [
+    "openai_gpt_5_4"
+  ],
+  "before_snapshots": [],
+  "after_runs_this_session": [
+    {
+      "name": "openai_gpt_5_4",
+      "error": null,
+      "summary": {
+        "suite": "lme",
+        "backend": "fts5",
+        "compressor": "raw",
+        "questions": 500,
+        "elapsed_s": 246.62,
+        "config_hash": "a40b0fb51996",
+        "recall_at_1": 0.852,
+        "recall_at_3": 0.956,
+        "recall_at_5": 0.98,
+        "recall_at_10": 0.988,
+        "ndcg_at_5": 0.9176,
+        "ndcg_at_10": 0.9181,
+        "failures": 10,
+        "failure_bucket_counts": {
+          "P": 0,
+          "R": 4,
+          "M": 6,
+          "L": 0
+        },
+        "llm_adaptive_skips": 0,
+        "token_ratio_mean": 1.0
+      },
+      "config_hash": "a40b0fb51996",
+      "failures_jsonl": "REPO_ROOT/scripts/.tmp/lme_failures_openai_gpt_5_4.jsonl"
+    }
+  ]
+}

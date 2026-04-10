@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memory &amp; retrieval — llm-wiki</title>
+  <meta
+    name="description"
+    content="Session memory, MCP search backends, hybrid RRF fusion, and retrieval benchmark docs for llm-wiki."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="icon" href="../favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap wrap-header">
+      <div class="site-header-bar">
+        <a class="brand-lockup" href="../index.html" aria-label="llm-wiki home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+              <path d="M229 129C260 129 291 139 317 160C339 177 355 200 364 226" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
+              <path d="M177 259C208 226 252 209 299 212C324 214 347 220 367 232" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
+              <path d="M248 361C248 315 278 272 321 255C339 248 359 245 378 247" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
+              <circle cx="241" cy="110" r="60" fill="#69BFFF"/>
+              <circle cx="134" cy="257" r="60" fill="#69BFFF"/>
+              <circle cx="236" cy="394" r="60" fill="#69BFFF"/>
+              <circle cx="394" cy="256" r="92" fill="#9B82FF"/>
+            </svg>
+          </span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../index.html#setup">Home</a>
+          <a href="#metrics-dashboard">Metrics</a>
+          <a href="../index.html#memory-retrieval">On landing</a>
+          <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="feature-section" aria-labelledby="hub-title">
+      <div class="wrap wrap-content">
+        <p class="eyebrow">Docs</p>
+        <h1 id="hub-title">Memory &amp; retrieval</h1>
+        <p class="section-intro">
+          Quick links for session memory, MCP search configuration, and benchmark roadmaps. Full prose lives in the repo Markdown files (open on GitHub for the best reading experience).
+        </p>
+
+        <section class="memory-metrics-section" id="metrics-dashboard" aria-labelledby="metrics-dashboard-title">
+          <span class="section-label">Live snapshot</span>
+          <h2 id="metrics-dashboard-title">Retrieval metrics</h2>
+          <p class="section-intro" id="metrics-headline">
+            Loading headline from metrics-dashboard.json…
+          </p>
+          <p class="detail-note" id="metrics-dashboard-status" aria-live="polite"></p>
+
+          <div class="memory-metrics-grid" role="group" aria-label="Benchmark charts">
+            <figure class="memory-metrics-figure">
+              <figcaption class="sr-only">Bar chart comparing PLAN target R@5 to wiki-llm LME R@5</figcaption>
+              <canvas id="chart-lme-target" width="400" height="240" aria-hidden="true"></canvas>
+            </figure>
+            <figure class="memory-metrics-figure">
+              <figcaption class="sr-only">Line chart of R@5 over dated benchmark runs</figcaption>
+              <canvas id="chart-history" width="400" height="220" aria-hidden="true"></canvas>
+            </figure>
+            <figure class="memory-metrics-figure">
+              <figcaption class="sr-only">Distribution of LME failure buckets P R M L</figcaption>
+              <canvas id="chart-buckets" width="320" height="240" aria-hidden="true"></canvas>
+            </figure>
+            <figure class="memory-metrics-figure">
+              <figcaption class="sr-only">Other suite metrics such as LoCoMo R@10</figcaption>
+              <canvas id="chart-other-suites" width="400" height="200" aria-hidden="true"></canvas>
+            </figure>
+          </div>
+
+          <article class="detail-card memory-externals-card">
+            <div class="detail-heading">
+              <span class="detail-kicker">↗</span>
+              <h2 class="memory-externals-heading">External references (not same metric)</h2>
+            </div>
+            <p class="detail-note">
+              Use primary sources and align benchmark names before comparing ranks —
+              <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/comparisons.md">comparisons.md</a>.
+            </p>
+            <ul id="metrics-externals-list" class="memory-externals-list"></ul>
+          </article>
+        </section>
+
+        <div class="lineage-note memory-hub-lineage">
+          <blockquote class="lineage-quote">
+            If I have seen further it is by standing on the shoulders of Giants.
+          </blockquote>
+          <p class="lineage-attrib">
+            — <cite>Isaac Newton</cite>, letter to Robert Hooke, 1675
+            <br />
+            <span class="lineage-sub">(echoing Bernard of Chartres, <i>nanos gigantum humeris insidentes</i>)</span>
+          </p>
+          <p class="lineage-thanks">
+            Inspired by
+            <a href="https://github.com/milla-jovovich/mempalace">MemPalace</a>
+            (<a href="https://x.com/bensig/status/2041229266432733356">Ben Sigman on X</a>).
+            This repo is a concrete plugin implementation for Claude Code and adjacent agent tooling.
+          </p>
+        </div>
+
+        <div class="memory-hub-articles">
+        <article class="detail-card">
+          <div class="detail-heading">
+            <span class="detail-kicker">A</span>
+            <h2>In the vault (session memory)</h2>
+          </div>
+          <p>
+            Opt-in per-chat notes under <code class="inline-code">raw/memory/</code> when <code class="inline-code">memory.enabled</code> is set in <code class="inline-code">config.json</code>. This is separate from the benchmark docs below.
+          </p>
+          <ul>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/skills/wiki-session-memory/SKILL.md">wiki-session-memory skill</a></li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/skills/references/mcp-and-kg.md">MCP and knowledge graph reference</a> (search + KG context)</li>
+          </ul>
+        </article>
+
+        <article class="detail-card">
+          <div class="detail-heading">
+            <span class="detail-kicker">B</span>
+            <h2>MCP search backends</h2>
+          </div>
+          <p>
+            Configure <code class="inline-code">mcp.search_backend</code> in vault config: <code class="inline-code">fts5</code> (BM25), <code class="inline-code">grep</code>, <code class="inline-code">chromadb</code>, or <code class="inline-code">hybrid</code> (FTS + Chroma with reciprocal-rank fusion; <code class="inline-code">mcp.hybrid_rrf_k</code>).
+          </p>
+          <ul>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/mcp.md">commands/mcp.md</a> — slash command / tool overview</li>
+          </ul>
+        </article>
+
+        <article class="detail-card">
+          <div class="detail-heading">
+            <span class="detail-kicker">C</span>
+            <h2>Benchmarks &amp; retrieval evaluation</h2>
+          </div>
+          <p>
+            Under <code class="inline-code">docs/memory/benchmarks/</code>, “memory” means <strong>long-context retrieval evaluation</strong> (LME, LoCoMo, ConvoMem)—not session memory. See the README for scope.
+          </p>
+          <ul>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/README.md">README.md</a> — hub index, roadmap table</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/PLAN.md">PLAN.md</a> — LME targets, metrics, phased work</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/comparisons.md">comparisons.md</a> — methodology vs external systems</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/why_rerank_doesnt_raise_lme.md">why_rerank_doesnt_raise_lme.md</a> — rerank / fusion / troubleshooting</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/MEMPALACE.md">MEMPALACE.md</a> — deferred Memory Palace / quotes suite</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> (repo root) — operational benchmark CLI</li>
+          </ul>
+        </article>
+        </div>
+
+        <p class="detail-note memory-hub-back">
+          <a class="button button-secondary" href="../index.html#memory-retrieval">Back to landing — Memory &amp; retrieval</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>
+        <a href="../index.html">llm-wiki home</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
+        <span aria-hidden="true">·</span>
+        MIT License
+      </p>
+    </div>
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="./metrics-dashboard.js"></script>
+</body>
+</html>

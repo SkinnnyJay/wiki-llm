@@ -1,0 +1,152 @@
+{
+  "_warning": "PARTIAL 2026-04-10: Some LLM rows may have used residual API credits before depletion. The sonnet_default run (R@5=0.994) was not reproducible in a rerun. Treat LLM-reranked rows as directional only.",
+  "runs": [
+    {
+      "suite": "lme",
+      "backend": "fts5",
+      "compressor": "raw",
+      "questions": 500,
+      "elapsed_s": 86.52,
+      "config_hash": "0f33a9e6902b",
+      "recall_at_1": 0.852,
+      "recall_at_3": 0.956,
+      "recall_at_5": 0.98,
+      "recall_at_10": 0.988,
+      "ndcg_at_5": 0.9176,
+      "ndcg_at_10": 0.9181,
+      "failures": 10,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 4,
+        "M": 6,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "token_ratio_mean": 1.0,
+      "wall_s": 89.3,
+      "experiment": "baseline",
+      "label": "Heuristic (no LLM)",
+      "failure_qids": [
+        "gpt4_f2262a51",
+        "75832dbd",
+        "06f04340",
+        "d6233ab6",
+        "8e91e7d9",
+        "gpt4_e061b84g",
+        "gpt4_1e4a8aec",
+        "gpt4_4929293b",
+        "eac54add",
+        "gpt4_8279ba03"
+      ],
+      "llm_rerank_reordered_on_miss": 0
+    },
+    {
+      "suite": "lme",
+      "backend": "fts5",
+      "compressor": "raw",
+      "questions": 500,
+      "elapsed_s": 3222.25,
+      "config_hash": "3e25db322f23",
+      "recall_at_1": 0.902,
+      "recall_at_3": 0.984,
+      "recall_at_5": 0.99,
+      "recall_at_10": 0.996,
+      "ndcg_at_5": 0.9472,
+      "ndcg_at_10": 0.9461,
+      "failures": 5,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 3,
+        "M": 2,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "token_ratio_mean": 1.0,
+      "wall_s": 3225.3,
+      "experiment": "mini_default",
+      "label": "gpt-4o-mini default fuse",
+      "failure_qids": [
+        "195a1a1b",
+        "d6233ab6",
+        "eac54add",
+        "6e984302",
+        "gpt4_8279ba03"
+      ],
+      "llm_rerank_reordered_on_miss": 5
+    },
+    {
+      "suite": "lme",
+      "backend": "fts5",
+      "compressor": "raw",
+      "questions": 500,
+      "elapsed_s": 782.35,
+      "config_hash": "2f2e0f55984c",
+      "recall_at_1": 0.852,
+      "recall_at_3": 0.95,
+      "recall_at_5": 0.988,
+      "recall_at_10": 0.994,
+      "ndcg_at_5": 0.9203,
+      "ndcg_at_10": 0.9211,
+      "failures": 6,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 2,
+        "M": 4,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "token_ratio_mean": 1.0,
+      "wall_s": 787.3,
+      "experiment": "gpt4o_default",
+      "label": "gpt-4o default fuse",
+      "failure_qids": [
+        "195a1a1b",
+        "gpt4_e061b84g",
+        "gpt4_1e4a8aec",
+        "gpt4_4929293b",
+        "eac54add",
+        "gpt4_8279ba03"
+      ],
+      "llm_rerank_reordered_on_miss": 1
+    },
+    {
+      "suite": "lme",
+      "backend": "fts5",
+      "compressor": "raw",
+      "questions": 500,
+      "elapsed_s": 204.21,
+      "config_hash": "2d2472a6de07",
+      "recall_at_1": 0.852,
+      "recall_at_3": 0.956,
+      "recall_at_5": 0.98,
+      "recall_at_10": 0.988,
+      "ndcg_at_5": 0.9176,
+      "ndcg_at_10": 0.9181,
+      "failures": 10,
+      "failure_bucket_counts": {
+        "P": 0,
+        "R": 4,
+        "M": 6,
+        "L": 0
+      },
+      "llm_adaptive_skips": 0,
+      "token_ratio_mean": 1.0,
+      "wall_s": 207.7,
+      "experiment": "gpt4o_combined",
+      "label": "gpt-4o combined (10k, dedup, 12 picks, no fuse)",
+      "failure_qids": [
+        "gpt4_f2262a51",
+        "75832dbd",
+        "06f04340",
+        "d6233ab6",
+        "8e91e7d9",
+        "gpt4_e061b84g",
+        "gpt4_1e4a8aec",
+        "gpt4_4929293b",
+        "eac54add",
+        "gpt4_8279ba03"
+      ],
+      "llm_rerank_reordered_on_miss": 0
+    }
+  ]
+}
