@@ -6,6 +6,8 @@ disable-model-invocation: true
 
 # Wiki setup — interactive wizard
 
+**Fast path without this skill:** [`docs/QUICKSTART.md`](../../docs/QUICKSTART.md) — `llm-wiki setup --defaults`, then ingest and merge in chat.
+
 A conversational wizard that walks through every configuration decision for a new llm-wiki vault. Asks one section at a time, offers alternatives and explanations on request, previews all changes before writing anything, then commits.
 
 **Iron rule:** Never write `config.json`, scaffold files, or set environment variables until the user confirms the preview at the end.
@@ -229,11 +231,13 @@ export FIRECRAWL_API_KEY="fc-..."
 > Which search backend?
 > - `[1]` **FTS5** — BM25 ranked, zero deps *(recommended)*
 > - `[2]` **Grep** — no index, regex only
-> - `[3]` **ChromaDB** — semantic embeddings *(requires install)*
+> - `[3]` **ChromaDB** — semantic embeddings *(requires `chromadb` from `requirements-optional.txt`)*
+> - `[4]` **Hybrid** — FTS5 + Chroma reciprocal-rank fusion *(requires `chromadb`; falls back to fts5 if missing)*
 
 **Store answers as:**
 - `mcp.enabled`
-- `mcp.search_backend` (`fts5` | `grep` | `chromadb`)
+- `mcp.search_backend` (`fts5` | `grep` | `chromadb` | `hybrid`)
+- `mcp.hybrid_rrf_k` (default **60**, only used when `search_backend` is **`hybrid`**)
 
 ---
 
@@ -348,6 +352,7 @@ cfg['pdf'] = {'default_adapter': '<pdf_adapter>', 'max_cost_usd': 1.00}
 cfg['mcp'] = {
     'enabled': <mcp_enabled>,
     'search_backend': '<search_backend>',
+    'hybrid_rrf_k': <hybrid_rrf_k_or_60>,
 }
 cfg['knowledge_graph'] = {
     'enabled': <kg_enabled>,

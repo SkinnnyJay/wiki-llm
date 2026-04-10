@@ -37,3 +37,11 @@ def test_load_plugin_dotenv_shell_wins(tmp_path, monkeypatch):
     (tmp_path / ".env").write_text("ZZZ_SHELL=from_file\n", encoding="utf-8")
     load_plugin_dotenv(tmp_path)
     assert os.environ.get("ZZZ_SHELL") == "from_shell"
+
+
+def test_load_plugin_dotenv_empty_shell_allows_file(tmp_path, monkeypatch):
+    """Empty/whitespace env placeholders must not block .env values."""
+    monkeypatch.setenv("ZZZ_EMPTY", "")
+    (tmp_path / ".env").write_text("ZZZ_EMPTY=from_file\n", encoding="utf-8")
+    load_plugin_dotenv(tmp_path)
+    assert os.environ.get("ZZZ_EMPTY") == "from_file"

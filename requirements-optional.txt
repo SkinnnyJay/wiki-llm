@@ -1,6 +1,17 @@
 # Optional pip deps for llm-wiki CLI (use a venv: python3 -m venv .venv && .venv/bin/pip install -r requirements-optional.txt)
 # Format-specific deps are lazy — only install what you need.
 # Each format has a reference file under skills/references/ingest-<format>.md
+#
+# PEP 668: on many Linux distros the system Python is "externally managed" — do not
+# pip install into it; use a venv (above) or pipx.
+
+# Semantic search (mcp.search_backend chromadb or hybrid)
+# Upper bound avoids surprise API/on-disk breaks on the next chromadb major; bump after testing.
+chromadb>=0.4.24,<2
+
+# Cross-encoder reranking (benchmark.search.rerank_llm.invoke cross_encoder)
+# Runs locally on CPU — no API key needed. ~650ms per query with 80 candidates.
+sentence-transformers>=2.2
 
 # PDF (scanned or text): Claude Vision via Anthropic API
 # Also requires poppler on PATH (macOS: brew install poppler)

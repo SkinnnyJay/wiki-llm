@@ -124,7 +124,8 @@
     "port": 8891,
     "host": "127.0.0.1",
     "search_backend": "fts5",
-    "_comment_search": "Options: fts5 (BM25 ranked, stdlib sqlite3) | grep (ripgrep/re fallback) | chromadb (semantic embeddings, requires: pip install chromadb)",
+    "hybrid_rrf_k": 60,
+    "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
     "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)"
   },
   "knowledge_graph": {

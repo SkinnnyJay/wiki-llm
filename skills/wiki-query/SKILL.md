@@ -13,7 +13,7 @@ Answer questions **from curated wiki pages** with **inline citations** to `wiki/
 
 1. Confirm `llm-wiki/config.json` exists (vault root). If missing, offer **wiki-setup**.
 2. Read **`wiki/index.md`** to orient; open the most relevant `wiki/**/*.md` files for the question.
-3. Check `config.json` for `mcp.search_backend` and `knowledge_graph.enabled` to decide which tools to use.
+3. Check `config.json` for `mcp.search_backend` (`fts5` / `grep` / `chromadb` / `hybrid`) and `knowledge_graph.enabled` to decide which tools to use. **`hybrid`** needs Chroma installed; if unsure, read **`wiki_status`** / **`skills/references/mcp-and-kg.md`** for fallbacks.
 
 > Search backend API, KG CLI, and Python examples: **`skills/references/mcp-and-kg.md`**
 

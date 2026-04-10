@@ -19,3 +19,16 @@ From the repository root:
 **Python versions:** CI runs pytest on **3.12** and **3.14** (see [`.github/workflows/tests.yml`](.github/workflows/tests.yml)). To match CI locally, use a venv built with that interpreter (`python3.14 -m venv .venv`, `pip install -r requirements-dev.txt`, then `PYTHONPATH=scripts python -m pytest tests/` or `bin/llm-wiki smoke-test`). Avoid relying on a relative `PYTHONPATH` when invoking `python` directly—run from the repo root with `PYTHONPATH=scripts` or use `scripts/llm_wiki.py`, which adjusts `sys.path` itself.
 
 Version bumps in [CHANGELOG.md](CHANGELOG.md) should ship with a green CI run on `main` / your release branch.
+
+## Publishing (maintainers)
+
+- **Docs site & marketplace checks:** [docs/PUBLISHING.md](docs/PUBLISHING.md) (GitHub Pages from `/docs`, public repo for marketplace installs, post-publish smoke).
+- **Tracked files:** Do not tag a release with changes that should be in git but are still untracked — CI and `tests/plugin_contracts.test.py` only see committed files.
+
+## OpenAI Codex marketplace
+
+Third-party **Codex** plugin submission may be limited while the ecosystem matures. This repo already ships [`.codex/config.toml`](.codex/config.toml) and root [`AGENTS.md`](AGENTS.md) for Codex CLI discovery. When submissions open, follow [OpenAI’s Codex plugin docs](https://developers.openai.com/codex/plugins/) and add a short note here.
+
+## Telemetry
+
+The plugin **does not** include built-in analytics. Marketplace hosts (Anthropic, Cursor, etc.) may provide their own install or usage statistics according to their terms — that is outside this repository’s code.

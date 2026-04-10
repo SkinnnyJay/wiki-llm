@@ -70,6 +70,19 @@ def test_build_site_empty_wiki_succeeds(tmp_path: Path) -> None:
     assert (wiki / ".og" / "wiki-data.json").is_file()
 
 
+def test_ingest_unknown_adapter_exits_nonzero(tmp_path: Path) -> None:
+    """ingest with an unknown adapter name exits non-zero without a traceback."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    r = _run(["setup", "--root", str(proj)], cwd=REPO)
+    assert r.returncode == 0, r.stderr + r.stdout
+
+    vault = proj / "llm-wiki"
+    env = {"LLM_WIKI_VAULT": str(vault)}
+    r2 = _run(["ingest", "not_a_real_adapter_xyz", "--out", "x.md"], cwd=REPO, env=env)
+    assert r2.returncode != 0
+
+
 def test_raw_validate_missing_file_exits_nonzero(tmp_path: Path) -> None:
     """`raw validate` requires a path; missing file under raw/ exits 1 without a traceback."""
     proj = tmp_path / "proj"
@@ -81,6 +94,21 @@ def test_raw_validate_missing_file_exits_nonzero(tmp_path: Path) -> None:
     env = {"LLM_WIKI_VAULT": str(vault)}
     r2 = _run(["raw", "validate", "does-not-exist.md"], cwd=REPO, env=env)
     assert r2.returncode != 0
+
+
+def test_validate_corrupt_config_exits_nonzero(tmp_path: Path) -> None:
+    """validate must exit 1 with a clear message when config.json is not valid JSON."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    r = _run(["setup", "--root", str(proj)], cwd=REPO)
+    assert r.returncode == 0, r.stderr + r.stdout
+
+    vault = proj / "llm-wiki"
+    (vault / "config.json").write_text("{not json", encoding="utf-8")
+    env = {"LLM_WIKI_VAULT": str(vault)}
+    r2 = _run(["validate"], cwd=REPO, env=env)
+    assert r2.returncode != 0
+    assert "Invalid config.json" in (r2.stderr + r2.stdout) or "Invalid config" in (r2.stderr + r2.stdout)
 
 
 def test_validate_wikilinks_broken_link_exits_nonzero(tmp_path: Path) -> None:

@@ -1,5 +1,7 @@
 # llm-wiki workflows
 
+**First run:** [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — vault vs plugin repo, five-minute path, tier table (basic → advanced).
+
 Canonical paths through the vault. Voice and epistemics: [`prompts/PERSONA.md`](prompts/PERSONA.md). Principles: [`ETHOS.md`](ETHOS.md).
 
 **Cursor / OpenAI Codex (no Claude Code plugin):** [`AGENTS.md`](AGENTS.md) (how each tool loads this repo) — use **`bin/llm-wiki`** from a terminal, **`rules/llm-wiki.mdc`** / **`.cursor/rules/`** in Cursor, and **`commands/*.md`** for the same prompts as **`/llm-wiki:…`** slash commands.

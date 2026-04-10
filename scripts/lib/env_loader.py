@@ -51,5 +51,7 @@ def load_plugin_dotenv(
             merged[k] = v
     for k, v in merged.items():
         if not override and k in os.environ:
-            continue
+            existing = os.environ.get(k, "").strip()
+            if existing:
+                continue
         os.environ[k] = v

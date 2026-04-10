@@ -29,7 +29,8 @@ All settings live in `llm-wiki/config.json`:
     "transport": "stdio",
     "port": 8891,
     "host": "127.0.0.1",
-    "search_backend": "fts5"
+    "search_backend": "fts5",
+    "hybrid_rrf_k": 60
   },
   "knowledge_graph": {
     "enabled": true,
@@ -54,9 +55,20 @@ All settings live in `llm-wiki/config.json`:
 |---------|-----|-------------|---------|----------|
 | **FTS5** | `fts5` | None (stdlib `sqlite3`) | BM25 | Default — fast ranked search, zero deps |
 | **Grep** | `grep` | None (`rg` preferred, falls back to `re`) | None | Literal/regex queries, no index needed |
-| **ChromaDB** | `chromadb` | `pip install chromadb` | Semantic similarity | Best retrieval quality, needs embeddings |
+| **ChromaDB** | `chromadb` | `pip install chromadb` (see `requirements-optional.txt`) | Semantic similarity | Best retrieval quality, needs embeddings |
+| **Hybrid** | `hybrid` | ChromaDB + FTS5 indexes | RRF fusion of BM25 + semantic | Strongest overall when Chroma is available |
 
-**Graceful fallback:** If `chromadb` is configured but the package is missing or init fails, search falls back to **grep** (with a log warning). Switch to **`fts5`** in config for BM25 search without extra dependencies.
+**`mcp.hybrid_rrf_k`** (default `60`): reciprocal rank fusion constant for **`hybrid`** only — same idea as `benchmark.search.hybrid_k` in benchmarks.
+
+**Graceful fallback:** If **`chromadb`** is configured but the package is missing or init fails, search falls back to **grep** (with a log warning). If **`hybrid`** is configured but Chroma is missing or init fails, search falls back to **`fts5`** (not grep). Switch to **`fts5`** in config for BM25 without extra dependencies.
+
+### ChromaDB upgrades and on-disk compatibility
+
+Chroma persists under **`storage.chromadb_dir`** (default **`.chromadb/`** in the vault). Major **`chromadb`** upgrades can change on-disk layout or client APIs. If search fails after upgrading the package: remove **`llm-wiki/.chromadb`** (or your configured directory), then run **`llm-wiki ingest`** / rebuild search so indexes are recreated. Pin **`chromadb`** in your venv (see **`requirements-optional.txt`**) to upgrade on your own schedule.
+
+### Storage paths outside the vault
+
+Relative **`storage.*`** paths resolve under the vault — separate vaults stay isolated. If you set an **absolute** path for **`chromadb_dir`** (or other storage keys) **outside** the vault, **`wiki_status`** may include **`storage_warnings`**: shared indexes across projects can cause cross-talk or one bad index affecting multiple vaults.
 
 ---
 
@@ -138,7 +150,7 @@ When `knowledge_graph.auto_update_on_ingest` is `true`, the CLI runs **`kg rebui
 Report these in the health dashboard:
 
 1. **MCP enabled?** — `mcp.enabled` in config
-2. **Search backend** — which backend, whether index exists (FTS5: `.search.sqlite3`; ChromaDB: `.chromadb/`)
+2. **Search backend** — which backend, whether index exists (**fts5**: `.search.sqlite3`; **chromadb**: `.chromadb/`; **hybrid**: both; **grep**: none). MCP **`wiki_status`**: `search_backend_fallback` when **chromadb**→grep or **hybrid**→fts5; optional **`storage_warnings`** if absolute **`storage.*`** paths sit outside the vault.
 3. **KG enabled?** — `knowledge_graph.enabled` + backend type
 4. **KG data** — entity/triple counts from `.kg.json` or `.kg.sqlite3`
 5. **Editor registration** — is `llm-wiki` in `~/.cursor/mcp.json` or `~/.claude/claude_desktop_config.json`?
@@ -156,7 +168,7 @@ Ask the user:
 - **Step-by-step** — choose search backend individually
 - **Disabled** — skip MCP (agents use CLI commands instead)
 
-If step-by-step: offer FTS5 / Grep / ChromaDB with the table above as explanation.
+If step-by-step: offer FTS5 / Grep / ChromaDB / Hybrid with the table above as explanation.
 
 ### Knowledge graph (Section 8b)
 

@@ -162,6 +162,23 @@ class TestGetSearchBackend:
         backend = get_search_backend(vault, cfg)
         assert backend.index_status()["backend"] == "grep"
 
+    def test_hybrid_falls_back_to_fts5_when_chromadb_unavailable(self, vault, monkeypatch):
+        """If ChromaDBSearchBackend cannot be imported, hybrid uses FTS5SearchBackend."""
+        sys.path.insert(0, str(SCRIPTS))
+        real_import = builtins.__import__
+
+        def _import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "lib.search_chromadb":
+                raise ImportError("simulated missing chromadb")
+            return real_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr(builtins, "__import__", _import)
+        from lib.search import get_search_backend
+
+        cfg = {"mcp": {"search_backend": "hybrid"}}
+        backend = get_search_backend(vault, cfg)
+        assert backend.index_status()["backend"] == "fts5"
+
 
 # ---------------------------------------------------------------------------
 # JSON Knowledge Graph
@@ -336,6 +353,30 @@ class TestMCPServer:
         data = json.loads(resp["result"]["content"][0]["text"])
         assert data["search_backend"] == "chromadb"
         assert data["search_backend_active"] == "grep"
+        assert data["search_backend_fallback"] is True
+
+    def test_tool_call_status_hybrid_fallback_when_chromadb_missing(self, tmp_path):
+        """When chromadb is not installed but config asks for hybrid, status reports fts5 fallback."""
+        if importlib.util.find_spec("chromadb") is not None:
+            pytest.skip("chromadb installed; hybrid would use Chroma")
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {"enabled": True, "search_backend": "hybrid"},
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+        resp = self._call(v, "tools/call", {"name": "wiki_status", "arguments": {}})
+        data = json.loads(resp["result"]["content"][0]["text"])
+        assert data["search_backend"] == "hybrid"
+        assert data["search_backend_active"] == "fts5"
         assert data["search_backend_fallback"] is True
 
     def test_tool_call_search(self, vault):

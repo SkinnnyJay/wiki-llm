@@ -226,13 +226,18 @@ enabled = mcp.get('enabled', True)
 sb = mcp.get('search_backend', 'fts5')
 print(f"  {'✓' if enabled else '✗'}  MCP server         enabled={enabled}")
 print(f"  ·  search backend     : {sb}")
-if sb == 'chromadb':
+if sb == 'hybrid':
+    print(f"     hybrid_rrf_k       : {mcp.get('hybrid_rrf_k', 60)}")
+if sb in ('chromadb', 'hybrid'):
     try:
         import chromadb
         print(f"     chromadb           : ✓ installed ({chromadb.__version__})")
     except ImportError:
-        print(f"     chromadb           : ✗ not installed (pip install chromadb)")
-        print(f"     → falling back to grep search (configure fts5 for BM25 without chromadb)")
+        print(f"     chromadb           : ✗ not installed (pip install chromadb / requirements-optional.txt)")
+        if sb == 'chromadb':
+            print(f"     → falling back to grep search (configure fts5 for BM25 without chromadb)")
+        else:
+            print(f"     → hybrid falling back to fts5 only (install chromadb for RRF + semantic leg)")
 
 kg = cfg.get('knowledge_graph', {})
 kg_enabled = kg.get('enabled', True)
@@ -251,9 +256,9 @@ if kg_enabled:
     else:
         print(f"     ⚠ No KG data yet — run: llm-wiki kg rebuild")
 
-# FTS5 index status
+# FTS5 index status (fts5 and hybrid both use BM25)
 fts_path = pathlib.Path('llm-wiki/.search.sqlite3')
-if sb == 'fts5':
+if sb in ('fts5', 'hybrid'):
     if fts_path.exists():
         import sqlite3
         conn = sqlite3.connect(str(fts_path))
@@ -265,6 +270,14 @@ if sb == 'fts5':
         conn.close()
     else:
         print(f"\n  ○  FTS5 index         not built yet (auto-builds on first search)")
+
+# Chroma on-disk (chromadb and hybrid)
+chroma_dir = cfg.get('storage', {}).get('chromadb_dir', '.chromadb')
+chroma_path = pathlib.Path('llm-wiki') / chroma_dir if not pathlib.Path(chroma_dir).is_absolute() else pathlib.Path(chroma_dir)
+if sb in ('chromadb', 'hybrid') and chroma_path.exists():
+    print(f"\n  ✓  Chroma dir         {chroma_path} (exists)")
+elif sb in ('chromadb', 'hybrid'):
+    print(f"\n  ○  Chroma dir         not created yet (builds on reindex / search)")
 PYEOF
 ```
 
@@ -378,7 +391,9 @@ PYEOF
 - User sees setup state, integrations, CLI/Python tooling, API keys (masked), vault paths, config flags, MCP server + search backend + KG status, and external MCP inventory.
 - If MCP server is enabled but not registered in editor config, suggest `llm-wiki mcp install`.
 - If knowledge graph has no data yet, suggest `llm-wiki kg rebuild`.
-- If search backend is `chromadb` but the package is missing, note the fallback to **grep** (suggest `fts5` or `pip install chromadb`).
+- If search backend is `chromadb` but the package is missing, note the fallback to **grep** (suggest `fts5` or `pip install chromadb` / **`requirements-optional.txt`**).
+- If search backend is **`hybrid`** but Chroma is missing, note fallback to **fts5**; if Chroma is present, both **FTS5** and **Chroma** indexes apply.
+- If **`wiki_status`** (MCP) reports **`storage_warnings`**, absolute **`storage.*`** paths may be shared across vaults — fix paths or accept the risk.
 - If setup is incomplete or tools are missing, user is pointed to **wiki-setup** or **`llm-wiki integrations wizard`**.
 
 ## Quick invocation
