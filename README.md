@@ -32,6 +32,7 @@ Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/cl
 | Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian.md`](agents/wiki-librarian.md), [`agents/research-runner.md`](agents/research-runner.md) |
 | Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
 | Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
+| Retrieval benchmark roadmap, LME gap notes (not session memory) | [`docs/memory/benchmarks/README.md`](docs/memory/benchmarks/README.md); CLI + knobs [`benchmarks/README.md`](benchmarks/README.md) |
 | MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
 | Builder principles (raw vs wiki, evidence) | [`ETHOS.md`](ETHOS.md) |
 | Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md) |

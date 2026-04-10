@@ -19,6 +19,10 @@ Optional **wiki-pipeline** skill chains the standard vault workflow with optiona
 - **wiki-session-memory** — opt-in per-chat notes in `llm-wiki/raw/memory/` (`memory.enabled`); hooks + `llm-wiki memory …`.
 - **wiki-upgrade** — `git pull` + re-run `./setup` in the plugin repo.
 
+## Retrieval benchmarks (plugin repo)
+
+**CLI:** `llm-wiki benchmark …` — see [`benchmarks/README.md`](benchmarks/README.md). **Roadmap, measured rows, LME miss lists, external comparisons:** [`docs/memory/benchmarks/README.md`](docs/memory/benchmarks/README.md) (“memory” here means long-context retrieval evaluation, not `raw/memory/` session notes). Static hub: [`docs/memory/index.html`](docs/memory/index.html#hub-title) (if you publish GitHub Pages from `/docs`).
+
 ## Plugin development / testing
 
 From a clone of this repo:
