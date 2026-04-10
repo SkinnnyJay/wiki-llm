@@ -1363,6 +1363,13 @@ pre code {
   margin-top: 1.5rem;
 }
 
+/* Epigraph at top of docs/memory/index.html */
+.memory-hub-epigraph {
+  margin: 0 0 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Tighter spacing than hero .lineage-note (2.75rem) */
 .memory-hub-lineage {
   margin-top: 1.5rem;
