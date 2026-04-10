@@ -1,4 +1,4 @@
-"""ConvoMem benchmark runner (placeholder — wire dataset path when available)."""
+"""ConvoMem-style benchmark — accepts LME-shaped JSON for retrieval scoring."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ _REPO = Path(__file__).resolve().parent.parent
 _SCRIPTS = _REPO / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 
 
 def run_convomem(
@@ -21,37 +23,85 @@ def run_convomem(
     data_path: Path | None = None,
 ) -> dict[str, Any]:
     """
-    ConvoMem large-scale memory category benchmark.
+    Run retrieval when ``data_path`` points to a JSON array of LME-shaped entries
+    (``haystack_sessions``, ``haystack_session_ids``, ``haystack_dates``,
+    ``question``, ``answer_session_ids``).
 
-    Target (plan): 99%+ average recall across 6 categories. Full runner
-    requires the published ConvoMem QA format; extend this module once
-    data is available locally.
+    Full Salesforce/ConvoMem HF layouts are not auto-downloaded (multi-GB);
+    convert or subset to this shape offline. See benchmarks/README.md.
     """
-    if data_path is not None and data_path.is_file():
-        try:
-            with data_path.open(encoding="utf-8") as f:
-                _ = json.load(f)
-        except Exception as e:
-            return {
-                "summary": {
-                    "suite": "convomem",
-                    "status": "error",
-                    "message": f"Could not read {data_path}: {e}",
-                },
-            }
+    from benchmarks.lme_bench import complete_lme_derived_suite, run_lme
 
-    summary = {
-        "suite": "convomem",
-        "status": "pending",
-        "questions": 0,
-        "message": (
-            "ConvoMem runner is not fully wired yet. "
-            "See benchmarks/README.md for dataset pointers and "
-            "how to map categories into the same vault + search harness as LME."
-        ),
-    }
-    if limit:
-        summary["limit_requested"] = limit
+    if data_path is None or not data_path.is_file():
+        return {
+            "summary": {
+                "suite": "convomem",
+                "status": "pending",
+                "questions": 0,
+                "message": (
+                    "Pass --data /path/to/lme-shaped.json (array of haystack+question rows). "
+                    "See benchmarks/README.md for ConvoMem dataset pointers."
+                ),
+            },
+        }
 
-    return {"summary": summary}
+    try:
+        with data_path.open(encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception as e:
+        return {
+            "summary": {
+                "suite": "convomem",
+                "status": "error",
+                "message": str(e),
+            },
+        }
 
+    if not isinstance(raw, list) or not raw:
+        return {
+            "summary": {
+                "suite": "convomem",
+                "status": "error",
+                "message": "Expected a non-empty JSON array",
+            },
+        }
+
+    first = raw[0]
+    if not isinstance(first, dict) or "haystack_sessions" not in first:
+        return {
+            "summary": {
+                "suite": "convomem",
+                "status": "error",
+                "message": (
+                    "Each item must include haystack_sessions, haystack_session_ids, "
+                    "haystack_dates, question, answer_session_ids"
+                ),
+            },
+        }
+
+    entries = raw
+    if limit > 0:
+        entries = entries[:limit]
+
+    bcfg = cfg.get("benchmark") or {}
+    backend = (bcfg.get("search") or {}).get("backend", "fts5")
+    comp = bcfg.get("compress_method", "raw")
+
+    result = run_lme(
+        entries,
+        vault,
+        cfg,
+        backend=backend,
+        compressor_name=comp,
+        limit=0,
+        top_k=5,
+    )
+    return complete_lme_derived_suite(
+        vault,
+        cfg,
+        result,
+        suite="convomem",
+        backend=backend,
+        compressor=comp,
+        entry_count=len(entries),
+    )

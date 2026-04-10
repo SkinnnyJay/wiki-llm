@@ -16,6 +16,21 @@ def _default_since_iso(days: int = 30) -> str:
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def iter_benchmark_lme_snapshots(
+    vault: Path,
+    cfg: dict[str, Any],
+    *,
+    since: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Lines for ``benchmark.lme.recall_at_5`` (one row per LME run)."""
+    recs = load_metrics_records(vault, cfg, since=since, limit=0)
+    rows = [r for r in recs if str(r.get("key", "")) == "benchmark.lme.recall_at_5"]
+    if limit > 0:
+        return rows[-limit:]
+    return rows
+
+
 def load_metrics_records(
     vault: Path,
     cfg: dict[str, Any],

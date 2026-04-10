@@ -1,0 +1,15 @@
+[
+  {
+    "question_id": "convomem_fixture_1",
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I started learning violin last month."},
+        {"role": "assistant", "content": "Great choice for coordination."}
+      ]
+    ],
+    "haystack_session_ids": ["S1"],
+    "haystack_dates": ["2024-01-15"],
+    "question": "What instrument did I start learning?",
+    "answer_session_ids": ["S1"]
+  }
+]

@@ -1,0 +1,19 @@
+[
+  {
+    "conversation": {
+      "speaker_a": "SpeakerA",
+      "speaker_b": "SpeakerB",
+      "session_1": [
+        {"speaker": "SpeakerA", "text": "I started learning violin last month."},
+        {"speaker": "SpeakerB", "text": "That is great."}
+      ],
+      "session_1_date_time": "2024-01-15"
+    },
+    "qa": [
+      {
+        "question": "What instrument did SpeakerA start learning?",
+        "evidence": ["D1:1"]
+      }
+    ]
+  }
+]

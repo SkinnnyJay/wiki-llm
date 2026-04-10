@@ -88,6 +88,7 @@ DEFAULTS: dict[str, Any] = {
         "port": 8891,
         "host": "127.0.0.1",
         "search_backend": "fts5",
+        "hybrid_rrf_k": 60,
     },
     "knowledge_graph": {
         "enabled": True,
@@ -131,6 +132,10 @@ DEFAULTS: dict[str, Any] = {
         "data_cache_dir": "~/.cache/llm-wiki-benchmarks",
         "results_dir": ".benchmarks",
         "auto_record_metrics": True,
+        "append_repo_runs_jsonl": False,
+        "repo_runs_jsonl_path": "docs/memory/benchmarks/metrics/runs.jsonl",
+        "write_run_sidecar": True,
+        "debug_rerank": False,
         "search": {
             "backend": "fts5",
             "hybrid_enabled": False,
@@ -143,7 +148,7 @@ DEFAULTS: dict[str, Any] = {
             "tfidf_head_tail": True,
             "tfidf_max_chars": 80000,
             "tfidf_rrf_weight": 1.0,
-            "or_late_rrf_weight": 0,
+            "or_late_rrf_weight": 0.15,
             "rrf_boost_or": 2,
             "and_rrf": True,
             "final_borda": False,
@@ -157,14 +162,26 @@ DEFAULTS: dict[str, Any] = {
                 "enabled": False,
                 "benchmark_auto": False,
                 "provider": "anthropic",
-                "invoke": "anthropic_api",
-                "model": "claude-3-5-haiku-20241022",
+                "invoke": "auto",
+                "model": "claude-sonnet-4-6",
                 "api_key_env": "ANTHROPIC_API_KEY",
                 "max_candidates": 80,
                 "max_chars": 3600,
+                "max_picks": 5,
                 "excerpt_mode": "head_tail",
                 "cli_argv": None,
                 "cli_timeout_s": 180,
+                "fuse_original_rrf": True,
+                "fuse_original_weight": 0.35,
+                "fuse_rrf_k": 60,
+                "invoke_when": "always",
+                "adaptive_head": 5,
+                "adaptive_lookback": 24,
+                "adaptive_tail_margin": 0.12,
+                "adaptive_min_head_lex": 3.5,
+                "adaptive_max_chars": 12000,
+                "session_dedup": False,
+                "cross_encoder_model": "mixedbread-ai/mxbai-rerank-large-v1",
             },
         },
         "chunking": {
@@ -211,6 +228,24 @@ def resolve_storage_path(vault: Path, cfg: dict[str, Any], key: str) -> Path:
     raw = storage.get(key, DEFAULTS["storage"][key])
     p = Path(raw)
     return p if p.is_absolute() else vault / p
+
+
+def storage_warnings(vault: Path, cfg: dict[str, Any]) -> list[str]:
+    """Warn when absolute storage paths sit outside the vault (accidental index sharing)."""
+    vault_r = vault.resolve()
+    out: list[str] = []
+    for key in ("search_db", "kg_db", "kg_sqlite_db", "chromadb_dir", "metrics_db"):
+        p = resolve_storage_path(vault, cfg, key)
+        if not p.is_absolute():
+            continue
+        try:
+            p.resolve().relative_to(vault_r)
+        except ValueError:
+            out.append(
+                f"storage.{key} points outside the vault ({p}): "
+                "sharing indexes across vaults can cause cross-talk or corruption"
+            )
+    return out
 
 
 def save_config(vault: Path, cfg: dict[str, Any]) -> None:

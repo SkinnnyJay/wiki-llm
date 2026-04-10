@@ -14,19 +14,29 @@ if str(SCRIPTS) not in sys.path:
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from benchmarks.lme_bench import (
+    _classify_lme_failure,
+    _gold_sid_in_paths,
+    analyze_lme_failures_log,
+    format_lme_failures_analysis,
+)
 from benchmarks.bench_harness import (
     _bench_doc_tokens,
     _parse_rerank_doc_indices,
+    _strip_rerank_model_output,
+    adaptive_should_run_llm_rerank,
     borda_merge_ranks,
+    fuse_llm_rerank_with_original,
+    lexical_overlap_score_path,
     ndcg_at_k,
     recall_at_k,
-    reciprocal_rank_fusion,
     reciprocal_rank_fusion_weighted,
     rerank_paths_llm,
     tfidf_corpus_rank_from_tokens,
     _excerpt_for_llm_rerank,
 )
 from lib.compressors import get_compressor
+from lib.rank_fusion import reciprocal_rank_fusion
 from lib.search import prepare_fts5_match_query
 
 
@@ -88,6 +98,88 @@ def test_parse_rerank_doc_indices():
     assert _parse_rerank_doc_indices("best 3 then 1", 5) == [3, 1]
 
 
+def test_strip_rerank_model_output():
+    assert _strip_rerank_model_output("```\n3,1,5\n```") == "3,1,5"
+    assert _strip_rerank_model_output("Answer: 7,2") == "7,2"
+
+
+def test_fuse_llm_rerank_with_original():
+    orig = ["a.md", "b.md", "c.md", "d.md"]
+    llm = ["c.md", "a.md", "b.md", "d.md"]
+    fused = fuse_llm_rerank_with_original(orig, llm, original_weight=0.5, rrf_k=60)
+    assert len(fused) == 4
+    assert set(fused) == set(orig)
+
+
+def _bench_md(root: Path, rel: str, body: str) -> None:
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(f"---\ntitle: t\n---\n\n{body}", encoding="utf-8")
+
+
+def test_lexical_overlap_score_path_positive(tmp_path):
+    _bench_md(tmp_path, "raw/bench/a.md", "alpha beta gamma " * 80)
+    s = lexical_overlap_score_path(
+        "alpha beta gamma question",
+        tmp_path,
+        "raw/bench/a.md",
+        max_chars=4000,
+    )
+    assert s > 5.0
+
+
+def test_adaptive_skips_llm_when_head_strong_tail_weak(tmp_path):
+    q = "alpha beta gamma delta epsilon"
+    for i in range(5):
+        _bench_md(tmp_path, f"raw/bench/h{i}.md", q + " " + "filler " * 40)
+    for j in range(5):
+        _bench_md(tmp_path, f"raw/bench/t{j}.md", "zzz unrelated noise " * 60)
+    paths = [f"raw/bench/h{i}.md" for i in range(5)] + [
+        f"raw/bench/t{j}.md" for j in range(5)
+    ]
+    assert adaptive_should_run_llm_rerank(
+        q,
+        paths,
+        tmp_path,
+        head=5,
+        lookback=5,
+        tail_margin=0.12,
+        min_head_lex=3.5,
+    ) is False
+
+
+def test_analyze_lme_failures_jsonl(tmp_path):
+    p = tmp_path / "lme_failures.jsonl"
+    p.write_text(
+        '{"question_id":"q1","failure_bucket":"R","question":"hello","gold_in_pool_pre_llm":true,'
+        '"llm_invoked":true,"llm_adaptive_skip":false,"llm_rerank_reordered":false}\n',
+        encoding="utf-8",
+    )
+    s = analyze_lme_failures_log(p)
+    assert s["failure_count"] == 1
+    assert s["failure_bucket_counts"]["R"] == 1
+    assert s["question_ids"] == ["q1"]
+    text = format_lme_failures_analysis(s)
+    assert "q1" in text and "[R]" in text
+
+
+def test_adaptive_runs_llm_when_tail_competes(tmp_path):
+    q = "alpha beta gamma"
+    for i in range(4):
+        _bench_md(tmp_path, f"raw/bench/w{i}.md", "weak doc " * 50)
+    _bench_md(tmp_path, "raw/bench/strong_tail.md", q + " " + "extra " * 80)
+    paths = [f"raw/bench/w{i}.md" for i in range(4)] + ["raw/bench/strong_tail.md"]
+    assert adaptive_should_run_llm_rerank(
+        q,
+        paths,
+        tmp_path,
+        head=4,
+        lookback=4,
+        tail_margin=0.05,
+        min_head_lex=10.0,
+    ) is True
+
+
 def test_rerank_llm_skips_when_no_api_for_anthropic():
     out = rerank_paths_llm(
         "q",
@@ -95,6 +187,18 @@ def test_rerank_llm_skips_when_no_api_for_anthropic():
         Path("/nonexistent-vault-xyz"),
         api_key="",
         invoke="anthropic_api",
+    )
+    assert out == ["a.md"]
+
+
+def test_rerank_llm_skips_when_no_api_for_openai():
+    out = rerank_paths_llm(
+        "q",
+        ["a.md"],
+        Path("/nonexistent-vault-xyz"),
+        api_key="",
+        invoke="openai_api",
+        model="gpt-5.4",
     )
     assert out == ["a.md"]
 
@@ -113,6 +217,21 @@ def test_prepare_fts5_strips_punctuation():
     safe = prepare_fts5_match_query(q)
     assert "?" not in safe
     assert " OR " in safe or safe
+
+
+def test_classify_lme_failure_buckets():
+    gold = {"a"}
+    assert _classify_lme_failure(gold, True, True, want_llm=False, can_run=False, env_on=False) == ""
+    assert _classify_lme_failure(gold, False, False, want_llm=True, can_run=False, env_on=True) == "L"
+    assert _classify_lme_failure(gold, False, False, want_llm=False, can_run=False, env_on=False) == "P"
+    assert _classify_lme_failure(gold, True, False, want_llm=False, can_run=False, env_on=False) == "R"
+    assert _classify_lme_failure({"a", "b"}, True, False, want_llm=False, can_run=False, env_on=False) == "M"
+
+
+def test_gold_sid_in_paths():
+    pt = {"x/a.md": "S1", "x/b.md": "S2"}
+    assert _gold_sid_in_paths(["x/a.md"], {"S1"}, pt) is True
+    assert _gold_sid_in_paths(["x/b.md"], {"S1"}, pt) is False
 
 
 @pytest.mark.parametrize("name", ["raw", "steno", "prune", "extract", "compact"])

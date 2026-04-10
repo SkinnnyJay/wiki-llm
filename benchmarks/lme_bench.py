@@ -7,10 +7,12 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parent.parent
 if str(_REPO) not in sys.path:
@@ -20,13 +22,18 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from benchmarks.bench_harness import (
+    _resolve_auto_invoke,
+    append_repo_benchmark_runs_jsonl,
+    build_benchmark_record_meta,
     config_hash,
     ensure_vault_config,
     get_benchmark_search_fn,
     ndcg_at_k,
     record_benchmark_metrics,
     reciprocal_rank_fusion_weighted,
+    rerank_paths_cross_encoder,
     rerank_paths_llm,
+    write_benchmark_run_sidecar,
     write_benchmark_vault,
 )
 from lib.config_loader import deep_merge, load_config, save_config
@@ -68,8 +75,44 @@ def paths_to_session_order(paths: list[str], path_to_sid: dict[str, str]) -> lis
     return out
 
 
+def _gold_sid_in_paths(paths: list[str], gold: set[str], path_to_sid: dict[str, str]) -> bool:
+    for p in paths:
+        sid = path_to_sid.get(p.replace("\\", "/"))
+        if sid and sid in gold:
+            return True
+    return False
+
+
+def _classify_lme_failure(
+    gold: set[str],
+    gold_in_pool: bool,
+    hit: bool,
+    *,
+    want_llm: bool,
+    can_run: bool,
+    env_on: bool,
+) -> str:
+    """P pool miss, R rank miss, M multi-gold, L LLM/env cannot run."""
+    if hit:
+        return ""
+    if want_llm and not can_run and env_on:
+        return "L"
+    if not gold_in_pool:
+        return "P"
+    if len(gold) > 1:
+        return "M"
+    return "R"
+
+
+def _load_lme_data(data_path: Path | list[dict]) -> list[dict]:
+    if isinstance(data_path, list):
+        return list(data_path)
+    with data_path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
 def run_lme(
-    data_path: Path,
+    data_path: Path | list[dict],
     vault: Path,
     cfg: dict,
     *,
@@ -79,8 +122,7 @@ def run_lme(
     top_k: int = 5,
     reindex: bool = True,
 ) -> dict:
-    with data_path.open(encoding="utf-8") as f:
-        data = json.load(f)
+    data = _load_lme_data(data_path)
     if limit > 0:
         data = data[:limit]
 
@@ -98,6 +140,8 @@ def run_lme(
     recall_vals = {k: [] for k in (1, 3, 5, 10)}
     ndcg_vals = {k: [] for k in (1, 3, 5, 10)}
     failures: list[dict] = []
+    failure_bucket_counts: dict[str, int] = {"P": 0, "R": 0, "M": 0, "L": 0}
+    llm_adaptive_skips = 0
 
     t0 = time.monotonic()
     for idx, entry in enumerate(data):
@@ -235,17 +279,32 @@ def run_lme(
 
             paths = rerank_paths_lexical(question, paths, bench_root, max_paths=n_fetch)
 
+        paths_before_llm = list(paths)
+
         rl = bcfg.get("rerank_llm") or {}
         key_env = str(rl.get("api_key_env", "ANTHROPIC_API_KEY"))
         api_key = os.environ.get(key_env, "")
-        invoke = str(rl.get("invoke", "anthropic_api")).strip().lower()
+        invoke = str(rl.get("invoke", "auto")).strip().lower()
+        if invoke == "auto":
+            resolved = _resolve_auto_invoke(api_key)
+            if resolved:
+                invoke = resolved
         cli_mode = invoke in ("claude_cli", "codex_cli", "custom_cli")
+        cross_encoder_mode = invoke == "cross_encoder"
         env_on = str(os.environ.get("LLM_WIKI_BENCHMARK_LLM", "")).lower() in (
             "1",
             "true",
             "yes",
         )
-        if invoke == "anthropic_api":
+        if cross_encoder_mode:
+            try:
+                import sentence_transformers  # noqa: F401
+                can_run = True
+            except ImportError:
+                can_run = False
+        elif invoke == "anthropic_api":
+            can_run = bool(api_key)
+        elif invoke == "openai_api":
             can_run = bool(api_key)
         elif invoke == "custom_cli":
             ca = rl.get("cli_argv")
@@ -255,14 +314,54 @@ def run_lme(
         want_llm = bool(rl.get("enabled")) or (
             bool(rl.get("benchmark_auto", False)) and can_run
         ) or (env_on and can_run)
-        if want_llm and can_run:
-            model = rl.get("model", "claude-3-5-haiku-20241022")
-            cap = int(rl.get("max_candidates", 80))
+        run_llm = bool(want_llm and can_run)
+        adaptive_skip = False
+        if run_llm and str(rl.get("invoke_when", "always")).strip().lower() == "adaptive":
+            from benchmarks.bench_harness import adaptive_should_run_llm_rerank
+
+            if not adaptive_should_run_llm_rerank(
+                question,
+                paths_before_llm,
+                bench_root,
+                head=int(rl.get("adaptive_head", 5)),
+                lookback=int(rl.get("adaptive_lookback", 24)),
+                tail_margin=float(rl.get("adaptive_tail_margin", 0.12)),
+                min_head_lex=float(rl.get("adaptive_min_head_lex", 3.5)),
+                max_chars=int(rl.get("adaptive_max_chars", 12000)),
+            ):
+                run_llm = False
+                adaptive_skip = True
+                llm_adaptive_skips += 1
+        llm_invoked = run_llm
+        cap = int(rl.get("max_candidates", 80))
+        max_candidates_used = min(cap, max(len(paths_before_llm), 5)) if llm_invoked else 0
+        if llm_invoked and cross_encoder_mode:
+            paths = rerank_paths_cross_encoder(
+                question,
+                paths,
+                bench_root,
+                model_name=str(rl.get("cross_encoder_model", "mixedbread-ai/mxbai-rerank-large-v1")),
+                max_candidates=max_candidates_used,
+                max_chars=int(rl.get("max_chars", 10000)),
+                top_k=int(rl.get("max_picks", 10)),
+            )
+        elif llm_invoked:
+            model = rl.get("model", "claude-sonnet-4-6")
             cli_argv = rl.get("cli_argv")
             if isinstance(cli_argv, list):
                 cli_list = [str(x) for x in cli_argv]
             else:
                 cli_list = None
+            dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
+                os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
+            ).lower() in ("1", "true", "yes")
+            if dbg:
+                print(
+                    f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
+                    f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
+                    f"max_cand={max_candidates_used}",
+                    file=sys.stderr,
+                )
             paths = rerank_paths_llm(
                 question,
                 paths,
@@ -271,11 +370,21 @@ def run_lme(
                 invoke=invoke,
                 model=model,
                 max_chars=int(rl.get("max_chars", 3600)),
-                max_candidates=min(cap, max(len(paths), 5)),
+                max_candidates=max_candidates_used,
+                max_picks=int(rl.get("max_picks", 5)),
                 excerpt_mode=str(rl.get("excerpt_mode", "head_tail")),
                 cli_argv=cli_list,
                 cli_timeout_s=int(rl.get("cli_timeout_s", 180)),
+                fuse_original_rrf=bool(rl.get("fuse_original_rrf", True)),
+                fuse_original_weight=float(rl.get("fuse_original_weight", 0.35)),
+                fuse_rrf_k=int(rl.get("fuse_rrf_k", 60)),
+                session_dedup=bool(rl.get("session_dedup", False)),
+                path_to_sid=path_to_sid,
             )
+
+        paths_after_llm = list(paths)
+        gold_in_pool = _gold_sid_in_paths(paths_before_llm, gold, path_to_sid)
+        gold_in_n_fetch = _gold_sid_in_paths(paths_before_llm[:n_fetch], gold, path_to_sid)
 
         ordered_sids = paths_to_session_order(paths, path_to_sid)
         gold_idx = {i for i, sid in enumerate(corpus_sids) if sid in gold}
@@ -298,11 +407,33 @@ def run_lme(
 
         hit = recall_vals[5][-1] > 0
         if not hit:
+            bucket = _classify_lme_failure(
+                gold,
+                gold_in_pool,
+                hit,
+                want_llm=want_llm,
+                can_run=can_run,
+                env_on=env_on,
+            )
+            if bucket:
+                failure_bucket_counts[bucket] = failure_bucket_counts.get(bucket, 0) + 1
             failures.append(
                 {
                     "question_id": qid,
                     "question": question,
                     "gold_sessions": list(gold),
+                    "failure_bucket": bucket,
+                    "gold_in_pool_pre_llm": gold_in_pool,
+                    "gold_in_paths_slice_n_fetch": gold_in_n_fetch,
+                    "llm_want": want_llm,
+                    "llm_can_run": can_run,
+                    "llm_invoked": llm_invoked,
+                    "llm_adaptive_skip": adaptive_skip,
+                    "llm_rerank_reordered": (
+                        paths_before_llm != paths_after_llm if llm_invoked else None
+                    ),
+                    "n_fetch": n_fetch,
+                    "max_candidates_used": max_candidates_used,
                     "top_paths": paths[:10],
                     "ordered_sessions": ordered_sids[:10],
                 }
@@ -332,9 +463,75 @@ def run_lme(
         "ndcg_at_5": _avg(ndcg_vals[5]),
         "ndcg_at_10": _avg(ndcg_vals[10]),
         "failures": len(failures),
+        "failure_bucket_counts": dict(failure_bucket_counts),
+        "llm_adaptive_skips": llm_adaptive_skips,
         "token_ratio_mean": round(sum(all_ratios) / max(len(all_ratios), 1), 3),
     }
     return {"summary": summary, "failures": failures}
+
+
+def analyze_lme_failures_log(path: Path) -> dict[str, Any]:
+    """
+    Parse ``lme_failures.jsonl`` (one JSON object per line) into a summary dict.
+    Used by ``llm-wiki benchmark analyze lme``.
+    """
+    from collections import Counter
+
+    rows: list[dict[str, Any]] = []
+    if path.is_file():
+        with path.open(encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    buckets = Counter(str(r.get("failure_bucket") or "?") for r in rows)
+    llm_yes = sum(1 for r in rows if r.get("llm_invoked"))
+    pool_yes = sum(1 for r in rows if r.get("gold_in_pool_pre_llm"))
+    adaptive_skipped = sum(1 for r in rows if r.get("llm_adaptive_skip"))
+    reordered = sum(1 for r in rows if r.get("llm_rerank_reordered") is True)
+    return {
+        "path": str(path.resolve()),
+        "exists": path.is_file(),
+        "failure_count": len(rows),
+        "failure_bucket_counts": dict(sorted(buckets.items())),
+        "llm_invoked_count": llm_yes,
+        "gold_in_pool_pre_llm_count": pool_yes,
+        "llm_adaptive_skip_count": adaptive_skipped,
+        "llm_rerank_reordered_count": reordered,
+        "question_ids": [r.get("question_id") for r in rows],
+        "rows": rows,
+    }
+
+
+def format_lme_failures_analysis(summary: dict[str, Any], *, max_question_chars: int = 72) -> str:
+    """Plain-text report for terminal use."""
+    lines: list[str] = []
+    lines.append(f"path: {summary.get('path')}")
+    lines.append(f"failures: {summary.get('failure_count')}  (file exists: {summary.get('exists')})")
+    bc = summary.get("failure_bucket_counts") or {}
+    if bc:
+        lines.append("buckets: " + ", ".join(f"{k}={v}" for k, v in sorted(bc.items())))
+    lines.append(
+        f"gold_in_pool_pre_llm: {summary.get('gold_in_pool_pre_llm_count')}/{summary.get('failure_count')}"
+    )
+    lines.append(
+        f"llm_invoked: {summary.get('llm_invoked_count')}/{summary.get('failure_count')}"
+    )
+    lines.append(f"llm_adaptive_skip (on miss rows): {summary.get('llm_adaptive_skip_count')}")
+    lines.append(f"llm_rerank_reordered (True on miss rows): {summary.get('llm_rerank_reordered_count')}")
+    lines.append("")
+    for r in summary.get("rows") or []:
+        qid = r.get("question_id", "")
+        b = r.get("failure_bucket", "")
+        q = (r.get("question") or "").replace("\n", " ")
+        if len(q) > max_question_chars:
+            q = q[: max_question_chars - 3] + "..."
+        lines.append(f"  [{b}] {qid}  {q}")
+    return "\n".join(lines) + "\n"
 
 
 def _avg(xs: list[float]) -> float:
@@ -346,6 +543,34 @@ def recall_at_k(rankings: list[int], correct: set[int], k: int) -> float:
     return 1.0 if correct & top else 0.0
 
 
+def complete_lme_derived_suite(
+    vault: Path,
+    cfg: dict,
+    result: dict,
+    *,
+    suite: str,
+    backend: str,
+    compressor: str,
+    entry_count: int,
+) -> dict:
+    """Label LoCoMo/ConvoMem results and record metrics (same harness as LME)."""
+    summary = dict(result["summary"])
+    summary["suite"] = suite
+    summary["status"] = "ok"
+    summary["questions_evaluated"] = summary.get("questions", 0)
+    out = {"summary": summary, "failures": result["failures"]}
+    finalize_lme_run(
+        vault,
+        cfg,
+        out,
+        backend=backend,
+        compressor=compressor,
+        limit=entry_count,
+        suite=suite,
+    )
+    return out
+
+
 def finalize_lme_run(
     vault: Path,
     cfg: dict,
@@ -353,18 +578,37 @@ def finalize_lme_run(
     *,
     backend: str,
     compressor: str,
+    limit: int = 0,
+    suite: str = "lme",
 ) -> Path:
     """Write failures JSONL and record benchmark metrics (same as CLI post-run)."""
     results_dir = vault / (cfg.get("benchmark") or {}).get("results_dir", ".benchmarks")
     results_dir.mkdir(parents=True, exist_ok=True)
-    fail_path = results_dir / "lme_failures.jsonl"
+    fail_name = "lme_failures.jsonl" if suite == "lme" else f"{suite}_failures.jsonl"
+    fail_path = results_dir / fail_name
     with fail_path.open("w", encoding="utf-8") as ff:
         for row in result["failures"]:
             ff.write(json.dumps(row) + "\n")
+    rl = ((cfg.get("benchmark") or {}).get("search") or {}).get("rerank_llm") or {}
+    llm_flag = str(os.environ.get("LLM_WIKI_BENCHMARK_LLM", "")).lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    meta = build_benchmark_record_meta(
+        cfg,
+        suite=suite,
+        backend=backend,
+        compressor=compressor,
+        summary=result["summary"],
+        limit=limit,
+        llm_flag=llm_flag,
+        rerank_invoke=str(rl.get("invoke", "")),
+    )
     record_benchmark_metrics(
         vault,
         cfg,
-        suite="lme",
+        suite=suite,
         backend=backend,
         compressor=compressor,
         metrics={
@@ -374,6 +618,11 @@ def finalize_lme_run(
             "failures": float(result["summary"]["failures"]),
             "elapsed_s": float(result["summary"]["elapsed_s"]),
         },
+        meta=meta,
+    )
+    append_repo_benchmark_runs_jsonl(cfg, summary=result["summary"], vault=vault)
+    write_benchmark_run_sidecar(
+        vault, cfg, suite=suite, summary=result["summary"], result=result
     )
     return fail_path
 
@@ -415,6 +664,7 @@ def main() -> int:
         result,
         backend=args.backend,
         compressor=args.compress,
+        limit=int(args.limit or 0),
     )
     print(f"Failures log: {fail_path}")
     return 0
