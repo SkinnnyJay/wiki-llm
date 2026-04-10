@@ -1,0 +1,19 @@
+{
+  "source": "docs/memory/benchmarks/runs/rerank_cli_validated_2026-04-10.json",
+  "experiment": "more_picks_fuse",
+  "label": "Auto CLI + 12 picks + fuse",
+  "questions": 500,
+  "recall_at_5": 0.998,
+  "failures": 1,
+  "failure_bucket_counts": [
+    { "bucket": "M", "count": 1 }
+  ],
+  "misses": [
+    {
+      "question_id": "gpt4_4929293b",
+      "failure_bucket": "M",
+      "gold_sessions": ["answer_add9b013_1", "answer_add9b013_2"],
+      "question": "What was the the life event of one of my relatives that I participated in a week ago?"
+    }
+  ]
+}
