@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -13,8 +14,12 @@ from typing import Any
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-LLM_WIKI = REPO / "scripts" / "llm_wiki.py"
 SCRIPTS = REPO / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+from lib.claude_env import strip_anthropic_api_credentials
+
+LLM_WIKI = REPO / "scripts" / "llm_wiki.py"
 GOLDEN_DIR = REPO / "tests" / "fixtures" / "golden"
 
 
@@ -23,6 +28,15 @@ def _env_with_scripts(base: dict[str, str] | None = None) -> dict[str, str]:
     p = str(SCRIPTS)
     prev = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = p if not prev else f"{p}{os.pathsep}{prev}"
+    return env
+
+
+def _env_for_skill_eval(vault: Path) -> dict[str, str]:
+    """Env for agent skill smoke tests: vault + repo ``bin/`` on PATH (``llm-wiki``)."""
+    env = _env_with_scripts()
+    env["LLM_WIKI_VAULT"] = str(vault)
+    bin_dir = str(REPO / "bin")
+    env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
     return env
 
 
@@ -36,6 +50,11 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         if os.environ.get("RUN_CLAUDE_TESTS", "").lower() not in ("1", "true", "yes"):
             pytest.skip(
                 "Claude tests off (set RUN_CLAUDE_TESTS=1 or: llm-wiki smoke-test --claude)"
+            )
+    if "codex_skill_eval" in item.keywords:
+        if os.environ.get("RUN_CODEX_SKILL_EVALS", "").lower() not in ("1", "true", "yes"):
+            pytest.skip(
+                "Codex skill evals off (set RUN_CODEX_SKILL_EVALS=1)"
             )
 
 
@@ -120,39 +139,137 @@ def seeded_vault(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def claude_runner() -> Any:
-    """Run claude -p with isolation flags; skips if claude not on PATH."""
+    """Run ``claude -p`` with isolation flags; skips if claude not on PATH.
+
+    **No ``--bare`` by default:** ``--bare`` restricts Anthropic auth to
+    ``ANTHROPIC_API_KEY`` / ``apiKeyHelper`` and disables OAuth and keychain
+    (see ``claude --help``). That forces API-credit billing and breaks the
+    usual Claude Code subscription flow. Pass ``bare=True`` only for
+    API-key-only sandboxes.
+
+    **``budget_usd``:** pass ``None`` to omit ``--max-budget-usd``. The CLI
+    documents that flag as capping spend on **API** calls; it can interact
+    badly with Claude Code subscription billing (same symptom as API credits).
+
+    **Env parity with Codex skill evals:** uses ``_env_for_skill_eval`` (``LLM_WIKI_VAULT``
+    + repo ``bin/`` on ``PATH``) so ``llm-wiki`` resolves like ``codex_runner``.
+
+    **API keys:** we **strip** ``ANTHROPIC_*`` from the subprocess env (unless ``bare=True`` or
+    ``CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV=1``).
+
+    **Vault visibility:** passes ``--add-dir`` with the vault path and ``--`` before the
+    prompt (``--add-dir`` otherwise consumes the prompt as another directory).
+
+    **Settings sources:** default ``--setting-sources=project`` so we do **not** merge
+    ``~/.claude/settings.json`` (its ``env`` block often injects ``ANTHROPIC_API_KEY``,
+    which forces **API credits** and yields “Credit balance is too low” even when
+    **Claude Max** works in TTY — subscription auth lives in keychain/OAuth, not that file).
+    Project scope still picks up repo ``.claude/`` (rules) while skipping gitignored
+    ``settings.local.json`` unless you add ``local``. Use
+    ``CLAUDE_RUNNER_SETTING_SOURCES=user,project,local`` for the same merges as interactive.
+    """
 
     def _run(
         *,
         prompt: str,
         vault: Path,
-        budget_usd: str = "0.50",
+        budget_usd: str | None = None,
         output_format: str = "json",
         timeout: int = 120,
         extra_args: list[str] | None = None,
         plugin_dir: Path | None = None,
         home: Path | None = None,
+        bare: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         claude = shutil.which("claude")
         if not claude:
             pytest.skip("claude CLI not on PATH")
-        env = _env_with_scripts()
-        env["LLM_WIKI_VAULT"] = str(vault)
+        env = _env_for_skill_eval(vault)
         if home is not None:
             env["HOME"] = str(home)
+        if not bare and os.environ.get("CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV", "").lower() not in (
+            "1",
+            "true",
+            "yes",
+        ):
+            env = strip_anthropic_api_credentials(env)
         pd = plugin_dir if plugin_dir is not None else REPO
+        cmd: list[str] = [claude, "-p"]
+        if bare:
+            cmd.append("--bare")
+        else:
+            # Default ``project`` only: do not merge ``~/.claude/settings.json`` (often has
+            # env.ANTHROPIC_API_KEY → API billing) or ``local`` (repo settings.local.json keys).
+            # Override: ``CLAUDE_RUNNER_SETTING_SOURCES=user,project,local``.
+            ss = os.environ.get("CLAUDE_RUNNER_SETTING_SOURCES", "project").strip()
+            if ss:
+                cmd.extend(["--setting-sources", ss])
+        cmd.extend(
+            [
+                "--no-session-persistence",
+                "--dangerously-skip-permissions",
+            ]
+        )
+        if budget_usd is not None:
+            cmd.extend(["--max-budget-usd", budget_usd])
+        cmd.extend(
+            [
+                "--output-format",
+                output_format,
+                "--plugin-dir",
+                str(pd),
+                "--add-dir",
+                str(vault),
+            ]
+        )
+        if extra_args:
+            cmd.extend(extra_args)
+        # ``--add-dir`` accepts multiple paths; ``--`` stops option parsing so ``prompt`` is not a dir.
+        cmd.extend(["--", prompt])
+        return subprocess.run(
+            cmd,
+            cwd=str(REPO),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+    return _run
+
+
+@pytest.fixture
+def codex_runner() -> Any:
+    """Run ``codex exec`` non-interactively for skill evals; skips if ``codex`` not on PATH."""
+
+    def _run(
+        *,
+        prompt: str,
+        vault: Path,
+        budget_usd: str | None = None,
+        output_format: str = "text",
+        timeout: int = 120,
+        extra_args: list[str] | None = None,
+        plugin_dir: Path | None = None,
+        home: Path | None = None,
+        bare: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        _ = (budget_usd, output_format, plugin_dir, bare)  # Claude-only; kept for call compatibility
+        codex = shutil.which("codex")
+        if not codex:
+            pytest.skip("codex CLI not on PATH")
+        env = _env_for_skill_eval(vault)
+        if home is not None:
+            env["HOME"] = str(home)
         cmd: list[str] = [
-            claude,
-            "-p",
-            "--bare",
-            "--no-session-persistence",
-            "--dangerously-skip-permissions",
-            "--max-budget-usd",
-            budget_usd,
-            "--output-format",
-            output_format,
-            "--plugin-dir",
-            str(pd),
+            codex,
+            "exec",
+            "-s",
+            "workspace-write",
+            "--skip-git-repo-check",
+            "-C",
+            str(REPO),
         ]
         if extra_args:
             cmd.extend(extra_args)
@@ -161,9 +278,22 @@ def claude_runner() -> Any:
             cmd,
             cwd=str(REPO),
             env=env,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=timeout,
         )
 
     return _run
+
+
+@pytest.fixture
+def skill_eval_runner(request: Any) -> Any:
+    """Dispatch skill eval subprocess: ``SKILL_EVAL_BACKEND=claude`` (default) or ``codex``."""
+
+    backend = os.environ.get("SKILL_EVAL_BACKEND", "claude").strip().lower() or "claude"
+    if backend == "codex":
+        return request.getfixturevalue("codex_runner")
+    if backend == "claude":
+        return request.getfixturevalue("claude_runner")
+    pytest.skip(f"Unknown SKILL_EVAL_BACKEND={backend!r} (use codex or claude)")

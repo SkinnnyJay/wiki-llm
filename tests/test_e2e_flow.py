@@ -129,6 +129,12 @@ def test_full_e2e_cli_flow(tmp_path: Path) -> None:
     r_mst = _run(["metrics", "stats"], cwd=REPO, env=env)
     assert r_mst.returncode == 0, r_mst.stderr + r_mst.stdout
 
+    # §23 steps 12–13: final validate + check (before teardown)
+    r_fin = _run(["validate"], cwd=REPO, env=env)
+    assert r_fin.returncode == 0, r_fin.stderr + r_fin.stdout
+    r_ck = _run(["check"], cwd=REPO, env=env)
+    assert r_ck.returncode == 0, r_ck.stderr + r_ck.stdout
+
     r_td = _run(["teardown", "--purge", "--yes"], cwd=REPO, env=env)
     assert r_td.returncode == 0, r_td.stderr + r_td.stdout
     assert not vault.exists(), "teardown --purge should remove vault directory"
