@@ -2,11 +2,15 @@
   "name": "llm-wiki",
   "displayName": "LLM Wiki",
   "version": "0.2.0",
-  "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, on-demand graphs, optional vault Git, research loop, ingestion security. Same repo as the Claude Code plugin.",
+  "description": "LLM Wiki vault pattern: raw + wiki + outputs, Python CLI, ingest adapters, static viewer, D3 graphs, optional vault Git, research loop, ingestion security. Same repo as the Claude Code plugin.",
   "author": {
     "name": "wiki-llm contributors"
   },
+  "publisher": "wiki-llm contributors",
+  "homepage": "https://github.com/SkinnnyJay/wiki-llm#readme",
+  "repository": "https://github.com/SkinnnyJay/wiki-llm",
   "license": "MIT",
+  "logo": "docs/assets/logo-square.png",
   "keywords": [
     "wiki",
     "knowledge-base",
@@ -15,27 +19,48 @@
     "obsidian",
     "llm",
     "vault",
+    "research",
     "mcp"
   ],
+  "category": "documentation",
+  "tags": [
+    "wiki",
+    "knowledge-base",
+    "vault",
+    "ingest",
+    "mcp",
+    "markdown",
+    "research"
+  ],
+  "rules": "rules",
+  "skills": "skills",
+  "commands": "commands",
+  "agents": "agents",
+  "hooks": "hooks/hooks.json",
   "mcpServers": {
     "llm-wiki": {
       "command": "python3",
-      "args": ["scripts/mcp_server.py"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"]
     }
   },
   "userConfig": {
     "firecrawl_api_key": {
+      "type": "string",
+      "title": "Firecrawl API key",
       "description": "Firecrawl API key for web extraction (optional)",
       "sensitive": true
     },
     "brave_search_api_key": {
+      "type": "string",
+      "title": "Brave Search API key",
       "description": "Brave Search API key (optional)",
       "sensitive": true
     },
     "perplexity_api_key": {
+      "type": "string",
+      "title": "Perplexity API key",
       "description": "Perplexity API key for news/current events research (optional)",
       "sensitive": true
     }
-  },
-  "logo": "docs/site/assets/logo-square.png"
+  }
 }

@@ -13,19 +13,25 @@
   "mcpServers": {
     "llm-wiki": {
       "command": "python3",
-      "args": ["scripts/mcp_server.py"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"]
     }
   },
   "userConfig": {
     "firecrawl_api_key": {
+      "type": "string",
+      "title": "Firecrawl API key",
       "description": "Firecrawl API key for web extraction (optional)",
       "sensitive": true
     },
     "brave_search_api_key": {
+      "type": "string",
+      "title": "Brave Search API key",
       "description": "Brave Search API key (optional)",
       "sensitive": true
     },
     "perplexity_api_key": {
+      "type": "string",
+      "title": "Perplexity API key",
       "description": "Perplexity API key for news/current events research (optional)",
       "sensitive": true
     }
