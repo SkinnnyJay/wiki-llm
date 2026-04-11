@@ -14,6 +14,35 @@ A conversational wizard that walks through every configuration decision for a ne
 
 ---
 
+## Entry points — `/llm-wiki:setup` (same skill)
+
+Slash command **`/llm-wiki:setup`** loads this skill. Three ways to run it:
+
+| Mode | What runs | Typical user |
+|------|-----------|----------------|
+| **Full wizard** | Vault sections **1 → preview** including **Section 8c — Session memory (memory-setup)** unless the user skips memory in routing | New vault or “configure everything” |
+| **Vault (llm-wiki) only** | Sections **1–8b, 9, …** — **omit 8c** so `memory.*` is unchanged | CI/project vaults where session memory is irrelevant |
+| **Memory-setup only** | **Section 8c only** — existing **`config.json`** required; preview merges **`memory.enabled`**, **`memory.dir`**, **`memory.max_sessions`** | User already has a vault and only wants `raw/memory/` + hooks |
+
+**Combined:** A **full** run is “vault + memory in one wizard” when the user does **not** choose vault-only or memory-only at **Routing** (below).
+
+---
+
+## Routing — ask once after pre-check
+
+After the **Pre-check** script (or when the user invokes setup with a clear scope), ask:
+
+> **What should this run configure?**
+> - `[1]` **Full setup** — vault + session memory (Section 8c) *(recommended for new vaults)*
+> - `[2]` **Vault only** — skip Section 8c; memory keys stay as-is
+> - `[3]` **Memory only** — Section 8c only *(requires existing `llm-wiki/config.json`)*
+
+**If `[3]` and no config:** Tell the user to run **`llm-wiki setup --root .`** or choose `[1]`/`[2]` first.
+
+**If `[FRESH_SETUP]` from pre-check** and user chooses `[3]`:** Same — cannot do memory-only without a vault.
+
+---
+
 ## Pre-check — is setup already done?
 
 ```bash
@@ -35,8 +64,9 @@ PYEOF
 **If `ALREADY_SETUP`:** Tell the user and ask if they want to:
 - `[1]` Re-run the full wizard (overwrite config)
 - `[2]` Update a specific section only (jump to that section)
-- `[3]` Run **wiki-status** to see current state
-- `[4]` Cancel
+- `[3]` **Memory-setup only** — jump to **Section 8c** (session memory keys + hooks pointer)
+- `[4]` Run **wiki-status** to see current state
+- `[5]` Cancel
 
 ---
 
@@ -261,7 +291,9 @@ export FIRECRAWL_API_KEY="fc-..."
 
 ---
 
-## Section 8c — Session memory
+## Section 8c — Session memory (**memory-setup**)
+
+Also callable **standalone** when the user chose **Memory-setup only** at **Routing** or `[3]` from **Already setup** — same questions; preview only the **`memory.*`** keys (plus merge-safe defaults) against the existing `config.json`.
 
 **Ask:**
 > Save **per-chat session memory** under **`raw/memory/`** (Claude Code hooks + `llm-wiki memory …`)? Files are clean markdown — **raw prepare** skips this folder; tagging, search index, and KG still apply.
@@ -271,6 +303,8 @@ export FIRECRAWL_API_KEY="fc-..."
 - `[2]` **No** — leave `memory.enabled` false
 
 **Store as:** `memory.enabled`, `memory.max_sessions`, `memory.dir` (default `raw/memory`)
+
+**After “Yes”:** Point to **`hooks/README.md`** (plugin repo) for `.current-session` and Stop/Subagent hooks so editors can drive **`memory log`** / **`memory save`**.
 
 ---
 
@@ -414,6 +448,7 @@ After setup completes, tell the user:
 ## Related skills
 
 - **wiki-status** — check current setup health at any time
+- **wiki-session-memory** — day-to-day usage of `raw/memory/` after **memory-setup** (Section 8c)
 - `skills/references/preflight.md` — the pre-flight pattern used by research skills to detect unset setup
 - **wiki-research** — start here after setup is complete
 
