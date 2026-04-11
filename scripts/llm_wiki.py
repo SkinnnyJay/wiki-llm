@@ -1745,6 +1745,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable Claude CLI tests (sets RUN_CLAUDE_TESTS=1; e.g. claude plugin validate)",
     )
     pst.add_argument(
+        "--browser",
+        action="store_true",
+        help="Enable Playwright viewer smoke tests (sets RUN_BROWSER_TESTS=1; @pytest.mark.browser)",
+    )
+    pst.add_argument(
         "--only-contracts",
         action="store_true",
         help="Run only tests/plugin_contracts.test.py",

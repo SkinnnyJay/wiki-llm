@@ -70,9 +70,44 @@ def cmd_check(args) -> int:
     print("  llm-wiki smoke-test --network    # also run network reachability tests")
     print("  llm-wiki smoke-test --replay      # only replay tests (@pytest.mark.replay)")
     print("  llm-wiki smoke-test --claude      # also run `claude plugin validate` + skill evals")
+    print("  llm-wiki smoke-test --browser     # also run Playwright viewer smoke (@pytest.mark.browser)")
     print("  llm-wiki test-report             # executable CLI + vault + doc harvest (PASS/FAIL table)")
     print("  Each commands/*.md and skills/*/SKILL.md has a ## Smoke check section (CLI + agent prompt).")
     return 1 if errs else 0
+
+
+def _truthy_env_val(env: dict[str, str], key: str) -> bool:
+    return (env.get(key) or "").lower() in ("1", "true", "yes")
+
+
+def _smoke_test_stderr_notices(env: dict[str, str]) -> None:
+    """Warn on stderr when smoke-test enables paid / external / browser tiers."""
+    lines: list[str] = []
+    if _truthy_env_val(env, "RUN_NETWORK_TESTS"):
+        lines.append(
+            "llm-wiki smoke-test: RUN_NETWORK_TESTS=1 — external HTTPS/network may be used."
+        )
+    if _truthy_env_val(env, "RUN_CLAUDE_TESTS"):
+        lines.append(
+            "llm-wiki smoke-test: RUN_CLAUDE_TESTS=1 — Claude CLI; subscription or API usage may apply."
+        )
+    if _truthy_env_val(env, "RUN_CODEX_SKILL_EVALS"):
+        lines.append(
+            "llm-wiki smoke-test: RUN_CODEX_SKILL_EVALS=1 — Codex CLI; API usage may apply."
+        )
+    if _truthy_env_val(env, "RUN_BROWSER_TESTS"):
+        lines.append(
+            "llm-wiki smoke-test: RUN_BROWSER_TESTS=1 — Playwright (local browser; not an LLM)."
+        )
+    if _truthy_env_val(env, "RUN_MINIMAL_SKILL_EVALS"):
+        lines.append(
+            "llm-wiki smoke-test: RUN_MINIMAL_SKILL_EVALS=1 — only core wiki-query/wiki-status/wiki-session-memory skill evals."
+        )
+    if lines:
+        print("---", file=sys.stderr)
+        for line in lines:
+            print(line, file=sys.stderr)
+        print("---", file=sys.stderr)
 
 
 def cmd_smoke_test(args) -> int:
@@ -102,9 +137,12 @@ def cmd_smoke_test(args) -> int:
         env["RUN_NETWORK_TESTS"] = "1"
     if getattr(args, "claude", False):
         env["RUN_CLAUDE_TESTS"] = "1"
+    if getattr(args, "browser", False):
+        env["RUN_BROWSER_TESTS"] = "1"
     pscripts = str(root / "scripts")
     prev = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = pscripts if not prev else f"{pscripts}{os.pathsep}{prev}"
 
+    _smoke_test_stderr_notices(env)
     print("Running:", " ".join(cmd), file=sys.stderr)
     return subprocess.call(cmd, cwd=str(root), env=env)
