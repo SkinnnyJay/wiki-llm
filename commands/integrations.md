@@ -1,5 +1,5 @@
 ---
-description: Configure optional ingest integrations — Firecrawl, Brave Search, Perplexity, Twitter, PDF adapters, Anna's Archive, and more. Shows status, walks through setup, validates keys.
+description: Configure optional ingest integrations — Firecrawl, Playwright (headless browser), Brave Search, Perplexity, Twitter, PDF adapters, Anna's Archive, and more. Shows status, walks through setup, validates keys.
 ---
 
 # Integrations wizard
@@ -21,6 +21,7 @@ Invoke the **wiki-setup** skill to walk through all integrations conversationall
 | Integration | What it enables | Sign-up |
 |------------|----------------|---------|
 | **Firecrawl** | Best web fetching — cleanest markdown, JS-rendered pages | https://firecrawl.dev/app/api-keys |
+| **Playwright** | Headless Chromium via **`llm-wiki ingest playwright`** — same **`raw/`** markdown as **`url`**; no API key | `pip install playwright && playwright install chromium` (optional **Playwright MCP** in the editor is separate) |
 | **Brave Search** | Web + news search with LLM-ready output, free tier | https://api.search.brave.com |
 | **Perplexity** | AI research queries with source citations | https://www.perplexity.ai/settings/api |
 | **Twitter/X** | Full thread fetch and search (public tweets need no key) | Browser DevTools → Cookies → `auth_token` |

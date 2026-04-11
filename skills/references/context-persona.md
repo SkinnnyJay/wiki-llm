@@ -1,6 +1,8 @@
 # Optional persona context (skills)
 
-When a skill invokes **tools** (bash, file writes, web fetch, subagents) and tone or epistemic stance matters, you **may** prepend a short block so behavior stays aligned with the vault:
+**Do not paste the full persona into each `SKILL.md`.** Skills should **reference** the canonical file **`prompts/PERSONA.md`** (and optionally this doc) so the agent loads the same voice everywhere. Copying long persona text into skills drifts and duplicates.
+
+When a skill invokes **tools** (bash, file writes, web fetch, subagents) and tone or epistemic stance matters, follow this chain:
 
 1. Read **`prompts/PERSONA.md`** in the llm-wiki plugin repo (warm librarian-robot voice: evidence-first, no fluff, verify don’t trust, iterate).
 2. Read **`llm-wiki/config.json` → `persona.name`** (default **Gennie**) — use this as the **display name** for the wiki when naming outputs or addressing the user in skill-owned text.

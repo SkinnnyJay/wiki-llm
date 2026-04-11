@@ -15,7 +15,7 @@
     "port": 8765,
     "og_base_url": "",
     "open_file_scheme": "file",
-    "_comment_scheme": "Options: file | cursor | vscode — controls 'Open file' links in the static viewer"
+    "_comment_scheme": "Options: file | cursor | vscode \u2014 controls 'Open file' links in the static viewer"
   },
   "graph": {
     "port": 8890,
@@ -40,19 +40,23 @@
       "enabled": false,
       "api_key_env": "TWITTER_AUTH_TOKEN",
       "prefer_cli": true,
-      "_comment": "Fetch tweets/threads/search. Install bird CLI: npm install -g @steipete/bird — zero config for public tweets via FxTwitter API (no token needed). Get auth_token from browser DevTools → Application → Cookies."
+      "_comment": "Fetch tweets/threads/search. Install bird CLI: npm install -g @steipete/bird \u2014 zero config for public tweets via FxTwitter API (no token needed). Get auth_token from browser DevTools \u2192 Application \u2192 Cookies."
     },
     "brave": {
       "enabled": true,
       "api_key_env": "BRAVE_SEARCH_API_KEY",
       "default_mode": "llm-context",
       "default_count": 10,
-      "_comment": "Brave Search API — best for RAG grounding. Modes: web | news | llm-context | answers. Free key: https://api.search.brave.com"
+      "_comment": "Brave Search API \u2014 best for RAG grounding. Modes: web | news | llm-context | answers. Free key: https://api.search.brave.com"
     },
     "annas_archive": {
       "enabled": false,
       "api_key_env": "ANNAS_ARCHIVE_KEY",
-      "_comment": "Anna's Archive — fast ebook/paper downloads. Requires membership. https://annas-archive.org/account"
+      "_comment": "Anna's Archive \u2014 fast ebook/paper downloads. Requires membership. https://annas-archive.org/account"
+    },
+    "playwright": {
+      "enabled": true,
+      "_comment": "Headless Chromium fetch (pip install playwright && playwright install chromium). Same raw/ output shape as url/firecrawl."
     }
   },
   "git": {
@@ -105,7 +109,7 @@
     "sound": {
       "enabled": false,
       "allow_arbitrary_command": false,
-      "_comment_allow_arbitrary": "If true, hooks.sound.command runs any argv (vault config is trusted). If false, only absolute paths to executables or known players (afplay, say, aplay, …).",
+      "_comment_allow_arbitrary": "If true, hooks.sound.command runs any argv (vault config is trusted). If false, only absolute paths to executables or known players (afplay, say, aplay, \u2026).",
       "command": [
         "afplay",
         "/System/Library/Sounds/Glass.aiff"
@@ -116,7 +120,7 @@
     }
   },
   "pdf": {
-    "max_cost_usd": 1.00
+    "max_cost_usd": 1.0
   },
   "mcp": {
     "enabled": true,
@@ -136,8 +140,8 @@
     "sse_token": "",
     "status_file_count_ttl_seconds": 45,
     "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
-    "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)",
-    "_comment_tools_mode": "full | read_only | custom — custom + empty tools_allowlist behaves as read_only",
+    "_comment_transport": "transport: stdio (default, editor MCP) | sse \u2014 HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)",
+    "_comment_tools_mode": "full | read_only | custom \u2014 custom + empty tools_allowlist behaves as read_only",
     "_comment_hardening": "configure_allowlist limits wiki_configure keys (prefix rules end with .). sse_token enables HTTP auth; use HTTPS via proxy for remote. See skills/references/mcp-and-kg.md"
   },
   "knowledge_graph": {

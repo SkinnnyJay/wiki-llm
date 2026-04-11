@@ -3,18 +3,753 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>llm-wiki</title>
-  <link rel="icon" href="site/favicon.ico" sizes="any" />
-  <!-- Root of GitHub Pages (/docs). Delegates to site/ (landing CSS, assets, favicons). -->
-  <script>
-    (function () {
-      var h = location.hash || "";
-      location.replace("site/index.html" + h);
-    })();
-  </script>
-  <meta http-equiv="refresh" content="0;url=site/index.html" />
+  <title>llm-wiki - Claude Code plugin for knowledge vaults</title>
+  <meta
+    name="description"
+    content="llm-wiki is a Claude Code plugin for persistent knowledge vaults with schema-driven ingest, static graph viewers, and reusable wiki workflows."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 </head>
 <body>
-  <p><a href="site/index.html">Continue to llm-wiki</a> (redirects automatically).</p>
+  <header class="site-header">
+    <div class="wrap wrap-header">
+      <div class="site-header-bar">
+        <a class="brand-lockup" href="#setup" aria-label="llm-wiki home">
+          <span class="brand-mark" aria-hidden="true">
+            <img
+              class="brand-mark-img"
+              src="assets/logo-mark.svg"
+              alt=""
+              width="62"
+              height="62"
+              decoding="async"
+            />
+          </span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#setup">Setup</a>
+          <a href="#what-you-get">What you get</a>
+          <a href="#details">Details</a>
+          <a href="../memory/index.html#metrics-dashboard">Memory</a>
+          <a href="#commands">Commands</a>
+          <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <nav class="page-toc" aria-label="On this page">
+    <div class="wrap page-toc-inner">
+      <span class="page-toc-label">On this page</span>
+      <a href="#setup">Setup</a>
+      <a href="#what-you-get">What you get</a>
+      <a href="#details">Details</a>
+      <a href="#commands">Commands</a>
+      <a href="../memory/index.html#metrics-dashboard">Memory hub</a>
+    </div>
+  </nav>
+
+  <main id="main-content">
+    <section class="hero-section" id="setup" aria-labelledby="hero-title">
+      <div class="wrap">
+        <div class="hero-stack">
+          <p class="eyebrow">Claude Code Plugin</p>
+          <h1 id="hero-title">llm-wiki</h1>
+          <p class="hero-outcome" id="hero-outcome">
+            <strong>In short:</strong> install the plugin → <code class="inline-code">llm-wiki setup</code> → capture in
+            <code class="inline-code">raw/</code> → curate <code class="inline-code">wiki/</code> →
+            <code class="inline-code">build-site</code> when you want a static viewer.
+          </p>
+          <p class="hero-lead">
+            Turn scattered source material into a maintained wiki your agent can keep building on.
+          </p>
+          <p class="hero-body">
+            Scaffold <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, and schema-backed workflows so source captures stay immutable, curated pages stay linkable, and the command flow stays simple enough to reuse across repos.
+          </p>
+
+          <div class="lineage-note">
+            <blockquote class="lineage-quote">
+              If I have seen further it is by standing on the shoulders of Giants.
+            </blockquote>
+            <p class="lineage-attrib">
+              — <cite>Isaac Newton</cite>, letter to Robert Hooke, 1675
+              <br />
+              <span class="lineage-sub">(echoing Bernard of Chartres, <i>nanos gigantum humeris insidentes</i>)</span>
+            </p>
+            <p class="lineage-thanks">
+              Pattern credit and thanks to
+              <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>.
+              Also inspired by
+              <a href="https://github.com/milla-jovovich/mempalace">MemPalace</a>
+              (<a href="https://x.com/bensig/status/2041229266432733356">Ben Sigman on X</a>).
+              This repo is a concrete plugin implementation for Claude Code and adjacent agent tooling.
+            </p>
+            <p class="lineage-thanks">
+              <strong>New here?</strong>
+              <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/QUICKSTART.md">Five-minute quickstart</a>
+              (vault vs plugin repo, basic → advanced tiers).
+            </p>
+            <p class="lineage-thanks">
+              <strong>Memory &amp; retrieval:</strong>
+              <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a>
+              (session memory, MCP search, live benchmark charts — updated with <code class="inline-code">metrics-dashboard.json</code>).
+              <a href="#memory-retrieval">Summary on this page</a>.
+            </p>
+          </div>
+
+          <div class="install-shell" aria-label="Install plugin commands">
+            <div class="install-shell-top">
+              <span>Install once</span>
+            </div>
+            <pre><code>/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
+/plugin install llm-wiki@llm-wiki-local</code></pre>
+          </div>
+
+          <aside class="terminal-card" aria-label="Setup preview">
+            <div class="terminal-top">
+              <span class="terminal-dot terminal-dot-red"></span>
+              <span class="terminal-dot terminal-dot-amber"></span>
+              <span class="terminal-dot terminal-dot-green"></span>
+            </div>
+            <pre class="terminal-body"><code>$ bin/llm-wiki setup --root .
+✓ Created llm-wiki/raw/
+✓ Created llm-wiki/wiki/
+✓ Created llm-wiki/.schema/
+✓ Initialized vault config</code></pre>
+          </aside>
+
+          <div class="hero-story" aria-labelledby="hero-story-title">
+            <p class="hero-story-label" id="hero-story-title">Then try one clean first workflow</p>
+            <div class="hero-story-grid">
+              <div class="story-step">
+                <span class="story-step-title">1. Setup the vault</span>
+                <pre><code>bin/llm-wiki setup --root .</code></pre>
+              </div>
+              <div class="story-step">
+                <span class="story-step-title">2. Ingest one source</span>
+                <pre><code>bin/llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
+              </div>
+              <div class="story-step">
+                <span class="story-step-title">3. Build the viewer</span>
+                <pre><code>bin/llm-wiki build-site</code></pre>
+              </div>
+            </div>
+            <p class="hero-story-note">That path gets you from raw capture to a browseable graph-backed wiki without making the landing page feel like full documentation.</p>
+          </div>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#details">See the workflow details</a>
+            <a class="button button-secondary" href="https://github.com/SkinnnyJay/wiki-llm">View on GitHub</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="feature-section" id="what-you-get" aria-labelledby="feature-title">
+      <div class="wrap wrap-content">
+        <span class="section-label">What you get</span>
+        <h2 id="feature-title">The pieces that make the plugin useful</h2>
+        <p class="section-intro">
+          Each card links to the detailed section below, so you can jump straight to the part you care about.
+        </p>
+
+        <div class="feature-grid">
+          <a class="feature-card" href="#vault-structure">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.75 6.75h6l2 2h8.5v8.5a2 2 0 0 1-2 2H5.75a2 2 0 0 1-2-2z"/>
+                <path d="M3.75 8.75v-2a2 2 0 0 1 2-2h4.5"/>
+              </svg>
+            </span>
+            <h3>Vault Structure</h3>
+            <p>Immutable inputs, curated markdown, and schema files that keep the vault legible over time.</p>
+            <span class="feature-link">Jump to structure</span>
+          </a>
+
+          <a class="feature-card" href="#ingest-pipeline">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12h11"/>
+                <path d="m11 5 7 7-7 7"/>
+                <path d="M4 6.5h4"/>
+                <path d="M4 17.5h4"/>
+              </svg>
+            </span>
+            <h3>Ingest Pipeline</h3>
+            <p>Bring in files, URLs, Hacker News, and optional connectors without losing the original source layer.</p>
+            <span class="feature-link">Jump to ingest</span>
+          </a>
+
+          <a class="feature-card" href="#static-viewer">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="6.5" cy="12" r="2"/>
+                <circle cx="17.5" cy="6.5" r="2"/>
+                <circle cx="17.5" cy="17.5" r="2"/>
+                <path d="M8.25 11.25 15.75 7.25"/>
+                <path d="M8.25 12.75 15.75 16.75"/>
+              </svg>
+            </span>
+            <h3>Static Viewer</h3>
+            <p>Generate a graph-backed reader so the wiki becomes browseable, linkable, and easy to inspect locally.</p>
+            <span class="feature-link">Jump to viewer</span>
+          </a>
+
+          <a class="feature-card" href="#skills-commands">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4.5v15"/>
+                <path d="M5.5 8.25 18.5 15.75"/>
+                <path d="M5.5 15.75 18.5 8.25"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+            <h3>Skills &amp; Commands</h3>
+            <p>Use bundled prompts, CLI commands, and agent skills instead of rebuilding the workflow in every repo.</p>
+            <span class="feature-link">Jump to workflows</span>
+          </a>
+
+          <a class="feature-card" href="../memory/index.html#metrics-dashboard">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4 2 9l10 5 10-5-10-5Z"/>
+                <path d="M2 12 12 17 22 12"/>
+                <path d="M2 17 12 22 22 17"/>
+              </svg>
+            </span>
+            <h3>Memory &amp; retrieval</h3>
+            <p>Opt-in session notes, MCP search (FTS, semantic, hybrid fusion), and retrieval benchmarks.</p>
+            <span class="feature-link">Open memory hub</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section" id="details" aria-labelledby="details-title">
+      <div class="wrap wrap-content">
+        <span class="section-label">Details</span>
+        <h2 id="details-title">How the landing pieces map to the actual repo</h2>
+
+        <div class="detail-grid">
+          <article class="detail-card" id="vault-structure" aria-labelledby="vault-structure-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">01</span>
+              <h3 id="vault-structure-title">Vault Structure</h3>
+            </div>
+            <p>
+              The vault keeps raw inputs separate from curated knowledge. That lets you preserve the source of truth, revise derived notes safely, and keep schema-driven rules nearby.
+            </p>
+            <pre><code>llm-wiki/
+  raw/        # immutable source captures
+  wiki/       # curated markdown pages
+  .schema/    # validation and structure rules
+  outputs/    # optional reports and generated artifacts</code></pre>
+            <ul>
+              <li><code class="inline-code">raw/</code> protects the original material.</li>
+              <li><code class="inline-code">wiki/</code> holds maintained markdown the agent can improve over time.</li>
+              <li><code class="inline-code">.schema/</code> keeps ingest, query, and lint behavior disciplined.</li>
+              <li>Generated viewer artifacts can live alongside the vault without replacing the markdown source.</li>
+            </ul>
+          </article>
+
+          <article class="detail-card" id="ingest-pipeline" aria-labelledby="ingest-pipeline-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">02</span>
+              <h3 id="ingest-pipeline-title">Ingest Pipeline</h3>
+            </div>
+            <p>
+              The pipeline is designed so new sources enter as recorded inputs first, then move through review and curation into the wiki layer.
+            </p>
+            <div class="flow-list" aria-label="Ingest flow">
+              <div class="flow-step">Source<br /><span>file, URL, HN, optional connectors</span></div>
+              <div class="flow-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12h13"/>
+                  <path d="m12 5 7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="flow-step">raw/<br /><span>captured without rewriting history</span></div>
+              <div class="flow-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12h13"/>
+                  <path d="m12 5 7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="flow-step">wiki/<br /><span>curated markdown and linked notes</span></div>
+            </div>
+            <pre><code>llm-wiki ingest file ./notes.md --out clips/notes.md
+llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
+            <ul>
+              <li>Files, URLs, and Hacker News threads can all enter the same workflow.</li>
+              <li>Optional connectors can extend capture without changing the vault model.</li>
+              <li>The review path helps keep prompt-injected or low-trust material from silently becoming wiki truth.</li>
+            </ul>
+          </article>
+
+          <article class="detail-card" id="static-viewer" aria-labelledby="static-viewer-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">03</span>
+              <h3 id="static-viewer-title">Static Viewer</h3>
+            </div>
+            <p>
+              After ingest and curation, <code class="inline-code">build-site</code> turns the wiki into a static reader with graph data, linked-page browsing, and an app-like interface that is easy to host or inspect locally.
+            </p>
+            <div class="viewer-preview" aria-hidden="true">
+              <div class="viewer-preview-chrome">
+                <div class="viewer-preview-header">
+                  <span class="viewer-ph-logo"></span>
+                  <span class="viewer-ph-brand">LLM Wiki</span>
+                  <span class="viewer-ph-search">Search wiki…</span>
+                  <span class="viewer-ph-kbd">⌘K</span>
+                  <span class="viewer-ph-badge">Gennie</span>
+                </div>
+                <div class="viewer-preview-main">
+                  <aside class="viewer-sidebar">
+                    <div class="viewer-sidebar-label">Folders</div>
+                    <ul class="viewer-tree">
+                      <li><span class="tree-folder">wiki/</span></li>
+                      <li class="tree-nested"><span class="tree-file">index.md</span></li>
+                      <li class="tree-nested"><span class="tree-file tree-file-accent">concepts/graphs.md</span></li>
+                      <li><span class="tree-folder">raw/</span></li>
+                      <li class="tree-nested"><span class="tree-file">clips/example.md</span></li>
+                    </ul>
+                  </aside>
+                  <div class="viewer-graph">
+                    <svg class="viewer-graph-svg" viewBox="0 0 120 100" preserveAspectRatio="xMidYMid meet" focusable="false">
+                      <!-- edges -->
+                      <line class="viewer-edge" x1="60" y1="24" x2="32" y2="52" />
+                      <line class="viewer-edge" x1="60" y1="24" x2="88" y2="52" />
+                      <line class="viewer-edge" x1="32" y1="52" x2="24" y2="78" />
+                      <line class="viewer-edge" x1="32" y1="52" x2="48" y2="82" />
+                      <line class="viewer-edge" x1="88" y1="52" x2="76" y2="80" />
+                      <line class="viewer-edge" x1="88" y1="52" x2="98" y2="78" />
+                      <!-- nodes -->
+                      <circle class="viewer-node viewer-node-root" cx="60" cy="24" r="7" />
+                      <circle class="viewer-node" cx="32" cy="52" r="6" />
+                      <circle class="viewer-node viewer-node-alt" cx="88" cy="52" r="6" />
+                      <circle class="viewer-node" cx="24" cy="78" r="5" />
+                      <circle class="viewer-node" cx="48" cy="82" r="5" />
+                      <circle class="viewer-node viewer-node-alt" cx="76" cy="80" r="5" />
+                      <circle class="viewer-node" cx="98" cy="78" r="5" />
+                    </svg>
+                    <span class="viewer-graph-stats">12 nodes · 18 links</span>
+                  </div>
+                  <div class="viewer-reader">
+                    <div class="viewer-reader-kicker">Selected</div>
+                    <div class="viewer-reader-title">concepts/graphs.md</div>
+                    <div class="viewer-reader-body">
+                      <span class="viewer-line viewer-line-lg"></span>
+                      <span class="viewer-line"></span>
+                      <span class="viewer-line viewer-line-sm"></span>
+                    </div>
+                    <div class="viewer-reader-linked">Linked pages</div>
+                    <div class="viewer-reader-tags">
+                      <span class="viewer-tag">[[index]]</span>
+                      <span class="viewer-tag viewer-tag-alt">[[raw/clips/example]]</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <pre><code>llm-wiki build-site
+cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
+            <p class="detail-note">Serve the viewer over HTTP, not <code class="inline-code">file://</code>, so graph assets and wiki data load predictably.</p>
+          </article>
+
+          <article class="detail-card" id="skills-commands" aria-labelledby="skills-commands-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">04</span>
+              <h3 id="skills-commands-title">Skills &amp; Commands</h3>
+            </div>
+            <p>
+              The repo bundles the operational layer too: CLI commands, slash-command prompts, and agent skills that describe how the wiki should be maintained. The goal is to show a small, memorable command surface first, then let deeper docs carry the rest. For the full CLI surface, see <a href="#commands">Commands and use cases</a> below.
+            </p>
+
+            <div class="command-story">
+              <div class="command-story-header">
+                <h4>Try this first</h4>
+                <p>A minimal command path that demonstrates the whole loop.</p>
+              </div>
+              <div class="command-example">
+                <div class="command-example-step">
+                  <span class="command-example-label">Install</span>
+                  <code>/plugin install llm-wiki@llm-wiki-local</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Setup</span>
+                  <code>llm-wiki setup --root .</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Ingest</span>
+                  <code>llm-wiki ingest url https://example.com --out clips/example.md</code>
+                </div>
+                <div class="command-example-step">
+                  <span class="command-example-label">Build</span>
+                  <code>llm-wiki build-site</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="command-list">
+              <div class="command-group">
+                <h4>Core commands</h4>
+                <ul>
+                  <li><code class="inline-code">setup</code> scaffolds the vault layout.</li>
+                  <li><code class="inline-code">ingest</code> records new files, URLs, and other sources into <code class="inline-code">raw/</code>.</li>
+                  <li><code class="inline-code">build-site</code> generates the static reader and graph view.</li>
+                </ul>
+              </div>
+              <div class="command-group">
+                <h4>Keep it healthy</h4>
+                <ul>
+                  <li><code class="inline-code">configure -i</code> helps tune the vault interactively.</li>
+                  <li><code class="inline-code">raw validate</code> and related raw commands help finish captures cleanly.</li>
+                  <li><code class="inline-code">wiki-ingest</code>, <code class="inline-code">wiki-query</code>, and other skills keep the workflow in chat.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="support-note-list">
+              <p><strong>Also works with:</strong> manual clone for local plugin work, direct CLI usage via <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code>, Cursor and Codex through <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a>, and Obsidian as an optional reader for <code class="inline-code">llm-wiki/wiki/</code>.</p>
+            </div>
+            <p class="detail-note">
+              Commands, workflows, and ethos live in
+              <a href="https://github.com/SkinnnyJay/wiki-llm#readme">README</a>,
+              <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/WORKFLOWS.md">WORKFLOWS.md</a>,
+              <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/ETHOS.md">ETHOS.md</a>, and the repo skills.
+            </p>
+          </article>
+
+          <article class="detail-card" id="memory-retrieval" aria-labelledby="memory-retrieval-title">
+            <div class="detail-heading">
+              <span class="detail-kicker">05</span>
+              <h3 id="memory-retrieval-title">Memory &amp; retrieval</h3>
+            </div>
+            <p class="memory-hub-cta">
+              <a class="button button-primary" href="../memory/index.html#metrics-dashboard">Open memory hub — charts &amp; doc links</a>
+            </p>
+            <p>
+              Three ideas share the word <em>memory</em> here: <strong>session memory</strong> (per-chat notes under <code class="inline-code">raw/memory/</code> when enabled), <strong>search backends</strong> for MCP and the wiki (lexical, semantic, or hybrid with reciprocal-rank fusion), and <strong>benchmark docs</strong> for long-context retrieval evaluation (LME, LoCoMo, ConvoMem)—separate from vault content.
+            </p>
+            <pre><code># Session memory (after memory.enabled in config)
+llm-wiki memory save --current "Pinned fact for this chat"
+llm-wiki memory list
+
+# Retrieval benchmarks (plugin repo)
+llm-wiki benchmark suites</code></pre>
+            <ul>
+              <li><strong>Session memory:</strong> opt-in via <code class="inline-code">memory.enabled</code>; CLI <code class="inline-code">memory {save|log|list|show|recall|prune}</code>; hooks can write <code class="inline-code">.current-session</code> for <code class="inline-code">--current</code>.</li>
+              <li><strong>MCP search:</strong> <code class="inline-code">mcp.search_backend</code> — <code class="inline-code">fts5</code> (BM25), <code class="inline-code">grep</code>, <code class="inline-code">chromadb</code> (embeddings), or <code class="inline-code">hybrid</code> (FTS5 + Chroma + RRF; <code class="inline-code">mcp.hybrid_rrf_k</code> defaults to 60).</li>
+              <li><strong>Benchmarks:</strong> CLI and methodology in <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a>; charts and links on the <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a> (this site).</li>
+            </ul>
+            <p class="detail-note">“Memory” in <code class="inline-code">docs/memory/benchmarks/</code> means long-context retrieval evaluation, not the session-memory feature under <code class="inline-code">raw/memory/</code>.</p>
+          </article>
+        </div>
+
+        <section class="commands-section" id="commands" aria-labelledby="commands-title">
+          <span class="section-label">CLI</span>
+          <h2 id="commands-title">Commands and use cases</h2>
+          <p class="section-intro">
+            Run via <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code> from the repo root (or your vault). Use <code class="inline-code">--help</code> on any subcommand for flags.
+          </p>
+
+          <div class="commands-stack">
+            <div class="commands-group">
+              <h3 class="commands-group-title">Vault &amp; config</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki configure</code> · <code>-i</code> interactive</dt>
+                  <dd>Write or edit <code class="inline-code">config.json</code> (paths, viewer, integrations, persona).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki setup --root .</code></dt>
+                  <dd>Scaffold <code class="inline-code">llm-wiki/</code> from templates (raw, wiki, schema, CLAUDE.md).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki teardown</code></dt>
+                  <dd>Remove generated artifacts; optional <code class="inline-code">--purge</code> to remove the vault tree.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki validate</code> · <code>--wikilinks</code></dt>
+                  <dd>Check vault layout; optionally fail if <code class="inline-code">[[wikilinks]]</code> point to missing pages.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki check</code> · <code>--plugin-repo</code></dt>
+                  <dd>Fast sanity checks (config, optional compileall); plugin repo: agent docs + scripts.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Ingest &amp; integrations</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki ingest …</code></dt>
+                  <dd>Bring sources into <code class="inline-code">raw/</code> via adapters (file, url, HN, etc.); see <code class="inline-code">ingest --list</code>.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki deps check</code></dt>
+                  <dd>Verify optional Python deps (e.g. PDF ingest helpers).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki integrations</code> (status · validate · wizard · set-key)</dt>
+                  <dd>See which adapters are ready, validate config, interactive setup, or store API keys for tools like Firecrawl.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Build, graphs &amp; context</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki build-site</code> / <code>build-og</code></dt>
+                  <dd>Emit <code class="inline-code">wiki-data.json</code> and the static viewer under the wiki tree.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki graph</code> · <code>--mode links|knowledge</code></dt>
+                  <dd>Generate a D3 graph in <code class="inline-code">.tmp/llm-wiki-graph/</code> (link view or cluster view).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki graph-knowledge</code></dt>
+                  <dd>Shortcut for <code class="inline-code">graph --mode knowledge</code> (connected-component clusters).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki list-topics</code></dt>
+                  <dd>Show tag index with wiki coverage.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki wake-up</code> · <code>--update-claude</code></dt>
+                  <dd>Print L0+L1 context blob; optionally refresh memory stack in vault CLAUDE.md.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Raw layer</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki raw validate &lt;path&gt;</code> · <code>--autofix</code></dt>
+                  <dd>Deterministic checks on a file under <code class="inline-code">raw/</code>; safe autofixes optional.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki raw record &lt;path&gt;</code></dt>
+                  <dd>Append one JSON line to the preparation audit log after a cleanup step.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki raw finish &lt;path&gt;</code></dt>
+                  <dd>Validate, log, and optional <code class="inline-code">[prepare]</code> git commit when git is enabled.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki raw rebuild-index</code></dt>
+                  <dd>Rebuild hashes/tags indexes from <code class="inline-code">raw/</code> frontmatter.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Ops &amp; automation</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki git</code> (init · status · log · diff · snapshot · query · lifecycle)</dt>
+                  <dd>Vault-scoped git helpers for snapshots, history, and lifecycle views.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki research-loop</code></dt>
+                  <dd>Run batch research tasks from <code class="inline-code">research-tasks.json</code> (or YAML with PyYAML).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki security scan &lt;file&gt;</code></dt>
+                  <dd>Heuristic security scan on a path (e.g. prompt-injection patterns).</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Memory, search &amp; benchmarks</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki memory</code> (save · log · list · show · recall · prune)</dt>
+                  <dd>Per-chat session notes under <code class="inline-code">raw/memory/</code> when <code class="inline-code">memory.enabled</code>; <code class="inline-code">--current</code> uses <code class="inline-code">.current-session</code>.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki mcp</code> · <code>--transport sse</code> · <code>mcp install</code></dt>
+                  <dd>stdio JSON-RPC server (default) or HTTP SSE; vault tools including search (see <code class="inline-code">mcp.search_backend</code>).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki benchmark</code> (run · suites · report · history · compare · analyze)</dt>
+                  <dd>Retrieval benchmarks (LME / LoCoMo / ConvoMem); see <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> and <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a>.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="commands-group">
+              <h3 class="commands-group-title">Plugin repo &amp; CI</h3>
+              <dl class="commands-dl">
+                <div>
+                  <dt><code>llm-wiki sync-agent-docs</code> · <code>--check</code></dt>
+                  <dd>Regenerate AGENTS.md / rules from <code class="inline-code">docs/AGENTS.shared.md</code>; <code class="inline-code">--check</code> fails if drift.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki smoke-test</code></dt>
+                  <dd>Run the pytest suite from the plugin root (contracts, CLI, vault flow).</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki test-report</code></dt>
+                  <dd>Executable CLI/doc checks; optional <code class="inline-code">--json</code> for machine-readable output.</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>
+        <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
+        <span aria-hidden="true">·</span>
+        MIT License
+        <span aria-hidden="true">·</span>
+        Pattern credit:
+        <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/milla-jovovich/mempalace">MemPalace</a>
+        (<a href="https://x.com/bensig/status/2041229266432733356">Ben Sigman on X</a>)
+      </p>
+    </div>
+  </footer>
+  <script>
+  (function () {
+    var NS = 'http://www.w3.org/2000/svg';
+
+    function elSvgCopy() {
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      var r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', '9');
+      r.setAttribute('y', '9');
+      r.setAttribute('width', '13');
+      r.setAttribute('height', '13');
+      r.setAttribute('rx', '2');
+      r.setAttribute('ry', '2');
+      r.setAttribute('fill', 'none');
+      r.setAttribute('stroke', 'currentColor');
+      r.setAttribute('stroke-width', '2');
+      var p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '2');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(r);
+      svg.appendChild(p);
+      return svg;
+    }
+
+    function elSvgCheck() {
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      var p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', 'M20 6 9 17l-5-5');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '2.2');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(p);
+      return svg;
+    }
+
+    function getText(el) {
+      return (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+    }
+
+    function setButtonIcon(btn, check) {
+      while (btn.firstChild) {
+        btn.removeChild(btn.firstChild);
+      }
+      btn.appendChild(check ? elSvgCheck() : elSvgCopy());
+    }
+
+    function attachCopy(wrap, sourceEl, btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var text = getText(sourceEl);
+        function done() {
+          btn.classList.add('is-copied');
+          setButtonIcon(btn, true);
+          btn.setAttribute('aria-label', 'Copied');
+          window.setTimeout(function () {
+            btn.classList.remove('is-copied');
+            setButtonIcon(btn, false);
+            btn.setAttribute('aria-label', 'Copy code');
+          }, 2000);
+        }
+        function fail() {
+          btn.setAttribute('aria-label', 'Copy failed — select and copy manually');
+          window.setTimeout(function () {
+            btn.setAttribute('aria-label', 'Copy code');
+          }, 2500);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(fail);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand('copy');
+            done();
+          } catch (err) {
+            fail();
+          }
+          document.body.removeChild(ta);
+        }
+      });
+    }
+
+    function wrapBlock(el, isCode) {
+      if (el.closest('.code-copy-wrap')) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'code-copy-wrap' + (isCode ? ' code-copy-wrap--code' : '');
+      el.parentNode.insertBefore(wrap, el);
+      wrap.appendChild(el);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'code-copy-btn';
+      btn.setAttribute('aria-label', 'Copy code');
+      setButtonIcon(btn, false);
+      wrap.insertBefore(btn, el);
+
+      attachCopy(wrap, el, btn);
+    }
+
+    document.querySelectorAll('main pre').forEach(function (pre) {
+      wrapBlock(pre, false);
+    });
+    document.querySelectorAll('main .command-example-step code').forEach(function (code) {
+      wrapBlock(code, true);
+    });
+  })();
+  </script>
 </body>
 </html>

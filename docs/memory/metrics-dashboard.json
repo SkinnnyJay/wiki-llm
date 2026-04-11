@@ -1,7 +1,7 @@
 {
   "updated": "2026-04-09",
-  "source_note": "Update this JSON when serious benchmark runs land; keep aligned with docs/memory/benchmarks/comparisons.md. The memory hub charts read this file from the same directory.",
-  "headline": "LME (LongMemEval-cleaned) N=500: R@5 = 0.98, 10 failures — target R@5 = 1.0 (PLAN).",
+  "source_note": "Update this JSON when serious benchmark runs land. The Memory hub charts read this file from the same directory; keep numbers consistent with benchmarks/README.md.",
+  "headline": "LME (LongMemEval-cleaned) N=500: R@5 = 0.98, 10 failures — target R@5 = 1.0.",
   "lme": {
     "suite": "lme",
     "dataset": "HF lme_s_cleaned.json",
@@ -43,7 +43,7 @@
     },
     {
       "name": "Memory Palace",
-      "note": "Different tasks and metrics — see comparisons.md before claiming rank.",
+      "note": "Different tasks and metrics — align methodology before comparing ranks.",
       "url": "https://github.com/milla-jovovich/mempalace"
     },
     {

@@ -45,6 +45,7 @@ Tracks **2** and **3** are independent CLI/agent flows; **1** runs both when the
 llm-wiki setup --root .
 llm-wiki configure -i
 llm-wiki integrations validate
+# Optional: JS-heavy pages — pip install playwright && playwright install chromium  (then: llm-wiki ingest playwright …)
 ```
 
 Session memory is still toggled in **`llm-wiki/config.json`** until a dedicated **`memory setup`** CLI exists; use **wiki-setup** Section 8c in chat for guided **`memory.*`** keys and hooks pointers.

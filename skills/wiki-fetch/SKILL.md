@@ -39,7 +39,10 @@ Then use the **first** ready and enabled adapter from this order:
 | 4 | **Perplexity** | `integrations.perplexity` | `enabled: true` + `PERPLEXITY_API_KEY` set | Research questions / synthesis |
 | 5 | **Twitter** | `integrations.twitter` | `enabled: true` + any `x.com`/`twitter.com` URL | Tweets (zero-config via FxTwitter); threads/search with bird CLI |
 | 6 | **HackerNews** | — | URL matches `news.ycombinator.com` | HN threads + comments |
-| 7 | **stdlib url** | — | Always available | Fallback — HTML stripped to text |
+| 7 | **Playwright** | `integrations.playwright` | `enabled: true` + `pip install playwright` + `playwright install chromium` | Same **`raw/`** markdown shape as **`url`** — use when the page is JS-heavy or **`url`** returned empty |
+| 8 | **stdlib url** | — | Always available | Fallback — HTML stripped to text |
+
+**If `url` output is empty or tiny:** Offer **`playwright`** (CLI adapter above) **or** Firecrawl **or** install **Playwright MCP** in Cursor/Claude for interactive browsing — then still save via **`llm-wiki ingest playwright …`** or paste into **`raw/`** using the same title/URL/body pattern as other clips.
 
 ---
 
@@ -91,6 +94,11 @@ export TWITTER_BEARER_TOKEN=YOUR-TOKEN
 # Firebase
 export FIREBASE_API_KEY=YOUR-KEY
 # OR: export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+
+# Playwright (CLI ingest adapter — no API key)
+pip install playwright
+playwright install chromium
+# Optional: enable Playwright MCP in Cursor/Claude for interactive browser tools (separate from vault MCP)
 ```
 
 Then re-run `llm-wiki integrations status` to confirm.
@@ -142,6 +150,9 @@ llm-wiki ingest hackernews <HN-URL-or-ID> [--out hn/thread.md]
 
 # Plain URL (stdlib fallback)
 llm-wiki ingest url <URL> [--out web/page.md]
+
+# Playwright — headless Chromium (install: pip install playwright && playwright install chromium)
+llm-wiki ingest playwright <URL> [--out web/page.md] [--timeout 90]
 ```
 
 After the ingest completes, the file lives in `raw/`.
@@ -188,7 +199,7 @@ Or invoke the `wiki-raw-prepare` skill for the full curation workflow.
 |---------|-----|
 | `Missing FIRECRAWL_API_KEY` | Set key or install CLI (Step 2a) |
 | `firecrawl CLI failed` | Run `firecrawl --status` to check auth |
-| Empty output from URL adapter | Try Firecrawl — the page likely needs JS rendering |
+| Empty output from URL adapter | Try **`playwright`** or Firecrawl — the page likely needs JS rendering; offer **`pip install playwright && playwright install chromium`** if `integrations status` warns |
 | Perplexity rate-limit error | Wait 60s or use a URL adapter instead |
 | HackerNews 404 | Check the item ID is correct |
 

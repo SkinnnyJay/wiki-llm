@@ -29,6 +29,7 @@ Defaults use the names below; each integration in **`llm-wiki/config.json`** can
 |----------|----------|
 | **`BRAVE_SEARCH_API_KEY`** | Brave Search adapter (`brave`), research-loop search fan-out |
 | **`FIRECRAWL_API_KEY`** | Firecrawl adapter (`firecrawl`) — REST or CLI |
+| *(none)* | **`playwright`** ingest adapter — install **`playwright`** Python package and run **`playwright install chromium`**; no API key. Optional **Playwright MCP** in the editor is separate from vault MCP. |
 | **`PERPLEXITY_API_KEY`** | Perplexity adapter (`perplexity`) |
 | **`TWITTER_AUTH_TOKEN`** | Twitter/X adapter (`twitter`) with bird CLI |
 | **`ANTHROPIC_API_KEY`** | PDF vision ingest, pdf-marker / MarkItDown LLM paths, benchmark rerank when configured for Anthropic |

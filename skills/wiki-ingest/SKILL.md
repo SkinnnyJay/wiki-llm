@@ -1,11 +1,22 @@
 ---
 name: wiki-ingest
-description: Merges new raw sources into llm-wiki/wiki/ with index and log updates. Use after llm-wiki ingest or when user drops files into raw/.
+description: Merges new raw sources into llm-wiki/wiki/ with index and log updates. Use after llm-wiki ingest or when user drops files into raw/. Works for any source on the public web or local files.
 ---
 
 # Wiki ingest — Merger
 
-Merge **new or updated** material from **`raw/`** into **`wiki/`**: topic/entity pages, **`wiki/index.md`**, and **`wiki/log.md`**. Run after **`llm-wiki ingest …`** or when the user adds files under **`raw/`**.
+Merge **new or updated** material from **`raw/`** into **`wiki/`**: topic/entity pages, **`wiki/index.md`**, and **`wiki/log.md`**. Run after **`llm-wiki ingest …`** or when the user adds files under **`raw/`**. Sources may be **any site or API** the adapters support — treat **`raw/`** as evidence-first clips from the wider internet, not a single domain.
+
+## In Claude first
+
+If the user just ran **`llm-wiki ingest`** and expects **`wiki/`** updates: **ingest only fills `raw/`**. This skill is the **merge** step. For the full **phased checklist** (list adapters → ingest → merge → build), use **`/llm-wiki:ingest`** (**`commands/ingest.md`**) so the agent shows steps, applies **generic source principles** (APIs vs pages, rate limits, provenance), and captures **stderr** (`2>&1`) for long runs.
+
+## Learn from each merge
+
+- After merging, **append `wiki/log.md`** with not only *what* merged but **what to try next time** for similar sources (e.g. “HN comments: use `--depth stories` first; API order ≠ homepage”).
+- If a **`raw/`** clip was wrong or noisy, note the **adapter + flags** so the next session narrows URLs or changes options without repeating the same mistake.
+- **Generalize**: patterns from one domain (feeds, pagination, paywalls) often apply to **other** sites — record the pattern in **`wiki/log.md`** or **`llm-wiki/CLAUDE.md`** when it is stable vault policy.
+- **Empty or stub `raw/`** (e.g. JS-only page fetched with **`url`**): do not merge junk — point the user to **`wiki-fetch`** / **`llm-wiki ingest playwright`** or Firecrawl, and offer **`pip install playwright && playwright install chromium`** if **`integrations status`** shows the adapter as not ready.
 
 ## Pre-flight
 

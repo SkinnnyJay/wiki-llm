@@ -57,6 +57,7 @@ import shutil, subprocess, sys
 tools = [
     ("llm-wiki",     "llm-wiki --version",       "Core CLI — required"),
     ("firecrawl",    "firecrawl --version",       "JS-rendered web fetching"),
+    ("playwright-py", "python3 -c \"import playwright; print('ok')\"", "Playwright Python (ingest playwright)"),
     ("yt-dlp",       "yt-dlp --version",          "YouTube transcript/download"),
     ("pytube",       "python3 -c 'import pytube; print(pytube.__version__)'", "YouTube (fallback)"),
     ("marker",       "marker --help",             "AI PDF extraction"),

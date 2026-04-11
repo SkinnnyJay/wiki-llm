@@ -191,6 +191,8 @@ export FIRECRAWL_API_KEY="fc-..."
 
 **Store answers as:** `integrations` dict (enabled: true/false per key)
 
+**Optional — browser capture (not an API key):** If the user wants **JS-heavy** pages in **`raw/`** without Firecrawl, mention **`llm-wiki ingest playwright`** after **`pip install playwright && playwright install chromium`** (see **`llm-wiki integrations status`**). **Playwright MCP** in Cursor/Claude is a **separate** editor tool from the vault **`llm-wiki` MCP** (Section 8) — install MCP in the editor for interactive browsing; use **`ingest playwright`** for the same **`raw/`** markdown pipeline as other adapters.
+
 ---
 
 ## Section 5 — Ingestion security
@@ -258,6 +260,8 @@ export FIRECRAWL_API_KEY="fc-..."
 ## Section 8 — MCP server and search backend
 
 > Backend options, config keys, and CLI reference: **`skills/references/mcp-and-kg.md`** § "Search backends" and § "Setup wizard sections".
+
+**Clarify (once):** This section configures the **`llm-wiki` MCP server** (search, ingest tools, vault tools). It is **not** the **Playwright MCP** / browser MCP some editors offer for page automation — those are registered in **Cursor** / **Claude** host settings separately. Both can coexist.
 
 **Ask:**
 > The vault includes an **MCP server** that lets AI agents search, query, and update your wiki programmatically. How should it be configured?

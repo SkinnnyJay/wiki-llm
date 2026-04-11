@@ -11,21 +11,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../site/css/style.css" />
-  <link rel="icon" href="../site/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="../site/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="../site/favicon-16x16.png" />
-  <link rel="apple-touch-icon" href="../site/apple-touch-icon.png" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="icon" href="../favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
 </head>
 <body>
   <header class="site-header">
     <div class="wrap wrap-header">
       <div class="site-header-bar">
-        <a class="brand-lockup" href="../site/index.html" aria-label="llm-wiki home">
+        <a class="brand-lockup" href="../index.html" aria-label="llm-wiki home">
           <span class="brand-mark" aria-hidden="true">
             <img
               class="brand-mark-img"
-              src="../site/assets/logo-mark.svg"
+              src="../assets/logo-mark.svg"
               alt=""
               width="62"
               height="62"
@@ -34,9 +34,9 @@
           </span>
         </a>
         <nav class="site-nav" aria-label="Primary">
-          <a href="../site/index.html#setup">Home</a>
+          <a href="../index.html#setup">Home</a>
           <a href="#metrics-dashboard">Metrics</a>
-          <a href="../site/index.html#memory-retrieval">On landing</a>
+          <a href="../index.html#memory-retrieval">On landing</a>
           <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         </nav>
       </div>
@@ -91,8 +91,7 @@
               <h2 class="memory-externals-heading">External references (not same metric)</h2>
             </div>
             <p class="detail-note">
-              Use primary sources and align benchmark names before comparing ranks —
-              <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/comparisons.md">comparisons.md</a>.
+              Use primary sources and align benchmark names, slice sizes, and configs before comparing ranks across papers or tools.
             </p>
             <ul id="metrics-externals-list" class="memory-externals-list"></ul>
           </article>
@@ -149,22 +148,18 @@
             <h2>Benchmarks &amp; retrieval evaluation</h2>
           </div>
           <p>
-            Under <code class="inline-code">docs/memory/benchmarks/</code>, “memory” means <strong>long-context retrieval evaluation</strong> (LME, LoCoMo, ConvoMem)—not session memory. See the README for scope.
+            Under <code class="inline-code">docs/memory/benchmarks/</code>, “memory” means <strong>long-context retrieval evaluation</strong> (LME, LoCoMo, ConvoMem)—not session memory in <code class="inline-code">raw/memory/</code>.
           </p>
           <ul>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/README.md">README.md</a> — hub index, roadmap table</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/PLAN.md">PLAN.md</a> — LME targets, metrics, phased work</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/lme_misses_blocking_100.md">lme_misses_blocking_100.md</a> — gap to R@5 = 100% (validated miss lists)</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/comparisons.md">comparisons.md</a> — methodology vs external systems</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/why_rerank_doesnt_raise_lme.md">why_rerank_doesnt_raise_lme.md</a> — rerank / fusion / troubleshooting</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/MEMPALACE.md">MEMPALACE.md</a> — deferred Memory Palace / quotes suite</li>
-            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> (repo root) — operational benchmark CLI, forward-only protocol, <code class="inline-code">iterate_lme_rerank.py</code></li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> (repo root) — how to run suites, read metrics, tune search</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/runs/README.md">docs/memory/benchmarks/runs/README.md</a> — optional tracked JSON / write-ups</li>
+            <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/metrics/README.md">docs/memory/benchmarks/metrics/README.md</a> — optional <code class="inline-code">runs.jsonl</code> mirror for charts</li>
           </ul>
         </article>
         </div>
 
         <p class="detail-note memory-hub-back">
-          <a class="button button-secondary" href="../site/index.html#memory-retrieval">Back to landing — Memory &amp; retrieval</a>
+          <a class="button button-secondary" href="../index.html#memory-retrieval">Back to landing — Memory &amp; retrieval</a>
         </p>
       </div>
     </section>
@@ -173,7 +168,7 @@
   <footer class="site-footer">
     <div class="wrap">
       <p>
-        <a href="../site/index.html">llm-wiki home</a>
+        <a href="../index.html">llm-wiki home</a>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         <span aria-hidden="true">·</span>

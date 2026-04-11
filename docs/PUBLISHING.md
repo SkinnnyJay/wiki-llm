@@ -7,7 +7,7 @@
 3. Branch = **`main`** (or default), folder = **`/docs`**.
 4. Ensure **`docs/.nojekyll`** exists so Jekyll does not mangle static files.
 
-After the first deploy, open `https://<org>.github.io/<repo>/` and confirm the root redirects to **`site/index.html`**. Details: [`docs/README.md`](./README.md).
+After the first deploy, open `https://<org>.github.io/<repo>/` and confirm the root serves **`index.html`** (landing). Details: [`docs/README.md`](./README.md).
 
 ## Marketplace (Claude / Cursor)
 

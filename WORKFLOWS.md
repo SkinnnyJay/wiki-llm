@@ -21,7 +21,7 @@ Optional **wiki-pipeline** skill chains the standard vault workflow with optiona
 
 ## Retrieval benchmarks (plugin repo)
 
-**CLI:** `llm-wiki benchmark …` — see [`benchmarks/README.md`](benchmarks/README.md). **Roadmap, measured rows, LME miss lists, external comparisons:** [`docs/memory/benchmarks/README.md`](docs/memory/benchmarks/README.md) (“memory” here means long-context retrieval evaluation, not `raw/memory/` session notes). Static hub: [`docs/memory/index.html`](docs/memory/index.html#hub-title) (if you publish GitHub Pages from `/docs`).
+**CLI:** `llm-wiki benchmark …` — see [`benchmarks/README.md`](benchmarks/README.md). Optional git-tracked JSON narratives: [`docs/memory/benchmarks/runs/`](docs/memory/benchmarks/runs/README.md). (“Memory” in **`docs/memory/benchmarks/`** means long-context retrieval evaluation, not `raw/memory/` session notes.) Charts and doc links on Pages: [`docs/memory/index.html`](docs/memory/index.html#hub-title) when you publish from **`/docs`**.
 
 ## Plugin development / testing
 
@@ -45,7 +45,7 @@ Slash commands and skills document a per-surface **`## Smoke check`** (CLI + age
 
 ## Green path (first-time vault)
 
-1. **Install the plugin** (development): from a shell, **`claude --plugin-dir /path/to/wiki-llm`** for a one-off session ([CLI reference](https://code.claude.com/docs/en/cli-reference)), **or** in Claude Code run **`/plugin marketplace add /path/to/wiki-llm`**, **`/plugin install llm-wiki@llm-wiki-local`**, **`/reload-plugins`** for a persistent install.
+1. **Install the plugin** (development): from a shell, **`claude --plugin-dir /path/to/wiki-llm`** for a one-off session ([CLI reference](https://code.claude.com/docs/en/cli-reference)), **or** for a persistent install run **`scripts/plugin_dev_slim.sh`** (then **`--apply`** if the dry-run looks right) so local **`plugin install`** does not copy huge venvs/caches, then **`/plugin marketplace add /path/to/wiki-llm`**, **`/plugin install llm-wiki@llm-wiki-local`**, **`/reload-plugins`**.
 2. **Scaffold:** `llm-wiki setup --root .` → creates `llm-wiki/` with `config.json`, `wiki/`, `raw/`, `outputs/`, `CLAUDE.md`, `research-tasks.json`.
 3. **Configure (optional):** `llm-wiki --vault ./llm-wiki configure -i` or set `persona.name`, `viewer`, `git`, etc.
 4. **Validate:** `llm-wiki --vault ./llm-wiki validate` and, when the wiki has links, `validate --wikilinks`.
@@ -76,6 +76,7 @@ Slash commands and skills document a per-surface **`## Smoke check`** (CLI + age
 | Symptom | Try |
 |--------|-----|
 | Plugin / skills / commands **missing entirely** | **1)** There must be **no** `.claude/` folder inside the **wiki-llm plugin repo** — not even gitignored `settings.local.json` — or Claude Code **will not load** plugin `skills/` or `commands/` ([#44120](https://github.com/anthropics/claude-code/issues/44120)). Use **`~/.claude/settings.json`** or **`~/.claude/settings.local.json`** for env/keys. **2)** Load the plugin: **`claude --plugin-dir /path/to/wiki-llm`** (one-off) **or** **`/plugin marketplace add …`**, **`/plugin install llm-wiki@llm-wiki-local`**, **`/reload-plugins`** (persistent). **3)** If still broken: `rm -rf ~/.claude/plugins/cache`, restart, reinstall. **4)** `/plugin` → **Errors** tab for load failures. |
+| **`ENOSPC`** / **no space** on **`plugin install`** | A local install copies **the full directory tree on disk** (not just git-tracked files): **`/.tmp/`**, venvs (**`.venv/`**, **`.venv-*`**, …), **`__pycache__`**, etc. Run **`scripts/plugin_dev_slim.sh`** then **`--apply`**, free space on the volume that holds **`~/.claude/`**, clear **`~/.claude/plugins/cache/`** if needed, then retry. Prefer **`claude --plugin-dir /path/to/wiki-llm`** for daily dev so the cache does not duplicate the repo. |
 | `validate` fails (missing files) | Run `llm-wiki setup` or restore `llm-wiki/wiki/index.md`, `CLAUDE.md`, `config.json` from [`templates/llm-wiki/`](templates/llm-wiki/). |
 | No **`outputs/`** (vault scaffolded before it existed) | `mkdir -p llm-wiki/outputs` and merge the **`outputs/`** section from [`templates/llm-wiki/CLAUDE.md`](templates/llm-wiki/CLAUDE.md) into your vault `CLAUDE.md`. |
 | `validate --wikilinks` fails | Broken `[[links]]` to missing pages — create the target `.md` or remove the link. |

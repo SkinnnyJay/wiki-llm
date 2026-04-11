@@ -17,7 +17,7 @@ From the repository root:
 2. **`bin/llm-wiki check --plugin-repo`** — runs the same agent-doc verification (quiet on success), **`compileall`** on `scripts/`, and is what CI runs before pytest.
 3. **`bin/llm-wiki smoke-test`** — full test suite (or **`--only-contracts`** for a faster gate).
 
-**Python versions:** CI runs pytest on **3.12** and **3.14** (see [`.github/workflows/tests.yml`](.github/workflows/tests.yml)). To match CI locally, use a venv built with that interpreter (`python3.14 -m venv .venv`, `pip install -r requirements-dev.txt`, then `PYTHONPATH=scripts python -m pytest tests/` or `bin/llm-wiki smoke-test`). Avoid relying on a relative `PYTHONPATH` when invoking `python` directly—run from the repo root with `PYTHONPATH=scripts` or use `scripts/llm_wiki.py`, which adjusts `sys.path` itself.
+**Python versions:** CI runs pytest on **3.12** and **3.14** (see [`.github/workflows/tests.yml`](.github/workflows/tests.yml)). To match CI locally, create a venv (`python3.14 -m venv .venv`), install **`requirements-dev.txt`**, then from the repo root run **`bin/llm-wiki smoke-test`** or **`python3 -m pytest tests/`** with **`PYTHONPATH=scripts`** if you invoke pytest directly. Prefer **`python3 scripts/llm_wiki.py`** or **`bin/llm-wiki`** for CLI entry — they adjust **`sys.path`** without fragile relative **`PYTHONPATH`** (especially on Python 3.14+).
 
 Version bumps in [CHANGELOG.md](CHANGELOG.md) should ship with a green CI run on `main` / your release branch.
 

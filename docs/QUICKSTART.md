@@ -57,9 +57,9 @@ Then:
 | Session memory (`memory.enabled`, `raw/memory/`) | [`skills/wiki-session-memory/SKILL.md`](../skills/wiki-session-memory/SKILL.md) |
 | MCP + search backends | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
 | Evidence layers, trust | [`ETHOS.md`](../ETHOS.md) |
-| Architecture (vault vs plugin) | [`docs/architecture.md`](./architecture.md) |
+| Architecture (vault vs plugin) | [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | Env vars (`.env`, integrations, pytest opt-in) | [`docs/ENV.md`](./ENV.md), [`../.env.example`](../.env.example) |
-| GitHub Pages UI (tokens, sticky TOC, metrics charts) | [`docs/DESIGN.md`](./DESIGN.md), [`docs/site/css/style.css`](./site/css/style.css) |
+| GitHub Pages UI (landing + Memory hub) | [`docs/README.md`](./README.md), [`docs/css/style.css`](./css/style.css) |
 
 ---
 

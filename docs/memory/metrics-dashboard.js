@@ -1,6 +1,6 @@
 /**
  * Loads docs/memory/metrics-dashboard.json and renders Chart.js figures.
- * Update the JSON when benchmark runs land (keep in sync with comparisons.md).
+ * Update metrics-dashboard.json when you publish serious benchmark numbers (keep narrative aligned with benchmarks/README.md).
  */
 (function () {
   var JSON_URL = './metrics-dashboard.json';
@@ -302,7 +302,7 @@
           statusEl,
           'Data updated ' +
             updated +
-            '. Commit metrics-dashboard.json after each serious benchmark run (see comparisons.md).',
+            '. Commit metrics-dashboard.json after each serious benchmark run (see benchmarks/README.md in the repo).',
           false
         );
         try {

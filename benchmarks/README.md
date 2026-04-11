@@ -5,7 +5,7 @@ Measure retrieval quality (recall@K, NDCG@K) for vault search backends and optio
 ## Metrics storage (where results go)
 
 - **Primary:** Benchmark keys (`benchmark.lme.recall_at_5`, etc.) are written to the vault **`storage.metrics_db`** file (default **`llm-wiki/.metrics.jsonl`**) when `benchmark.auto_record_metrics` is true — same append-only JSONL as optional operational metrics (`search.*`, `mcp.*`, …), distinguished by **`key`** prefix.
-- **Optional git-tracked mirror:** Set **`benchmark.append_repo_runs_jsonl`** to **`true`** in `config.json` to also append one line per run to **`docs/memory/benchmarks/metrics/runs.jsonl`** inside the **plugin** clone (for charts and CI). Default is **`false`** so normal runs do not dirty the repo. See [`docs/memory/benchmarks/PLAN.md`](../docs/memory/benchmarks/PLAN.md).
+- **Optional git-tracked mirror:** Set **`benchmark.append_repo_runs_jsonl`** to **`true`** in `config.json` to also append one line per run to **`docs/memory/benchmarks/metrics/runs.jsonl`** inside the **plugin** clone (for charts and CI). Default is **`false`** so normal runs do not dirty the repo. See [`docs/memory/benchmarks/metrics/README.md`](../docs/memory/benchmarks/metrics/README.md).
 
 ## Prerequisites
 
@@ -57,7 +57,7 @@ LLM_WIKI_BENCHMARK_LLM=1 python3 benchmarks/iterate_lme_rerank.py --iterations 1
 
 Open the generated **`iteration_lme_rerank_*.html`** in a browser for charts. Rows with **`best_so_far: true`** in JSONL mark a new rolling best (higher R@5, then fewer failures).
 
-**See also (narrative + tracked misses):** [`docs/memory/benchmarks/lme_misses_blocking_100.md`](../docs/memory/benchmarks/lme_misses_blocking_100.md) — baseline vs best-validated miss lists and the remaining **`gpt4_4929293b`** blocker; hub index [`docs/memory/benchmarks/README.md`](../docs/memory/benchmarks/README.md).
+**See also:** optional tracked run artifacts under [`docs/memory/benchmarks/runs/`](../docs/memory/benchmarks/runs/README.md); failure analysis lives in generated **`lme_failures.jsonl`** (per run) and **`benchmark report`** output.
 
 ### Eval size (`--limit`)
 
@@ -178,7 +178,7 @@ python3 scripts/llm_wiki.py benchmark run lme --backend all --compress raw --lim
 python3 scripts/llm_wiki.py benchmark run lme --limit 250
 ```
 
-Use `--limit 0` for the full 500-question set. Compare `recall_at_5` in printed JSON and in `benchmark report`. For **leaderboard-style** comparisons vs other systems, document slice size and config in **[`docs/memory/benchmarks/comparisons.md`](../docs/memory/benchmarks/comparisons.md)**.
+Use `--limit 0` for the full 500-question set. Compare `recall_at_5` in printed JSON and in `benchmark report`. For **leaderboard-style** comparisons vs other systems, add a short markdown note under **`docs/memory/benchmarks/runs/`** (or your team’s doc) with slice size, config, and caveats.
 
 ## Iterative optimization loop
 

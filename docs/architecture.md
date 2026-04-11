@@ -32,7 +32,7 @@ flowchart TB
 
 - **Ingest** writes evidence to **`raw/`**; **wiki-ingest** (in chat/skills) curates **`wiki/`**.
 - **`raw validate`** skips **`raw/memory/`**; session files are still **searchable** (e.g. `scope=memory`).
-- **Benchmarks** (`llm-wiki benchmark …`) exercise retrieval against the vault index; metrics go to **`storage.metrics_db`** (see [`benchmarks/README.md`](../benchmarks/README.md) and [`docs/memory/benchmarks/PLAN.md`](./memory/benchmarks/PLAN.md)).
+- **Benchmarks** (`llm-wiki benchmark …`) exercise retrieval against the vault index; metrics go to **`storage.metrics_db`** (see [`benchmarks/README.md`](../benchmarks/README.md); optional tracked run artifacts under [`docs/memory/benchmarks/runs/`](./memory/benchmarks/runs/README.md)).
 
 ## Agent instructions
 

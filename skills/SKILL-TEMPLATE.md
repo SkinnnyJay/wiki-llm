@@ -36,4 +36,4 @@ description: <One-line purpose sentence, ≤250 chars. Front-load trigger keywor
 
 ```
 
-Optional: `skills/references/context-persona.md` and `persona.name` in `llm-wiki/config.json` (default **Gennie**).
+**Persona:** Reference **`prompts/PERSONA.md`** (do not inline it). For tool-heavy runs, point to **`skills/references/context-persona.md`** and `persona.name` in `llm-wiki/config.json` (default **Gennie**).

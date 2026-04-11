@@ -7,10 +7,22 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`playwright` ingest adapter** — Headless Chromium fetch to **`raw/`** (same markdown shape as **`url`** / Firecrawl); **`setup_checks`** + wizard hint when the Python package or browsers are missing; **`integrations wizard`** prints install hints for adapters with no API key (**`scripts/ingest/adapters/web_playwright.py`**, **`scripts/cli/core_commands.py`**).
+- **Docs** — **`commands/ingest.md`**, **`commands/integrations.md`**, **`skills/wiki-fetch`**, **`wiki-ingest`**, **`wiki-setup`** (Section 4 + Section 8), **`wiki-status`**, **`commands/setup.md`**, **`docs/ENV.md`**: **`llm-wiki ingest playwright`** vs optional **Playwright MCP** (editor) vs vault **`llm-wiki` MCP**.
+
 ### Changed
+- **`commands/ingest.md`** — Claude-facing **playbook** (slash table, phased checklist, **show steps**, **`2>&1`** for stderr); plus **adapter-agnostic** whole-web principles (APIs vs pages, limits, provenance, security, **improve each run**); example table (**`url`**, **`hackernews`**, **`file`**, **`ingest --list`**); playbook step 1 names **source type** and generic risks.
+- **`skills/wiki-ingest/SKILL.md`** — **Learn from each merge**: log adapter/flags lessons, generalize patterns to **`wiki/log.md`** / vault **`CLAUDE.md`**; description notes any web/local source.
 - **Claude Code dev docs** — document **`claude --plugin-dir`** as the usual one-off dev load again (current CLI); marketplace install remains the persistent option. **`tests/conftest.py`** and **`scripts/qa_record.py`** always pass **`--plugin-dir`** (removed the **`claude --help`** probe).
+- **`scripts/plugin_dev_slim.sh`** — dry-run / **`--apply`** helper before local **`plugin install`** (local installs copy the full tree; not `.gitignore`-aware). **`setup`** warns if **`.claude/`** exists in the repo. **`.gitignore`** — common tool caches (**`.mypy_cache/`**, **`.ruff_cache/`**, etc.).
 
 ### Fixed
+- **CLI** — Invoking **`llm-wiki`** with **no subcommand** (e.g. bare probe when **`bin/`** is on PATH from the Claude plugin) prints top-level help and exits **0** instead of argparse error **2**.
+- **CLI** — **`setup`** accepts **`--vault`** after the subcommand (e.g. **`llm-wiki setup --root … --vault …`**), not only the global **`llm-wiki --vault … setup …`** form.
+- **Session memory (hooks)** — Stop hook writes **`last_assistant_message`** to a **temp file** and passes **`--message-preview-file`** to **`memory log`** so multiline text, **quotes**, and **box-drawing** characters are not mangled by shell argv (fixes truncated or corrupted **`raw/memory/*.md`** rounds).
+- **Ingest** — **`hackernews`**: optional **item id/URL** for a single story; **stderr progress** + **request pacing**; clearer **HTTP errors**; note that **`topstories.json`** order can **differ from the website** front page.
+- **Plugin MCP** — **`mcpServers.llm-wiki.args`** now uses **`${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py`** (Claude Code expects plugin paths via **`${CLAUDE_PLUGIN_ROOT}`**; a bare **`scripts/mcp_server.py`** often failed when the MCP process cwd was not the plugin root).
 - **Claude Code plugin skills** — stop syncing agent rules to **`.claude/rules/`** inside the plugin repo. A **`.claude/`** directory in a plugin prevents discovery of root **`skills/`** ([anthropics/claude-code#44120](https://github.com/anthropics/claude-code/issues/44120)); use **`rules/llm-wiki.mdc`** + **`AGENTS.md`** / **`CLAUDE.md`** only.
 - **`.gitignore`** — ignore **`.claude/`** under the plugin repo so local **`settings.local.json`** cannot sit next to **`skills/`** and block plugin discovery.
 

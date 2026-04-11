@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/site/assets/readme-banner.png" alt="llm-wiki" width="100%" />
+  <img src="docs/assets/readme-banner.png" alt="llm-wiki" width="100%" />
 </p>
 
 <p align="center">
@@ -8,166 +8,94 @@
   <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
 </p>
 
-**Install from this page:** GitHub cannot run Claude or Cursor for you—click a badge for the repo, the Claude marketplace steps below, or Cursor wiring in [`AGENTS.md`](AGENTS.md). (VS Code–style `vscode:extension/…` links only work for **extensions** published on the Marketplace, not for adding this repo as a Claude **plugin** marketplace.)
+# llm-wiki
 
-# llm-wiki — Claude Code plugin
+**llm-wiki** is a **Claude Code plugin** (and a small Python CLI) that helps you keep a **personal knowledge vault** next to your projects. You capture sources into **`raw/`**, curate linked markdown in **`wiki/`**, and optionally generate a **static viewer**, wire **MCP search**, or turn on **session memory**—so your agent has a durable place to read and write, not a one-off chat dump.
 
-**New here?** Start with **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (five-minute vault path + basic / intermediate / advanced tiers). **Vault** = your `llm-wiki/` folder; **plugin repo** = this repository.
-
-**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`**). Root **`docs/index.html`** redirects to **`docs/site/index.html`** — see [`docs/README.md`](docs/README.md) and [`docs/PUBLISHING.md`](docs/PUBLISHING.md). Inspiration: [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [MemPalace](https://github.com/milla-jovovich/mempalace) ([Ben Sigman on X](https://x.com/bensig/status/2041229266432733356)), Newton’s letter to Hooke (shoulders of giants).
-
-Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`**, **`wiki/`**, optional **`outputs/`**, **`CLAUDE.md`**. Plugin tooling: ingest, validate, static viewer, optional Git, MCP, KG, benchmarks, **opt-in session memory** (`memory.enabled`, **`raw/memory/`**).
-
-**Cursor & OpenAI Codex:** **[`AGENTS.md`](AGENTS.md)** — [Cursor plugins](https://cursor.com/docs/plugins), [Codex discovery](https://developers.openai.com/codex/guides/agents-md/). Rules: **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)**; shared text in **[`docs/AGENTS.shared.md`](docs/AGENTS.shared.md)** → **`bin/llm-wiki sync-agent-docs`**. Codex: **[`.codex/config.toml`](.codex/config.toml)**.
-
-| You want… | Use |
-|-----------|-----|
-| Fast onboarding + capability tiers | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
-| Shared plugin instructions (single source) | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) — then **`bin/llm-wiki sync-agent-docs`** |
-| Cursor rules (clone & open) | [`rules/llm-wiki.mdc`](rules/llm-wiki.mdc) |
-| Full slash-command prompts | [`commands/`](commands/) (one `.md` per command) |
-| Full skill instructions | [`skills/*/SKILL.md`](skills/) |
-| Agent definitions | [`agents/`](agents/) |
-| Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian.md`](agents/wiki-librarian.md), [`agents/research-runner.md`](agents/research-runner.md) |
-| Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
-| Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
-| Environment variables (`.env`, pytest tiers, hooks) | [`docs/ENV.md`](docs/ENV.md), [`.env.example`](.env.example) |
-| GitHub Pages design (landing + Memory hub) | [`docs/DESIGN.md`](docs/DESIGN.md) |
-| Retrieval benchmark roadmap, LME gap notes (not session memory) | [`docs/memory/benchmarks/README.md`](docs/memory/benchmarks/README.md); CLI + knobs [`benchmarks/README.md`](benchmarks/README.md) |
-| MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) (includes security model and `mcp.*` hardening) |
-| Builder principles (raw vs wiki, evidence) | [`ETHOS.md`](ETHOS.md) |
-| Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md), optional maintainer backlog [`TODOS.md`](TODOS.md) |
+This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
 
 ---
 
-## Slash commands (`/llm-wiki:…`)
+## Inspiration
 
-Invoked in Claude Code after loading the plugin. Each file under [`commands/`](commands/) is the source prompt; the table below is the short version.
-
-| Command | What it does |
-|---------|----------------|
-| `/llm-wiki:setup` | Vault setup wizard — paths, `config.json`, optional git init. |
-| `/llm-wiki:ingest` | Plan or run ingest: materialize into `raw/`, then merge into `wiki/` per skills. |
-| `/llm-wiki:raw-prepare` | Validate/clean `raw/` markdown (CLI + LLM), log goals to `raw/.preparation-log.jsonl`, optional git `--phase prepare`. |
-| `/llm-wiki:query` | Answer from the wiki with citations; optionally file the answer into `wiki/`. |
-| `/llm-wiki:lint` | Health-check the wiki — orphans, gaps, contradictions. |
-| `/llm-wiki:build-og` | Run `build-site`: emit `wiki-data.json` + static viewer under `wiki/.og/`. |
-| `/llm-wiki:integrations` | Configure optional integrations (env vars, `integrations.*` in config). |
-| `/llm-wiki:research` | Ad-hoc research on a **topic** — plan sources, ingest into `raw/`, merge into `wiki/`, stepped progress + `wiki/log.md` (**wiki-research** skill). |
-| `/llm-wiki:research-loop` | **Batch** recurring tasks from `research-tasks.json` (path in config) when `research_loop.enabled` (**wiki-research-loop**). |
-| `/llm-wiki:graph` | Build a **D3 link graph** from wikilinks into `.tmp/llm-wiki-graph/`; serve with `http.server`. |
-| `/llm-wiki:graph-knowledge` | Same output folder, **knowledge view**: colors = undirected **connected components** (relational clusters). |
-| `/llm-wiki:git-status` | Vault-only `git status` (requires `git.enabled`). |
-| `/llm-wiki:git-log` | Vault-only log. |
-| `/llm-wiki:git-diff` | Vault-only diff (working tree / staged). |
-| `/llm-wiki:git-snapshot` | Commit vault state with a message. |
-| `/llm-wiki:git-lifecycle` | Audit commits by **lifecycle phase** (prefix tags) — flow progression, JSON export. |
-| `/llm-wiki:memory` | Session memory — list/recall/save/prune per-chat notes in `raw/memory/` when `memory.enabled`. |
-| `/llm-wiki:mcp` | MCP server — stdio or HTTP (`--transport sse`), `mcp install`, backends and config in **`skills/references/mcp-and-kg.md`**. |
-| `/llm-wiki:benchmark` | Run retrieval benchmarks (LME / LoCoMo / ConvoMem) from the vault; optional LLM rerank. |
+The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
 
 ---
 
-## Agent skills
+## Setup (short path)
 
-In Claude Code, skills load when relevant; in Cursor/Codex, open **`skills/*/SKILL.md`** or follow the slash commands above (same workflows).
+**1. Install the plugin in Claude Code** (no clone required):
 
-| Skill | What it does | When to use |
-|-------|----------------|-------------|
-| **wiki-maintainer** | Keeps `wiki/` coherent: index, log, cross-links, contradictions. | Editing `wiki/`, merging sources, consistency passes. |
-| **wiki-ingest** | Merges `raw/` into `wiki/` with index/log updates; respects ingestion security sub-prompt when flagged. | After `llm-wiki ingest` or new files in `raw/`. |
-| **wiki-query** | Answers using wiki pages with **citations** to file paths. | Questions about vault content. |
-| **wiki-lint** | Audits orphans, broken wikilinks, stale claims, contradictions. | “Health check” or audit requests. |
-| **wiki-research** | Topic-led research: discover sources, **`llm-wiki ingest`**, merge with **wiki-ingest** / **wiki-maintainer**, log phases in **`wiki/log.md`**. | User gives a research question or subject (not the JSON task file). |
-| **wiki-research-loop** | Runs **batch** tasks from the research tasks file (`research_loop.tasks_file`, default `research-tasks.json`). | HN / fixed URL lists on a schedule when `research_loop.enabled`. |
-| **wiki-raw-prepare** | Deterministic **`raw validate`** + LLM cleanup for HTML/PDF/OCR markdown; **`raw record`** audit log; aligns with git **`[prepare]`** phase. | After ingest when `raw/` is not yet valid markdown, before **wiki-ingest**. |
-| **wiki-session-memory** | Opt-in per-chat notes in **`raw/memory/`**; **`llm-wiki memory …`** + hooks; complements **wiki-learn** (`.agent-memory.md`). | Long sessions, recalling past work, manual or hook-driven saves. |
-| **wiki-status** | Vault health — integrations, MCP/search/KG backends, optional session memory. | Pre-flight / “is everything configured?” |
+```text
+/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
+/plugin install llm-wiki@llm-wiki-local
+```
 
-Security note for **wiki-ingest**: when `ingestion_security` flags content, follow `skills/wiki-ingest/references/prompt-injection-review.md`.
+More options (local marketplace, dev workflow, validation): [Install (Claude Code)](#install-claude-code) and [Install (development — clone)](#install-development--clone) below. Cursor and Codex users: **[`AGENTS.md`](AGENTS.md)** and project rules in **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)**.
 
----
-
-## Agents
-
-| Agent | Role |
-|-------|------|
-| **wiki-librarian** | Large multi-file wiki edits, batch cross-links; prefers `llm-wiki git *` when `git.enabled`. |
-| **wiki-raw-prepare** | Cleans and validates **`raw/`** before wiki merge; see [`agents/wiki-raw-prepare.md`](agents/wiki-raw-prepare.md). |
-| **research-runner** | Long research passes (many URLs/HN items); uses ingest + wiki-ingest patterns. |
-
----
-
-## CLI (`bin/llm-wiki`)
-
-Ensure the plugin `bin/` is on your `PATH`, or run:
-
-- **`bin/llm-wiki`** — use `./bin/llm-wiki …` from the repo, or **`/absolute/path/to/wiki-llm/bin/llm-wiki …` from any directory** (the wrapper resolves the repo from the script’s location).
-- **`python3 scripts/llm_wiki.py`** — only works when your shell’s **current directory is the repository root** (the folder that contains `scripts/`). If you see `can't open file 'scripts/llm_wiki.py'`, `cd` to that root or use `bin/llm-wiki` with an absolute path instead.
-
-You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **Avoid** `PYTHONPATH=scripts` (a relative entry): on Python 3.14+ it can crash during startup with `OSError: failed to make path absolute`. If you must set `PYTHONPATH`, use an absolute path, e.g. `PYTHONPATH="$PWD/scripts"`.
-
-| Subcommand | Purpose |
-|------------|---------|
-| `configure` | Write `config.json` (flags or `-i` interactive). Set wiki display name: `--persona-name "…"` (stored as `persona.name`, default **Gennie**). |
-| `setup` | Scaffold `llm-wiki/` from templates (`--root`, optional `--vault`). |
-| `teardown` | Remove `wiki/.og/` or `--purge` the whole vault (with `--yes`). |
-| `build-site` / `build-og` | Generate viewer + `wiki-data.json`. |
-| `validate` | Check layout; `--wikilinks` fails on links to missing `.md` files. |
-| `ingest` | `ingest --list`; `ingest <adapter> …` (e.g. `file`, `url`, `hackernews`). |
-| `raw validate` | Structural markdown checks for a file under `raw/` (balanced fences, etc.); **`--autofix`** for safe deterministic fixes. |
-| `raw record` | Append one audit line to **`raw/.preparation-log.jsonl`** (`--goal`, `--action validated|autofixed|llm_cleaned|noted`). |
-| `raw finish` | **`raw finish <path> -m "…"`** — autofix + validate + preparation log + **`[prepare]`** git snapshot ( **`--skip-git`** to log only). |
-| `integrations` | `status`, `validate`, or `wizard` (printed steps). |
-| `research-loop` | Run tasks with `run: true` from `research_loop.tasks_file` (default **`research-tasks.json`**, no extra deps). Use `.yaml` tasks only with **`pip install pyyaml`**. Flags: `--dry-run`, `--task ID`, `--force`. |
-| `graph` | Emit `graph-data.json` + static D3 UI to **`.tmp/llm-wiki-graph/`** (override with `--out`). Modes: `--mode links` (default, degree-colored) or `--mode knowledge` (link-component clusters). |
-| `graph-knowledge` | Alias for `graph --mode knowledge`. |
-| `git` | `init`, `status`, `log`, `diff`, `snapshot`, `query`, **`lifecycle`** (audit by phase; `--json`, `--phase`, `--since`). `snapshot -m "…" --phase wiki` prepends `[wiki]`. Optional **`snapshot_after_build`** after `build-site`. |
-| `security scan <file>` | Print heuristic scan JSON (does not mutate the file). |
-| `memory` | **`memory {save|log|list|show|recall|prune}`** — per-session markdown under **`raw/memory/`** when **`memory.enabled`**; **`--current`** reads **`llm-wiki/.current-session`**. |
-| `check` | Fast vault/config sanity; **`--plugin-repo`** verifies agent docs match **`docs/AGENTS.shared.md`** and runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
-| `sync-agent-docs` | Regenerate **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`** from **`docs/AGENTS.shared.md`**. **`--check`** exits non-zero if anything is out of sync (CI uses **`check --plugin-repo`**). |
-| `smoke-test` | Run **`pytest tests/`** from the plugin root. Default is **offline** (skips optional suites). **`--network`** enables **`@pytest.mark.network`** tests; **`--claude`** enables **`claude plugin validate`**. Also **`-v`**, **`--only-contracts`**, then pytest args after **`--`**. |
-| `test-report` | **Integration report:** runs real **`llm-wiki`** subprocesses (help matrix, temp vault pipeline, harvested safe lines from **`commands/*.md`**, skill frontmatter checks, optional **`--network`**, **`claude plugin validate`** if on `PATH`). Prints a **Markdown** table; **`--json FILE`** for machine output. Does **not** invoke an LLM or execute slash commands in chat. |
-
-**Optional APIs:** set env vars as needed — e.g. `FIRECRAWL_API_KEY`, `PERPLEXITY_API_KEY` (see `llm-wiki integrations status`). Perplexity: `llm-wiki ingest perplexity "your question"` or `--prompt-file`.
-
-**PDF ingest (`ingest pdf`):** install pip extras in a venv (recommended): `python3 -m venv .venv && .venv/bin/pip install -r requirements-optional.txt`. Scanned PDFs need **PyMuPDF** + system **Tesseract** (`brew install tesseract` on macOS). Text-only PDFs use **MarkItDown** (`markitdown[pdf]` in that file).
-
-**PEP 668 (externally managed Python):** On many Linux distributions, installing into the system interpreter with `pip` fails or is discouraged. Use a **venv** (as above), **pipx** for isolated CLIs, or your distro’s packages — avoid `sudo pip install` to the system Python.
-
----
-
-## Example: from zero to graph
+**2. Scaffold a vault** from a shell (plugin on `PATH`, or `./bin/llm-wiki` from this repo):
 
 ```bash
-# 1) Load plugin (development) — e.g. from a shell (see [CLI reference](https://code.claude.com/docs/en/cli-reference)):
-#    claude --plugin-dir /path/to/wiki-llm
-#    Or install from chat: /plugin marketplace add /path/to/wiki-llm → /plugin install llm-wiki@llm-wiki-local → /reload-plugins
-
-# 2) Scaffold vault
 llm-wiki setup --root .
+# or: ./bin/llm-wiki setup --root . --defaults
+```
 
-# 3) Copy a note into raw/ and optionally pull HN top stories
-llm-wiki ingest file ./README.md --out notes/readme-copy.md
-llm-wiki ingest hackernews --limit 5 --out research/hn-sample.md
+That creates **`llm-wiki/`** with `raw/`, `wiki/`, `config.json`, and vault rules. **Deeper walkthroughs** (basic → advanced tiers, flags, examples): **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**.
 
-# Optional: batch tasks from research-tasks.json (enable research_loop, set a task run: true)
-# llm-wiki research-loop --dry-run
-# llm-wiki research-loop
+---
 
-# 4) In Claude: merge raw → wiki (skill wiki-ingest), then build viewer
+## Usage (the loop)
+
+1. **Capture** — Ingest files or URLs into `raw/` (e.g. `llm-wiki ingest file …`, `ingest url …`).  
+2. **Curate** — In chat, use **`/llm-wiki:…`** commands and skills such as **wiki-ingest** / **wiki-maintainer** to merge material into `wiki/` with wikilinks and structure.  
+3. **Ship / browse** — `llm-wiki validate`, then `llm-wiki build-site` and serve the viewer over HTTP (not `file://`).
+
+Minimal end-to-end example:
+
+```bash
+llm-wiki setup --root .
+llm-wiki ingest file ./README.md --out notes/readme-clip.md
 llm-wiki build-site
 cd llm-wiki/wiki/.og && python3 -m http.server 8765
 # Open http://127.0.0.1:8765/
-
-# 5) Optional: standalone graph in .tmp (good for comparing link structure / clusters)
-llm-wiki graph-knowledge
-cd .tmp/llm-wiki-graph && python3 -m http.server 8890
 ```
 
-In chat you can drive the same flow with **`/llm-wiki:ingest`**, then **`/llm-wiki:build-og`**, and ask Claude to apply **wiki-ingest** / **wiki-maintainer** so new `raw/` files become proper `wiki/` pages with wikilinks.
+**Full green path, troubleshooting, git phases, MCP, benchmarks:** **[`WORKFLOWS.md`](WORKFLOWS.md)**. **Why `raw/` vs `wiki/`, evidence, and trust:** **[`ETHOS.md`](ETHOS.md)**.
+
+---
+
+## Documentation map
+
+| You want… | Read |
+|-----------|------|
+| Five-minute setup and capability tiers | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Vault vs plugin, data flow | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Day-to-day flows and ops | [`WORKFLOWS.md`](WORKFLOWS.md) |
+| Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
+| Slash-command prompts (`/llm-wiki:…`) | [`commands/`](commands/) |
+| Agent skills (`wiki-ingest`, `wiki-query`, …) | [`skills/`](skills/) |
+| Environment variables and integrations | [`docs/ENV.md`](docs/ENV.md), [`.env.example`](.env.example) |
+| MCP server, search backends, knowledge graph | [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
+| Retrieval benchmarks (LME / LoCoMo / ConvoMem) | [`benchmarks/README.md`](benchmarks/README.md) |
+| GitHub Pages (marketing site + Memory hub) | [`docs/README.md`](docs/README.md), [`docs/PUBLISHING.md`](docs/PUBLISHING.md) |
+| Contributing and tests | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Shared agent text (synced into `AGENTS.md` / rules) | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) |
+
+**Persona and agents:** [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/`](agents/).
+
+---
+
+## CLI at a glance
+
+Run **`bin/llm-wiki`** from the plugin repo (any cwd if you use the absolute path to the script) or **`python3 scripts/llm_wiki.py`** **from the repository root**. Do **not** rely on `PYTHONPATH=scripts` with a relative path (Python 3.14+ can break); the script adds `scripts/` to `sys.path` itself.
+
+Common subcommands: **`setup`**, **`ingest`**, **`validate`**, **`build-site`**, **`configure`** (`-i` interactive), **`raw validate` / `raw finish`**, **`memory …`** (when enabled), **`mcp`**, **`benchmark …`**, **`check`**, **`sync-agent-docs`**. Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags; **WORKFLOWS** and **QUICKSTART** cover the happy paths.
+
+---
+
+## Configuration (quick)
+
+Toggles live in **`llm-wiki/config.json`**: viewer, integrations, git, research loop, ingestion security, optional hooks, and **`persona.name`** (default **Gennie**). For sound hooks, ingest policy, viewer serving, and git lifecycle, see **[Configuration (full)](#configuration-full)** below and **[`WORKFLOWS.md`](WORKFLOWS.md)**.
 
 ---
 
@@ -175,114 +103,107 @@ In chat you can drive the same flow with **`/llm-wiki:ingest`**, then **`/llm-wi
 
 ## Install (Claude Code — no clone)
 
-Add the GitHub repo as a **plugin marketplace**, then install **llm-wiki** (catalog name in [`marketplace.json`](marketplace.json) is `llm-wiki-local`):
+Add this repo as a **plugin marketplace**, then install **llm-wiki** (catalog name in [`marketplace.json`](marketplace.json): `llm-wiki-local`):
 
 ```text
 /plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
 /plugin install llm-wiki@llm-wiki-local
 ```
 
-Update the marketplace after upstream changes: `/plugin marketplace update`. See [Discover and install plugins](https://docs.anthropic.com/en/discover-plugins) and [plugin marketplaces](https://docs.anthropic.com/en/docs/claude-code/plugin-marketplaces).
+After upstream changes: `/plugin marketplace update`. Official docs: [Discover and install plugins](https://docs.anthropic.com/en/discover-plugins), [plugin marketplaces](https://docs.anthropic.com/en/docs/claude-code/plugin-marketplaces).
 
-**Cursor & Codex:** **[`AGENTS.md`](AGENTS.md)**; Cursor picks up **`rules/*.mdc`** (see **`.cursor/rules/`**). **Claude Code** in Cursor: enable plugins and run the marketplace steps above.
+**Note:** GitHub cannot install the plugin for you—use the steps above or clone for development. VS Code–style `vscode:extension/…` links apply to **published extensions**, not Claude **plugin** marketplaces.
+
+<a id="install-development--clone"></a>
 
 ## Install (development — clone)
-
-From the cloned repo (optional sanity check):
 
 ```bash
 ./setup
 ```
 
-Load the plugin in Claude Code (pick one):
+Load the plugin in Claude Code:
 
-- **Quick (one-off session):** `claude --plugin-dir /path/to/wiki-llm` — see [CLI reference](https://code.claude.com/docs/en/cli-reference). This is what **`tests/conftest.py`** uses for **`claude -p`** skill evals.
+- **One-off session:** `claude --plugin-dir /path/to/wiki-llm` — see [CLI reference](https://code.claude.com/docs/en/cli-reference).
+- **Persistent:** add the repo as a marketplace and ` /plugin install llm-wiki@llm-wiki-local`, then `/reload-plugins`.
 
-- **Persistent install:** add this repo as a marketplace, then install the catalog plugin:
-
-  ```text
-  /plugin marketplace add /path/to/wiki-llm
-  /plugin install llm-wiki@llm-wiki-local
-  /reload-plugins
-  ```
-
-  Or from a shell: `claude plugin marketplace add /path/to/wiki-llm` then `claude plugin install llm-wiki@llm-wiki-local`.
-
-Reload plugins after changes: `/reload-plugins`
+Local installs copy the tree into `~/.claude/plugins/cache/` (not `.gitignore`-aware). For a slimmer tree: **`./scripts/plugin_dev_slim.sh`** (dry-run, then `--apply`), or use `claude --plugin-dir` for daily dev.
 
 ```bash
-claude plugin validate /path/to/wiki-llm   # or `.` from inside the repo
-# or in Claude Code:
-/plugin validate
+claude plugin validate /path/to/wiki-llm
+# or in chat: /plugin validate
 ```
+
+---
+
+## Slash commands, skills, and agents (overview)
+
+In Claude Code, **`/llm-wiki:…`** maps to files under **[`commands/`](commands/)**. Skills live under **[`skills/*/SKILL.md`](skills/)** (e.g. **wiki-ingest**, **wiki-maintainer**, **wiki-query**, **wiki-research**, **wiki-session-memory**). Agents are in **[`agents/`](agents/)**. For the full tables that used to live here, browse those folders or see **WORKFLOWS**—the README stays an onboarding layer, not a second manual.
+
+---
+
+## Example: from zero to graph
+
+```bash
+# Development: load plugin (e.g. claude --plugin-dir /path/to/wiki-llm)
+
+llm-wiki setup --root .
+llm-wiki ingest file ./README.md --out notes/readme-copy.md
+llm-wiki ingest hackernews --limit 5 --out research/hn-sample.md
+
+# In chat: merge raw → wiki (wiki-ingest / wiki-maintainer), then:
+llm-wiki build-site
+cd llm-wiki/wiki/.og && python3 -m http.server 8765
+
+# Optional: link graph bundle
+llm-wiki graph-knowledge
+cd .tmp/llm-wiki-graph && python3 -m http.server 8890
+```
+
+---
 
 ## Testing (plugin repo)
 
-Contract tests, CLI `--help` coverage, and a deterministic vault flow live under **`tests/`** (files named **`*.test.py`**; **`pytest.ini`** sets `--import-mode=importlib` so those names collect correctly).
-
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-PYTHONPATH=scripts python3 -m pytest tests/
+llm-wiki smoke-test
 ```
 
-Prefer **`llm-wiki smoke-test`** (sets `PYTHONPATH` for you) or CI; manual `PYTHONPATH=scripts` is for contributors who need raw pytest and understand the Python 3.14+ notes in [`rules/llm-wiki.mdc`](rules/llm-wiki.mdc) (use an absolute path if you set `PYTHONPATH`).
+Prefer **`llm-wiki smoke-test`** over ad-hoc `PYTHONPATH`; if you need raw pytest, use an **absolute** `PYTHONPATH` to `scripts/` (see [`CONTRIBUTING.md`](CONTRIBUTING.md)). Options: `--network`, `--claude`, `--only-contracts`; **`llm-wiki test-report`** for a Markdown matrix.
 
-Shortcuts from the repo root (after `pip install` as above):
+---
 
-```bash
-llm-wiki smoke-test               # full pytest (offline; optional tests skipped)
-llm-wiki smoke-test --network     # include HTTPS reachability test
-llm-wiki smoke-test --claude      # include `claude plugin validate` (needs `claude` on PATH)
-llm-wiki smoke-test --network --claude
-llm-wiki smoke-test --only-contracts
-llm-wiki test-report               # PASS/FAIL table: CLI + vault + commands + skills (frontmatter)
-llm-wiki test-report --network --json /tmp/report.json
-# Or: RUN_NETWORK_TESTS=1 RUN_CLAUDE_TESTS=1 PYTHONPATH=scripts python3 -m pytest tests/
-llm-wiki check                    # fast: vault config + hints
-llm-wiki check --plugin-repo      # also compileall scripts/
-llm-wiki check --claude-validate  # if `claude` is on PATH: plugin validate
-```
+<a id="configuration-full"></a>
 
-Each **`commands/*.md`** and **`skills/*/SKILL.md`** includes a **`## Smoke check`** section (CLI snippet + pasteable agent prompt) for manual verification.
+## Configuration (full)
 
-## Configuration
+- **`config.json`** — `viewer` (including `open_file_scheme`, `og_base_url`), `integrations`, `git`, `research_loop`, `ingestion_security`, **`hooks.sound`**, **`persona.name`**.
+- **Sound hook** — Optional `hooks.sound.enabled` + `hooks.sound.command` (argv JSON); restrict executables unless `allow_arbitrary_command` is set deliberately (see **WORKFLOWS**).
+- **Ingest URLs** — `ingest url` / Firecrawl allow http(s) to public hosts only; integration hosts are allowlisted.
+- **Viewer** — Serve `wiki/.og/` over HTTP; **DOMPurify** on rendered bodies; **Open file** via `viewer.open_file_scheme`.
+- **Ingest paths** — `--out` must stay under `raw/`.
+- **Wikilinks** — `[[Page]]` / `[[page.md|label]]`; general Markdown: [Markdown Guide](https://www.markdownguide.org/basic-syntax/).
+- **Vault git** — With `git.enabled`, **`llm-wiki git lifecycle`** audits commits by phase; see [`commands/git-lifecycle.md`](commands/git-lifecycle.md).
 
-All toggles live in **`llm-wiki/config.json`**: `viewer` (including `open_file_scheme`, `og_base_url`), `integrations`, `git`, `research_loop`, `ingestion_security`, **`hooks.sound`**, and **`persona.name`** — the wiki’s display name (default **Gennie**), surfaced in the static viewer / graph titles and in skill prompts when using `skills/references/context-persona.md`.
-
-**Sound hook (optional):** Set `hooks.sound.enabled` to `true` and `hooks.sound.command` to a JSON array of argv (e.g. macOS `["afplay", "/System/Library/Sounds/Glass.aiff"]`, or a wrapper script path as the first element). By default (`hooks.sound.allow_arbitrary_command` false), the first argv must be an **absolute path** to an executable or a short **allowlisted** player name (`afplay`, `say`, `aplay`, …). Set `allow_arbitrary_command` to `true` only if you fully trust `config.json`. When enabled, the CLI runs the command after a successful **`llm-wiki ingest`** (`on_ingest`) and after a successful **`llm-wiki research-loop`** run that executed at least one task (`on_research_loop`). Inner ingests during a research loop do not repeat the ingest hook; use `on_research_loop` for one notification per batch. Failures in the hook are logged to stderr and do not fail the main command.
-
-**Ingest URLs:** `ingest url` and `ingest firecrawl` only allow **http(s)** targets that resolve to **public** addresses (not `file://`, loopback, or RFC1918). Integration API calls use **allowlisted hosts** for Firecrawl and Perplexity (`api_base_url` cannot point credentials at arbitrary servers).
-
-**Persona:** The plugin ships **[`prompts/PERSONA.md`](prompts/PERSONA.md)** (warm, evidence-first librarian-robot; no fluff; verify don’t trust; iterate). Each agent definition (**[`agents/wiki-librarian.md`](agents/wiki-librarian.md)**, **[`agents/research-runner.md`](agents/research-runner.md)**) inlines role-specific persona emphasis. Skills may optionally inject **`skills/references/context-persona.md`** when invoking tools.
-
-**Viewer:** after `build-site`, serve `wiki/.og/` over HTTP (not raw `file://`) so the browser can load `wiki-data.json`. The viewer can link **Open file** via `viewer.open_file_scheme` (`file`, `vscode`, `cursor`). The header uses **`persona.name`** from `wiki-data.json`. Rendered page bodies go through **DOMPurify**; git ledger lines are escaped.
-
-**Ingest paths:** Adapter `--out` must stay under `raw/` (relative only); paths that escape `raw/` are rejected.
-
-**Wikilinks:** Obsidian-style `[[Page]]` / `[[page.md|label]]`. General Markdown: [Markdown Guide](https://www.markdownguide.org/basic-syntax/).
-
-**Workflows:** Step-by-step green path, research loop, and troubleshooting table → [`WORKFLOWS.md`](WORKFLOWS.md). Principles for evidence and layers → [`ETHOS.md`](ETHOS.md).
-
-**Vault git & lifecycle:** With `git.enabled`, use **`llm-wiki git lifecycle`** to classify recent commits by prefix (`git.lifecycle.phases` in config). That gives an auditable trail of ingest → wiki → build-site → graph-style progression when you use consistent `[phase]` prefixes (including `git snapshot --phase wiki`). See [`commands/git-lifecycle.md`](commands/git-lifecycle.md).
+---
 
 ## Using llm-wiki with gstack
 
-[garrytan/gstack](https://github.com/garrytan/gstack) is an opinionated Claude Code skill stack (planning, review, QA, ship, browse, safety modes, and more). It targets **general repo and product workflow**; **llm-wiki** targets a **dedicated knowledge vault** (`llm-wiki/` with `raw/` + `wiki/` + ingest + viewers).
+[garrytan/gstack](https://github.com/garrytan/gstack) is a broader Claude Code skill stack (review, QA, ship, browse). **llm-wiki** focuses on a **dedicated vault** (`raw/` + `wiki/` + ingest + viewers). Use **gstack** for app/repo workflow; use **llm-wiki** for the knowledge layer. [gstack install](https://github.com/garrytan/gstack#install--30-seconds).
 
-Use them **together** without duplicating scope:
-
-- **llm-wiki** — Scaffold the vault, ingest into `raw/`, merge into `wiki/`, validate wikilinks, build the static wiki viewer and optional `.tmp` graph bundles, vault-scoped git, ingestion security.
-- **gstack** — Run `/review`, `/qa`, `/ship`, `/investigate`, `/browse`, etc. on **your application repo** (including the repo that contains `llm-wiki/` if you commit the vault).
-
-Install gstack per [their README](https://github.com/garrytan/gstack#install--30-seconds). Keep **vault-specific** work in llm-wiki skills/commands; use **gstack** when you need repo-wide code review, browser QA, or release automation. Neither replaces the other.
+---
 
 ## Marketplace
 
-See [`marketplace.json`](marketplace.json) for a local marketplace entry.
+[`marketplace.json`](marketplace.json) lists the local marketplace entry.
+
+---
 
 ## Privacy and telemetry
 
-This plugin does **not** ship phone-home telemetry. Optional integrations (Firecrawl, Perplexity, Anthropic for benchmarks, etc.) use **your** API keys and those providers’ policies. Session memory and vault files stay **local** under your `llm-wiki/` path unless you sync or upload them yourself.
+No phone-home telemetry from the plugin. Optional APIs (Firecrawl, Perplexity, etc.) use **your** keys. Vault and session memory stay **local** unless you sync them yourself.
+
+---
 
 ## License
 
