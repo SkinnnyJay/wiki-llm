@@ -38,6 +38,8 @@ We treat the vault as **sources first, then curated notes**—not one undifferen
 
 Evidence, trust, and why **`raw/`** and **`wiki/`** differ: **[`ETHOS.md`](ETHOS.md)**.
 
+- **Ingest risk** — Scraping or ingesting URLs copies **arbitrary text** into `raw/` and later into model context. That includes **prompt-injection** patterns and **bad-faith** pages meant to mislead automations or readers—**use at your discretion**. This plugin does not sanitize the web for you. See **[`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md)** and **[`ETHOS.md` — Ingestion and security](ETHOS.md#ingestion-and-security)**.
+
 ## Memory
 
 We split **vault knowledge**, **chat continuity**, and **retrieval evaluation**—so “memory” stays understandable and under your control.
@@ -117,6 +119,7 @@ echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 | Inspiration + feature list (memory, MCP, vault) | [`docs/INSPIRATION.md`](docs/INSPIRATION.md) |
 | Vault vs plugin, data flow | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Day-to-day flows and ops | [`WORKFLOWS.md`](WORKFLOWS.md) |
+| Web ingest, legal access, untrusted content / prompt injection | [`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md) |
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
 | Slash commands — index, summaries, CLI hints | [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) |
 | Slash prompt sources (`commands/*.md`) | [`commands/`](commands/) |

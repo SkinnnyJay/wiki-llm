@@ -7,7 +7,7 @@ argument-hint: "<newsletter URL or publication name>"
 
 # Wiki extract — newsletter
 
-**Compliance:** [`access-sources-disclaimer.md`](../references/access-sources-disclaimer.md)
+**Compliance:** [`access-sources-disclaimer.md`](../references/access-sources-disclaimer.md) — fetching or ingesting issues pulls **untrusted text** into the vault (prompt-injection and bad-faith content are possible); **use at your discretion**.
 
 Full steps, commands, frontmatter templates, and troubleshooting: **[`skills/references/wiki-extract-newsletter.md`](../references/wiki-extract-newsletter.md)**.
 
