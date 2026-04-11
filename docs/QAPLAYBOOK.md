@@ -3,8 +3,8 @@
 Manual test suite for verifying the full plugin flow before releases.
 Run through each section after significant changes; mark pass/fail in your notes.
 
-> **Quick smoke:** `bin/llm-wiki smoke-test -v` runs the full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay). See **§25** (pytest tiers), **§26** (playbook vs tests), **§27** (automation levels — what can and cannot be asserted in CI).
-> This playbook also covers **manual** steps (viewer UI, marketplace install, cross-tool parity) that are not fully automated.
+> **Quick smoke:** `bin/llm-wiki smoke-test -v` runs the full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay). Opt-in tiers: **`--network`**, **`--claude`**, **`--browser`** (sets `RUN_*` env vars; pytest prints one-time **stderr banners** when those tiers are on). See **§25** (pytest tiers), **§26** (playbook vs tests), **§27** (automation levels — what can and cannot be asserted in CI).
+> This playbook also covers **manual** steps (full viewer UX, marketplace install, cross-tool parity) beyond the automated viewer smoke.
 
 ---
 
@@ -495,8 +495,10 @@ After any code change, verify these do not regress:
 | 4 | Hook scripts (`tests/test_hooks.py`, needs `jq`) | same | Free |
 | 5 | MCP stdio JSON-RPC (`tests/test_mcp_contract.py`) | same | Free |
 | 6 | Golden replay (`tests/test_replay_golden.py`, `tests/fixtures/golden/*.json`) | `bin/llm-wiki smoke-test -v` or `bin/llm-wiki smoke-test --replay` | Free |
-| 7 | Agent skill evals (`tests/test_skill_evals.py`, `tests/skill_eval_cases.py`) | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | Agent CLI usage |
-| 7b | Optional Codex mirror (`tests/test_skill_evals_codex.py`) | `RUN_CODEX_SKILL_EVALS=1` + `pytest …` | Same scenarios as tier 7 |
+| 7 | Agent skill evals (`tests/test_skill_evals.py`, `tests/skill_eval_cases.py`) | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | Agent CLI usage — **full** list is all non-excluded `wiki-*` skills in `SKILL_EVALS`; network/API extract + web research skills are listed in `SKILL_EVAL_EXCLUDE` (see `tests/test_plugin_inventory.py`) |
+| 7b | Optional Codex mirror (`tests/test_skill_evals_codex.py`) | `RUN_CODEX_SKILL_EVALS=1` + `pytest …` | Same scenarios as tier 7 (honours `RUN_MINIMAL_SKILL_EVALS` like Claude) |
+| 7c | Minimal skill evals (dev) | `RUN_MINIMAL_SKILL_EVALS=1` with tier 7 / `--claude` | Only wiki-query, wiki-status, wiki-session-memory |
+| 8 | Viewer smoke (`tests/test_viewer_playwright.py`) | `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` (needs `pip install playwright` + `playwright install chromium`) | Local Chromium only (not an LLM) |
 
 Tier 7 runs **`claude -p`** against shared scenarios in **`tests/skill_eval_cases.py`**. Optional **`tests/test_skill_evals_codex.py`** runs the same cases via **`codex exec`** when **`RUN_CODEX_SKILL_EVALS=1`**. Non-zero exit fails the test (full stdout/stderr on assertion). **`SKILL_EVAL_BACKEND`** on **`skill_eval_runner`** (in `conftest`) defaults to **claude** if anything still uses that fixture.
 
@@ -553,20 +555,21 @@ claude -p --setting-sources project --no-session-persistence --dangerously-skip-
 | **§8** Session memory | `test_session_memory.py`; E2E memory save/list/recall/show | Prune edge cases, bad metadata — spot-check |
 | **§9** Git | `test_mcp.py` or dedicated git tests if present — **partial** | Full git matrix (§9) — manual or expand tests |
 | **§10** MCP | `test_mcp_contract.py` (stdio JSON-RPC); `test_mcp.py` (tools/search) | **§10b** SSE/HTTP server, port conflicts — manual; **§10.16–10.17** `mcp install` / `mcp start` — manual |
-| **§11** Viewer | — | **All browser / UI** — manual |
+| **§11** Viewer | `test_viewer_playwright.py` (`@pytest.mark.browser`, `RUN_BROWSER_TESTS=1`): `build-site` → HTTP → Chromium loads `index.html` | Full search/D3/editor UX — manual |
 | **§12** Graph CLI | E2E + `vault_flow` `graph --out` | `graph --mode knowledge`, empty wiki — partially in other tests; spot-check |
 | **§13–15** Research / benchmarks / metrics | `test_benchmark.py`, `test_locomo_convomem_suites.py`, `test_lme_failure_qids.py`; E2E `metrics stats` | Full benchmark suites with real data paths — opt-in / CI |
 | **§16** Agent docs | `sync_agent_docs.test.py` | Deliberate drift test (§16.3) — manual destructive check |
 | **§17** Plugin manifests | `plugin_contracts.test.py` (commands/skills/adapters) | `integrations wizard`, live API validate — manual |
 | **§18** Error paths | `test_error_paths.py`, `url_safety.test.py` | Permission-denied, concurrency, 10MB files — manual or future tests |
 | **§19** CLI help | `cli_help.test.py` (every subcommand `--help`) | `unknown subcommand` UX — spot-check |
-| **§20** Hooks | `test_hooks.py` (needs `jq`) | Real IDE hook triggers — manual |
+| **§20** Hooks | `test_hooks.py` (needs `jq`); `test_hooks_inventory.py` (`hooks.json` paths + `bash -n` on `hooks/*.sh`) | Real IDE hook triggers — manual |
 | **§21** Slash commands | `plugin_contracts.test.py` (command files + skills) | Prompt quality — manual |
-| **§22** Skills (agent) | Tier **7** `test_skill_evals.py` + `tests/skill_eval_cases.py` (`RUN_CLAUDE_TESTS=1`); optional Codex mirror | All 12 skills end-to-end — manual in product |
+| **§22** Skills (agent) | Tier **7** `test_skill_evals.py` + `skill_eval_cases.py` (`RUN_CLAUDE_TESTS=1`); `test_plugin_inventory.py` (every `wiki-*` skill in `SKILL_EVALS` or `SKILL_EVAL_EXCLUDE`); optional Codex mirror | Full product slash-command UX — manual |
 | **§23** E2E scenario | `test_e2e_flow.py` mirrors the script (including final `validate`, `check`, then `teardown --purge`) | — |
 | **§24** Regression | Same as §0 + §23 + MCP/hooks/replay | Periodic §11/§10b manual passes before release |
+| **Inventory** | `test_hooks_inventory.py` + `test_plugin_inventory.py` (default `smoke-test`) | — |
 
-**Markers:** `pytest -m network` (opt-in), `-m replay` (golden only), `-m claude` (skill evals, opt-in).
+**Markers:** `pytest -m network` (opt-in), `-m replay` (golden only), `-m claude` (skill evals, opt-in), `-m browser` (Playwright viewer, opt-in). Env: `RUN_MINIMAL_SKILL_EVALS=1` shrinks Claude/Codex skill evals to three core cases (stderr banner when set).
 
 ---
 
@@ -581,9 +584,11 @@ claude -p --setting-sources project --no-session-persistence --dangerously-skip-
 | **L0 — Default gate** | `bin/llm-wiki smoke-test -v` | Full offline pytest: contracts, CLI `--help`, vault flows, E2E (`test_e2e_flow.py`), hooks (`jq`), MCP stdio contract, golden replay, adapters, error paths, session memory, benchmarks that do not need network — **see §26** | Every PR / push |
 | **L0b — Replay only** | `bin/llm-wiki smoke-test --replay` | Golden CLI fixtures only (`@pytest.mark.replay`) | Quick regression on parser/CLI changes |
 | **L1 — Network opt-in** | `RUN_NETWORK_TESTS=1 bin/llm-wiki smoke-test --network` or `pytest -m network` | HTTPS reachability (`tests/network.test.py`) | Environments that allow egress |
-| **L2 — Agent CLI (paid / local)** | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | `claude plugin validate` + tier-7 skill evals (`test_skill_evals.py`); needs Claude Code CLI + subscription/OAuth | Maintainer machines, pre-release |
-| **L2b — Codex skill mirror** | `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` | Same scenarios via `codex exec` | Optional second agent |
-| **L3 — Manual / product** | Checklists **§11**, **§10b** (SSE), **§10.16–17** (`mcp install`), interactive **§1.2 / §2.2**, live **integrations validate** | Human or dedicated E2E infrastructure | Release candidate, marketplace submission |
+| **L2 — Agent CLI (Claude, full skill eval)** | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | `claude plugin validate` (when enabled) + full `SKILL_EVALS` in `tests/skill_eval_cases.py` (`test_skill_evals.py`); needs Claude Code CLI + subscription/OAuth; `RUN_MINIMAL_SKILL_EVALS=1` limits to three core cases | **Pre-ship required** (full list); minimal env for quick local runs |
+| **L2b — Codex skill mirror** | `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` | Same scenarios via `codex exec` | Optional second agent (pre-ship: optional; skip if no Codex) |
+| **L2c — Browser / viewer smoke** | `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` | Playwright loads built static viewer (`@pytest.mark.browser`) | Pre-ship or machines with Chromium installed |
+| **L2d — Full inventory (deterministic)** | Included in **L0** (`test_hooks_inventory.py`, `test_plugin_inventory.py`) | `hooks.json` ↔ `hooks/*.sh`; every `wiki-*` skill in `SKILL_EVALS` or `SKILL_EVAL_EXCLUDE`; `bash -n` on hooks | Re-run explicitly before release if desired |
+| **L3 — Manual / product** | Checklists **§11** (full UI), **§10b** (SSE), **§10.16–17** (`mcp install`), interactive **§1.2 / §2.2**, live **integrations validate** | Human or dedicated E2E infrastructure | Release candidate, marketplace submission |
 
 ### What is intentionally *not* fully programmatic
 
@@ -600,6 +605,21 @@ claude -p --setting-sources project --no-session-persistence --dangerously-skip-
 
 Add **new pytest tests** when a case is **deterministic** (subprocess, `tmp_path`, no network). Keep **manual** rows for UI and environment-specific checks. When you add a test, update **§26** so the matrix stays truthful.
 
+### Pre-ship deep test (release candidate)
+
+PR CI can stay on **L0** only. Before a release or marketplace submission, run in order:
+
+1. **Deterministic / gate (L0 + §0):** `bin/llm-wiki smoke-test -v`, `bin/llm-wiki sync-agent-docs --check`, `bin/llm-wiki check --plugin-repo` (includes **L2d** inventory tests: `test_hooks_inventory.py`, `test_plugin_inventory.py`).
+2. **Inventory spot-check (optional):** `python -m pytest tests/test_plugin_inventory.py tests/test_hooks_inventory.py -v` if you want an explicit re-run.
+3. **Browser (L2c):** `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` after `pip install playwright` and `playwright install chromium` — **recommended** (static viewer).
+4. **Claude skill eval (L2) — required:** `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` (full `SKILL_EVALS` + `claude plugin validate` when applicable). Do **not** set `RUN_MINIMAL_SKILL_EVALS` for release.
+5. **Codex mirror (L2b) — optional:** `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` — skip if you do not use Codex.
+6. **Network (L1) — optional:** `RUN_NETWORK_TESTS=1 bin/llm-wiki smoke-test --network` if egress matters for this release.
+
+**Dev shortcut:** `RUN_MINIMAL_SKILL_EVALS=1` with `--claude` runs only wiki-query / wiki-status / wiki-session-memory (stderr banner when set).
+
+When any of **L1 / L2 / L2b / L2c** (or `RUN_MINIMAL_SKILL_EVALS` / `RUN_CODEX_SKILL_EVALS`) apply, pytest / `smoke-test` prints a short **stderr banner** so logs show cost-bearing tiers.
+
 ---
 
 ## Version history
@@ -612,3 +632,5 @@ Add **new pytest tests** when a case is **deterministic** (subprocess, `tmp_path
 | 2026-04-10 | `claude_runner` / `qa_record`: `--add-dir` vault + `--` before prompt; QAPLAYBOOK portable `claude -p` example (`$REPO_ROOT`, no hardcoded paths) |
 | 2026-04-10 | §26 coverage matrix; E2E final `validate`+`check`; `test_check_plugin_repo_cli_matches_qa_gate` for §0.3 |
 | 2026-04-10 | §27 automation levels (L0–L3): programmatic vs manual; what cannot be CI-asserted |
+| 2026-04-10 | Tier 8 / L2c: `test_viewer_playwright.py`, `smoke-test --browser`, `RUN_BROWSER_TESTS`; `test_hooks_inventory.py`; stderr banners; pre-ship checklist (Claude required, Codex optional) |
+| 2026-04-10 | L2d/L2e: `test_plugin_inventory.py`; expanded `SKILL_EVALS` + `SKILL_EVAL_EXCLUDE`; `skill_eval_cases_for_run` + `RUN_MINIMAL_SKILL_EVALS`; pre-ship doc order (inventory → browser → Claude → Codex → network) |
