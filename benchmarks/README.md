@@ -13,6 +13,10 @@ Measure retrieval quality (recall@K, NDCG@K) for vault search backends and optio
 - Python 3.10+ with `scripts/` dependencies (see project `README.md`).
 - Optional: `chromadb` for semantic / hybrid search — install from repo root with **`pip install -r requirements-optional.txt`** (version range pinned there; avoids surprise on-disk breaks across major Chroma releases).
 
+## Optional ingest adapters (copyleft)
+
+The **MinerU** PDF adapter ([`scripts/ingest/adapters/pdf_mineru.py`](../scripts/ingest/adapters/pdf_mineru.py)) bundles upstream **AGPL-3.0** tooling. If you ship combined workflows that include MinerU, understand **copyleft** obligations; the adapter docstring names the license.
+
 ## LME (LongMemEval-style)
 
 The **LME** runner (`benchmarks/lme_bench.py`) downloads the public Hugging Face cleaned JSON (cached under `benchmark.data_cache_dir`, default `~/.cache/llm-wiki-benchmarks/lme_s_cleaned.json`) and evaluates **one haystack per question** against wiki-llm indexing.

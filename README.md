@@ -14,6 +14,8 @@
 
 This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
 
+**Branding / images:** The main site logo includes AI-related provenance metadata (C2PA). See **[`docs/ASSETS.md`](docs/ASSETS.md)** if you redistribute or replace assets.
+
 ---
 
 ## Inspiration

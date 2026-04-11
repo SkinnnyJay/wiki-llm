@@ -7,6 +7,8 @@ argument-hint: "<book title, ISBN, or search query>"
 
 # Wiki extract — Anna's Archive
 
+**Compliance:** [`access-sources-disclaimer.md`](../references/access-sources-disclaimer.md) — see also the reference doc for lawful-use context.
+
 Full steps, commands, frontmatter templates, and troubleshooting: **[`skills/references/wiki-extract-annas.md`](../references/wiki-extract-annas.md)**.
 
 **Orchestration:** [`skills/wiki-extract/SKILL.md`](../wiki-extract/SKILL.md) (this index), plus **wiki-research** / **wiki-research-web** for URL routing.

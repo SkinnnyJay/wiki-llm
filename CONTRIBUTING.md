@@ -2,7 +2,7 @@
 
 ## Pull requests and release scope
 
-- **Maintainer backlog:** Optional follow-ups from reviews live in **[`TODOS.md`](TODOS.md)** (non-blocking).
+- **Maintainer backlog:** Track follow-ups in issues or your team’s tool of choice (no separate `TODOS.md` in-repo).
 - **Keep PRs reviewable:** Prefer one cohesive change set (e.g. pipeline + tests, or docs-only) over mixing unrelated refactors with new adapters and dozens of new skills.
 - **Split large work:** If you have both “core plugin behavior” and “optional ingest adapters / extract skills,” consider **two PRs** so `ingest --list`, contract tests, and reviewers stay aligned.
 - **What to include before merge:** Anything that should ship together should be **committed**; untracked files are invisible to CI and to `tests/plugin_contracts.test.py` registry checks.

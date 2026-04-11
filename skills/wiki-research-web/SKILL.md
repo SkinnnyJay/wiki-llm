@@ -10,6 +10,8 @@ Fetches one or more URLs into `raw/` using the best available adapter. Use this 
 
 For single-URL fetch without wiki merge, use **wiki-fetch** instead.
 
+**Compliance:** [`access-sources-disclaimer.md`](../references/access-sources-disclaimer.md)
+
 ---
 
 ## Step 1 — Check adapter availability

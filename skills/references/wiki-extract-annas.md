@@ -9,6 +9,8 @@ Searches Anna's Archive (the largest shadow library aggregator) for ebooks, pape
 
 **Requires:** `ANNAS_ARCHIVE_KEY` environment variable (Anna's Archive membership).
 
+**Compliance:** [`access-sources-disclaimer.md`](access-sources-disclaimer.md). You are responsible for lawful use of sources and for complying with Anna's Archive and upstream site terms.
+
 ---
 
 ## Step 0 — Check credentials
