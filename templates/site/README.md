@@ -7,9 +7,9 @@ Three-column layout: page tree · D3 force graph · markdown reader.
 - **D3 v7:** `https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js`
 - **marked v17:** `https://cdn.jsdelivr.net/npm/marked@17/marked.min.js`
 - **DOMPurify 3.2.4:** `https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js` (sanitizes markdown HTML via `RETURN_DOM_FRAGMENT`)
-- **Google Fonts:** DM Sans (UI) + Source Serif 4 (reader body) — matching `docs/css/style.css`
+- **Google Fonts:** DM Sans (UI) + Source Serif 4 (reader body) — matching `docs/site/css/style.css` (see **`docs/DESIGN.md`** for Pages tokens)
 
-Tailwind CDN was removed in favor of custom CSS with design tokens from `docs/css/style.css`.
+Tailwind CDN was removed in favor of custom CSS with design tokens from `docs/site/css/style.css`.
 
 ## Serving
 
@@ -28,6 +28,6 @@ Open `http://127.0.0.1:8765/` — serve over HTTP, not `file://`, so `fetch()` w
 - **Graph** — D3 force layout, nodes colored by directory, sized by degree; hover highlights neighbors, click opens reader
 - **Reader** — serif title, metadata bar, rendered markdown with code blocks / blockquotes / tables, linked-page cards
 - **Ledger** — recent-activity strip at bottom (git commits when vault git is enabled): each entry shows date, optional `[tag]` chip, and a two-line clamped title (full text on hover)
-- **Logo** — `logo-mark.svg` (transparent mark, same art as `docs/assets/logo-mark.svg`)
+- **Logo** — `logo-mark.svg` (transparent mark, same art as `docs/site/assets/logo-mark.svg`)
 - **Sidebar toggle** — collapse page tree for more graph space
 - **Responsive** — sidebar hides at 900px, stacks vertically at 640px

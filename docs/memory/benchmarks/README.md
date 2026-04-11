@@ -1,6 +1,13 @@
 # Memory × benchmarks
 
-This folder holds **benchmark roadmap, comparisons, and (when implemented) run reports** for long-term retrieval evaluation — separate from per-vault wiki content. **“Memory” here means long-context / retrieval evaluation docs**, not the session-memory feature (`raw/memory/`).
+This folder holds **benchmark roadmap, comparisons, and (when implemented) run reports** for long-term retrieval evaluation — separate from per-vault wiki content.
+
+**Not the same as:**
+
+- **`memory.enabled`** / **`llm-wiki memory …`** — per-chat session notes under **`raw/memory/`** (see **`skills/wiki-session-memory`**, **`docs/ENV.md`** § Session memory).
+- **`.agent-memory.md`** — cross-session assistant notes (**wiki-learn**).
+
+**“Memory” here means** long-context / retrieval **benchmark** docs (LME, LoCoMo, ConvoMem, etc.), not vault session storage.
 
 ## Roadmap status (high level)
 

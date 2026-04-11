@@ -11,33 +11,32 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/style.css" />
-  <link rel="icon" href="../favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png" />
-  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+  <link rel="stylesheet" href="../site/css/style.css" />
+  <link rel="icon" href="../site/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../site/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="../site/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="../site/apple-touch-icon.png" />
 </head>
 <body>
   <header class="site-header">
     <div class="wrap wrap-header">
       <div class="site-header-bar">
-        <a class="brand-lockup" href="../index.html" aria-label="llm-wiki home">
+        <a class="brand-lockup" href="../site/index.html" aria-label="llm-wiki home">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-              <path d="M229 129C260 129 291 139 317 160C339 177 355 200 364 226" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
-              <path d="M177 259C208 226 252 209 299 212C324 214 347 220 367 232" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
-              <path d="M248 361C248 315 278 272 321 255C339 248 359 245 378 247" stroke="#67C4FF" stroke-width="18" stroke-linecap="round"/>
-              <circle cx="241" cy="110" r="60" fill="#69BFFF"/>
-              <circle cx="134" cy="257" r="60" fill="#69BFFF"/>
-              <circle cx="236" cy="394" r="60" fill="#69BFFF"/>
-              <circle cx="394" cy="256" r="92" fill="#9B82FF"/>
-            </svg>
+            <img
+              class="brand-mark-img"
+              src="../site/assets/logo-mark.svg"
+              alt=""
+              width="62"
+              height="62"
+              decoding="async"
+            />
           </span>
         </a>
         <nav class="site-nav" aria-label="Primary">
-          <a href="../index.html#setup">Home</a>
+          <a href="../site/index.html#setup">Home</a>
           <a href="#metrics-dashboard">Metrics</a>
-          <a href="../index.html#memory-retrieval">On landing</a>
+          <a href="../site/index.html#memory-retrieval">On landing</a>
           <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         </nav>
       </div>
@@ -61,7 +60,13 @@
           </p>
           <p class="detail-note" id="metrics-dashboard-status" aria-live="polite"></p>
 
-          <div class="memory-metrics-grid" role="group" aria-label="Benchmark charts">
+          <div
+            class="memory-metrics-grid memory-metrics-grid--loading"
+            id="memory-metrics-grid"
+            role="group"
+            aria-label="Benchmark charts"
+            aria-busy="true"
+          >
             <figure class="memory-metrics-figure">
               <figcaption class="sr-only">Bar chart comparing PLAN target R@5 to wiki-llm LME R@5</figcaption>
               <canvas id="chart-lme-target" width="400" height="240" aria-hidden="true"></canvas>
@@ -159,7 +164,7 @@
         </div>
 
         <p class="detail-note memory-hub-back">
-          <a class="button button-secondary" href="../index.html#memory-retrieval">Back to landing — Memory &amp; retrieval</a>
+          <a class="button button-secondary" href="../site/index.html#memory-retrieval">Back to landing — Memory &amp; retrieval</a>
         </p>
       </div>
     </section>
@@ -168,7 +173,7 @@
   <footer class="site-footer">
     <div class="wrap">
       <p>
-        <a href="../index.html">llm-wiki home</a>
+        <a href="../site/index.html">llm-wiki home</a>
         <span aria-hidden="true">·</span>
         <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         <span aria-hidden="true">·</span>

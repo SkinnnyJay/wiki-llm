@@ -28,6 +28,12 @@
 
   function buildCharts(data) {
     if (typeof Chart === 'undefined') {
+      var statusEl0 = document.getElementById('metrics-dashboard-status');
+      setStatus(
+        statusEl0,
+        'Chart.js did not load (check network or CDN). Charts are unavailable; links and prose below still work.',
+        true
+      );
       return;
     }
     Chart.defaults.color = colors.muted;
@@ -268,10 +274,19 @@
     });
   }
 
+  function setGridLoading(loading, isError) {
+    var grid = document.getElementById('memory-metrics-grid');
+    if (!grid) return;
+    grid.classList.toggle('memory-metrics-grid--loading', !!loading);
+    grid.classList.toggle('memory-metrics-grid--error', !!isError);
+    grid.setAttribute('aria-busy', loading ? 'true' : 'false');
+  }
+
   function run() {
     var statusEl = document.getElementById('metrics-dashboard-status');
     var headlineEl = document.getElementById('metrics-headline');
     setStatus(statusEl, 'Loading metrics…', false);
+    setGridLoading(true, false);
 
     fetch(JSON_URL)
       .then(function (r) {
@@ -290,10 +305,22 @@
             '. Commit metrics-dashboard.json after each serious benchmark run (see comparisons.md).',
           false
         );
-        renderExternals(data);
-        buildCharts(data);
+        try {
+          renderExternals(data);
+          buildCharts(data);
+        } catch (e) {
+          setStatus(
+            statusEl,
+            'Chart render failed: ' + (e && e.message ? e.message : String(e)),
+            true
+          );
+          setGridLoading(false, true);
+          return;
+        }
+        setGridLoading(false, false);
       })
       .catch(function (err) {
+        setGridLoading(false, true);
         setStatus(
           statusEl,
           'Could not load metrics-dashboard.json (' + (err && err.message ? err.message : 'error') + '). Open the repo locally or check Pages deployment.',
