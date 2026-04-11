@@ -224,8 +224,46 @@ class JSONFileKG:
                     if entity not in data["entities"]:
                         data["entities"][entity] = {"first_seen": _today()}
 
+            kg_cfg = (self._cfg.get("knowledge_graph") or {}) if self._cfg else {}
+            if kg_cfg.get("entity_detection", True):
+                from lib.entity_detector import extract_entities
+
+                for ent in extract_entities(body, cfg=self._cfg or {}):
+                    tid = _triple_id(page_name, "mentions", ent)
+                    if tid not in existing_ids:
+                        data["triples"].append({
+                            "id": tid, "s": page_name, "p": "mentions", "o": ent,
+                            "valid_from": _today(), "source": rel,
+                        })
+                        existing_ids.add(tid)
+                        added += 1
+                    for e2 in (page_name, ent):
+                        if e2 not in data["entities"]:
+                            data["entities"][e2] = {"first_seen": _today()}
+
         _save_kg(self._path, data)
         return {"added": added, "total_triples": len(data["triples"]), "entities": len(data["entities"])}
+
+    def _all_triples(self) -> list[dict[str, Any]]:
+        data = _load_kg(self._path)
+        return list(data["triples"])
+
+    def traverse_bfs(self, start: str, *, max_depth: int = 2) -> list[dict[str, Any]]:
+        from lib.kg_graph import traverse_bfs_triples
+
+        return traverse_bfs_triples(self._all_triples(), start, max_depth=max_depth)
+
+    def find_tunnels(self, room: str) -> list[dict[str, Any]]:
+        from lib.kg_graph import find_tunnels_triples
+
+        return find_tunnels_triples(self._all_triples(), room)
+
+    def find_connection_path(
+        self, a: str, b: str, *, max_depth: int = 12
+    ) -> list[dict[str, Any]] | None:
+        from lib.kg_graph import shortest_path_triples
+
+        return shortest_path_triples(self._all_triples(), a, b, max_depth=max_depth)
 
 
 # ---------------------------------------------------------------------------

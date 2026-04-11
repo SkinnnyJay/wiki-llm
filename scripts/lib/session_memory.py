@@ -304,10 +304,14 @@ def memory_recall(
     session_id: str | None = None,
     tag: str | None = None,
     limit: int = 5,
+    wing: str | None = None,
+    room: str | None = None,
 ) -> list[SearchResult]:
     backend = get_search_backend(vault, cfg)
     # Widen limit for post-filter
-    raw = backend.search(query, limit=limit * 4, tag=tag, scope="memory")
+    raw = backend.search(
+        query, limit=limit * 4, tag=tag, scope="memory", wing=wing, room=room
+    )
     if not session_id:
         return raw[:limit]
     stems = set()

@@ -154,10 +154,9 @@ def _run_claude(
             "--output-format",
             "stream-json",
             "--include-hook-events",
-            "--plugin-dir",
-            str(REPO),
         ]
     )
+    cmd.extend(["--plugin-dir", str(REPO)])
     if vault is not None:
         cmd.extend(["--add-dir", str(vault)])
     cmd.extend(["--", prompt])

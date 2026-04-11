@@ -7,7 +7,9 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -25,6 +27,8 @@ class SearchResult:
     snippet: str
     score: float = 0.0
     tags: list[str] = field(default_factory=list)
+    wing: str = ""
+    room: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -32,7 +36,14 @@ class SearchResult:
 
 class SearchBackend(Protocol):
     def search(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]: ...
 
     def find_related(self, page_path: str, *, limit: int = 5) -> list[SearchResult]: ...
@@ -77,6 +88,20 @@ def _tags_for_file(fm: dict[str, str]) -> list[str]:
     if not raw:
         return []
     return [t.strip().strip("'\"") for t in raw.split(",") if t.strip()]
+
+
+def _wing_room_for_file(fm: dict[str, str]) -> tuple[str, str]:
+    """Palace-style scope: project/person (wing) and topic (room)."""
+    wing = (fm.get("wing") or fm.get("llm_wiki_wing") or "").strip()
+    room = (fm.get("room") or fm.get("llm_wiki_room") or "").strip()
+    return wing, room
+
+
+def _fts_quote_token(s: str) -> str:
+    return s.replace('"', '""')
+
+
+_FTS_SCHEMA_VERSION = "2"
 
 
 _QUERY_STOPWORDS = frozenset(
@@ -314,9 +339,12 @@ class FTS5SearchBackend:
             max_v=_INT32_MAX,
         )
         self._metrics: Any = None
+        # One SQLite connection per OS thread — avoids connect/teardown on every search/reindex step.
+        # Safe with ThreadingHTTPServer (each request thread gets its own connection to the same DB file).
+        self._conn_local = threading.local()
         self._ensure_table()
 
-    def _conn(self) -> sqlite3.Connection:
+    def _create_connection(self) -> sqlite3.Connection:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self._db_path))
         conn.row_factory = sqlite3.Row
@@ -329,18 +357,46 @@ class FTS5SearchBackend:
         conn.execute(f"PRAGMA busy_timeout={self._busy_timeout}")
         return conn
 
+    def _get_pooled_connection(self) -> sqlite3.Connection:
+        c = getattr(self._conn_local, "conn", None)
+        if c is None:
+            self._conn_local.conn = self._create_connection()
+        return self._conn_local.conn  # type: ignore[union-attr]
+
+    @contextmanager
+    def _conn(self):
+        """Yield a thread-local connection; commit on success, rollback on error (same as sqlite3.Connection CM)."""
+        conn = self._get_pooled_connection()
+        try:
+            yield conn
+        except BaseException:
+            conn.rollback()
+            raise
+        else:
+            conn.commit()
+
     def _ensure_table(self) -> None:
         with self._conn() as conn:
-            conn.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS pages USING fts5("
-                "  path, title, body, tags,"
-                "  tokenize='porter unicode61'"
-                ")"
-            )
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS meta ("
                 "  key TEXT PRIMARY KEY, value TEXT"
                 ")"
+            )
+            row = conn.execute(
+                "SELECT value FROM meta WHERE key = 'fts_schema_version'"
+            ).fetchone()
+            ver = row[0] if row else None
+            if ver != _FTS_SCHEMA_VERSION:
+                conn.execute("DROP TABLE IF EXISTS pages")
+            conn.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS pages USING fts5("
+                "  path, title, body, tags, wing, room,"
+                "  tokenize='porter unicode61'"
+                ")"
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('fts_schema_version', ?)",
+                (_FTS_SCHEMA_VERSION,),
             )
 
     def reindex(self) -> dict[str, Any]:
@@ -351,11 +407,12 @@ class FTS5SearchBackend:
             fm, body = _parse_frontmatter(text)
             title = _title_from(fm, body, rel)
             tags = ", ".join(_tags_for_file(fm))
-            rows.append((rel, title, body[:50000], tags))
+            wn, rm = _wing_room_for_file(fm)
+            rows.append((rel, title, body[:50000], tags, wn, rm))
         with self._conn() as conn:
             conn.execute("DELETE FROM pages")
             conn.executemany(
-                "INSERT INTO pages (path, title, body, tags) VALUES (?, ?, ?, ?)",
+                "INSERT INTO pages (path, title, body, tags, wing, room) VALUES (?, ?, ?, ?, ?, ?)",
                 rows,
             )
             conn.execute(
@@ -386,14 +443,22 @@ class FTS5SearchBackend:
         tag: str | None = None,
         scope: str = "all",
         sanitize_query: bool = True,
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         t0 = time.monotonic()
         self._auto_index_if_empty()
         safe = prepare_fts5_match_query(query) if sanitize_query else query.strip()
         fts_query = safe
         if tag:
-            safe_tag = tag.replace('"', '""')
-            fts_query = f'tags:"{safe_tag}" AND ({safe})'
+            safe_tag = _fts_quote_token(tag)
+            fts_query = f'tags:"{safe_tag}" AND ({fts_query})'
+        if wing:
+            wq = _fts_quote_token(wing)
+            fts_query = f'wing:"{wq}" AND ({fts_query})'
+        if room:
+            rq = _fts_quote_token(room)
+            fts_query = f'room:"{rq}" AND ({fts_query})'
         if scope == "wiki":
             fts_query = f'path:"wiki/" AND ({fts_query})'
         elif scope == "raw":
@@ -404,7 +469,7 @@ class FTS5SearchBackend:
         sql = (
             "SELECT path, title, snippet(pages, 2, '»', '«', '…', 40) AS snip,"
             "       bm25(pages, 1.0, 5.0, 1.0, 2.0) AS score,"
-            "       tags"
+            "       tags, wing, room"
             "  FROM pages WHERE pages MATCH ?"
             "  ORDER BY score"
             "  LIMIT ?"
@@ -420,6 +485,8 @@ class FTS5SearchBackend:
                             snippet=row["snip"] or "",
                             score=round(-row["score"], 4),
                             tags=[t.strip() for t in (row["tags"] or "").split(",") if t.strip()],
+                            wing=str(row["wing"] or ""),
+                            room=str(row["room"] or ""),
                         )
                     )
         except sqlite3.OperationalError as exc:
@@ -469,14 +536,32 @@ class GrepSearchBackend:
         self._has_rg = shutil.which("rg") is not None
 
     def search(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         if self._has_rg:
-            return self._search_rg(query, limit=limit, tag=tag, scope=scope)
-        return self._search_re(query, limit=limit, tag=tag, scope=scope)
+            return self._search_rg(
+                query, limit=limit, tag=tag, scope=scope, wing=wing, room=room
+            )
+        return self._search_re(
+            query, limit=limit, tag=tag, scope=scope, wing=wing, room=room
+        )
 
     def _search_rg(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         dirs = self._scope_dirs(scope)
         if not dirs:
@@ -496,7 +581,9 @@ class GrepSearchBackend:
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         except (subprocess.TimeoutExpired, FileNotFoundError):
-            return self._search_re(query, limit=limit, tag=tag, scope=scope)
+            return self._search_re(
+                query, limit=limit, tag=tag, scope=scope, wing=wing, room=room
+            )
 
         results: list[SearchResult] = []
         seen: set[str] = set()
@@ -523,7 +610,12 @@ class GrepSearchBackend:
                 text = ""
             fm, body = _parse_frontmatter(text)
             tags = _tags_for_file(fm)
+            wn, rm = _wing_room_for_file(fm)
             if tag and tag not in tags:
+                continue
+            if wing and wn != wing:
+                continue
+            if room and rm != room:
                 continue
             results.append(
                 SearchResult(
@@ -532,6 +624,8 @@ class GrepSearchBackend:
                     snippet=snippet,
                     score=1.0,
                     tags=tags,
+                    wing=wn,
+                    room=rm,
                 )
             )
             if len(results) >= limit:
@@ -539,7 +633,14 @@ class GrepSearchBackend:
         return results
 
     def _search_re(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         try:
             pattern = re.compile(query, re.IGNORECASE)
@@ -559,7 +660,12 @@ class GrepSearchBackend:
             if not m:
                 continue
             tags = _tags_for_file(fm)
+            wn, rm = _wing_room_for_file(fm)
             if tag and tag not in tags:
+                continue
+            if wing and wn != wing:
+                continue
+            if room and rm != room:
                 continue
             start = max(0, m.start() - 40)
             snippet = body[start : m.end() + 80].replace("\n", " ").strip()
@@ -570,6 +676,8 @@ class GrepSearchBackend:
                     snippet=snippet,
                     score=1.0,
                     tags=tags,
+                    wing=wn,
+                    room=rm,
                 )
             )
             if len(results) >= limit:
@@ -653,6 +761,8 @@ class HybridSearchBackend:
                         snippet=fts_r.snippet,
                         score=max(fts_r.score, chroma_r.score),
                         tags=fts_r.tags if fts_r.tags else chroma_r.tags,
+                        wing=fts_r.wing or chroma_r.wing,
+                        room=fts_r.room or chroma_r.room,
                     )
                 )
             elif fts_r:
@@ -662,11 +772,22 @@ class HybridSearchBackend:
         return out
 
     def search(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         n = max(limit * 4, 20)
-        fts_results = self._fts.search(query, limit=n, tag=tag, scope=scope)
-        chroma_results = self._chroma.search(query, limit=n, tag=tag, scope=scope)
+        fts_results = self._fts.search(
+            query, limit=n, tag=tag, scope=scope, wing=wing, room=room
+        )
+        chroma_results = self._chroma.search(
+            query, limit=n, tag=tag, scope=scope, wing=wing, room=room
+        )
         paths_a = [r.path for r in fts_results]
         paths_b = [r.path for r in chroma_results]
         fused = reciprocal_rank_fusion([paths_a, paths_b], k=self._rrf_k)

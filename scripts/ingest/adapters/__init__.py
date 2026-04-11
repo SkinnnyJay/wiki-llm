@@ -10,6 +10,7 @@ from ingest.adapters.youtube import YoutubeAdapter
 from ingest.adapters.perplexity import PerplexityAdapter
 from ingest.adapters.twitter import TwitterAdapter
 from ingest.adapters.brave_search import BraveSearchAdapter
+from ingest.adapters.convo import ConvoAdapter
 
 ADAPTERS = [
     FileAdapter,
@@ -24,4 +25,5 @@ ADAPTERS = [
     PerplexityAdapter,
     TwitterAdapter,
     BraveSearchAdapter,
+    ConvoAdapter,
 ]

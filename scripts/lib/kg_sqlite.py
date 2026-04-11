@@ -240,6 +240,60 @@ class SQLiteKG:
                         existing.add(tid)
                         added += 1
 
+                kg_cfg = (self._cfg.get("knowledge_graph") or {}) if self._cfg else {}
+                if kg_cfg.get("entity_detection", True):
+                    from lib.entity_detector import extract_entities
+
+                    for ent in extract_entities(body, cfg=self._cfg or {}):
+                        tid = _triple_id(page_name, "mentions", ent)
+                        if tid not in existing:
+                            conn.execute(
+                                """
+                                INSERT INTO triples (id, s, p, o, valid_from, valid_until, source)
+                                VALUES (?, ?, ?, ?, ?, NULL, ?)
+                                """,
+                                (tid, page_name, "mentions", ent, today, rel),
+                            )
+                            conn.execute(
+                                "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
+                                (page_name, today),
+                            )
+                            conn.execute(
+                                "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
+                                (ent, today),
+                            )
+                            existing.add(tid)
+                            added += 1
+
             total = conn.execute("SELECT count(*) FROM triples").fetchone()[0]
             n_ent = conn.execute("SELECT count(*) FROM entities").fetchone()[0]
         return {"added": added, "total_triples": total, "entities": n_ent}
+
+    def _all_triples(self) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT id, s, p, o, valid_from, valid_until, source FROM triples"
+            ).fetchall()
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["valid_until"] = d.get("valid_until")
+            out.append(d)
+        return out
+
+    def traverse_bfs(self, start: str, *, max_depth: int = 2) -> list[dict[str, Any]]:
+        from lib.kg_graph import traverse_bfs_triples
+
+        return traverse_bfs_triples(self._all_triples(), start, max_depth=max_depth)
+
+    def find_tunnels(self, room: str) -> list[dict[str, Any]]:
+        from lib.kg_graph import find_tunnels_triples
+
+        return find_tunnels_triples(self._all_triples(), room)
+
+    def find_connection_path(
+        self, a: str, b: str, *, max_depth: int = 12
+    ) -> list[dict[str, Any]] | None:
+        from lib.kg_graph import shortest_path_triples
+
+        return shortest_path_triples(self._all_triples(), a, b, max_depth=max_depth)

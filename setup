@@ -41,7 +41,7 @@ echo "CLI check:"
 
 echo ""
 echo "Next steps:"
-echo "  1. Claude Code:  claude --plugin-dir \"$ROOT\"  then /reload-plugins"
+echo "  1. Load plugin:  claude --plugin-dir \"$ROOT\"  (one-off), or  /plugin marketplace add \"$ROOT\"  →  install llm-wiki@llm-wiki-local  →  /reload-plugins"
 echo "  2. Scaffold vault:  \"$ROOT/bin/llm-wiki\" setup --root ."
 echo "  3. Or follow wiki-setup skill / WORKFLOWS.md"
 echo ""

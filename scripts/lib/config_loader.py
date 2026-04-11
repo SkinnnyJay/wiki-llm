@@ -60,6 +60,10 @@ DEFAULTS: dict[str, Any] = {
         "enabled": True,
         "block_on_duplicate": False,
     },
+    "layers": {
+        "wake_max_tokens": 200,
+        "l1_topic_bullets": 8,
+    },
     "graph": {
         "tag_edges": True,
         "include_raw_nodes": True,
@@ -89,11 +93,30 @@ DEFAULTS: dict[str, Any] = {
         "host": "127.0.0.1",
         "search_backend": "fts5",
         "hybrid_rrf_k": 60,
+        # Tool surface: full (default) | read_only | custom (use tools_allowlist; empty allowlist = read_only)
+        "tools_mode": "full",
+        "tools_allowlist": [],
+        # 0 = unlimited JSON response size
+        "max_response_chars": 500000,
+        # 0 = no truncation of wiki_read_page body (still subject to max_response_chars on output)
+        "read_page_max_chars": 0,
+        # Empty = any key allowed for wiki_configure; entries are exact keys or prefix rules ending with "."
+        "configure_allowlist": [],
+        "benchmark_tool_enabled": True,
+        "ingest_enabled": True,
+        # HTTP MCP: refuse non-loopback bind when true; set false only with firewall/TLS/proxy
+        "sse_require_loopback": True,
+        # If non-empty, HTTP MCP requires Authorization: Bearer <token> or X-LLM-Wiki-Token
+        "sse_token": "",
+        # Cache TTL for raw/wiki *.md counts in wiki_status (seconds)
+        "status_file_count_ttl_seconds": 45,
     },
     "knowledge_graph": {
         "enabled": True,
         "backend": "json",
         "auto_update_on_ingest": True,
+        "entity_detection": True,
+        "fact_check_on_add": True,
     },
     "memory": {
         "enabled": False,

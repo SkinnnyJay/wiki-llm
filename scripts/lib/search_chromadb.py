@@ -13,6 +13,7 @@ from lib.search import (
     _tags_for_file,
     _title_from,
     _walk_vault_md,
+    _wing_room_for_file,
 )
 
 
@@ -54,6 +55,7 @@ class ChromaDBSearchBackend:
             fm, body = _parse_frontmatter(text)
             title = _title_from(fm, body, rel)
             tags = _tags_for_file(fm)
+            wn, rm = _wing_room_for_file(fm)
             chunk = (title + "\n\n" + body)[:80000]
             ids.append(rel)
             documents.append(chunk)
@@ -62,6 +64,8 @@ class ChromaDBSearchBackend:
                     "path": rel,
                     "title": title,
                     "tags": ",".join(tags),
+                    "wing": wn,
+                    "room": rm,
                 }
             )
         for i in range(0, len(ids), self._batch_size):
@@ -88,7 +92,14 @@ class ChromaDBSearchBackend:
             self.reindex()
 
     def search(
-        self, query: str, *, limit: int = 5, tag: str | None = None, scope: str = "all"
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        tag: str | None = None,
+        scope: str = "all",
+        wing: str | None = None,
+        room: str | None = None,
     ) -> list[SearchResult]:
         t0 = time.monotonic()
         self._maybe_reindex_if_empty()
@@ -116,6 +127,12 @@ class ChromaDBSearchBackend:
             tag_list = [t.strip() for t in tags_s.split(",") if t.strip()]
             if tag and tag not in tag_list:
                 continue
+            wmeta = str(meta.get("wing") or "")
+            rmeta = str(meta.get("room") or "")
+            if wing and wmeta != wing:
+                continue
+            if room and rmeta != room:
+                continue
             title = str(meta.get("title") or Path(path).stem)
             body_snip = (row_docs[i] if i < len(row_docs) else "") or ""
             body_snip = body_snip.replace("\n", " ")[:200]
@@ -128,6 +145,8 @@ class ChromaDBSearchBackend:
                     snippet=body_snip + ("…" if len(body_snip) >= 200 else ""),
                     score=score,
                     tags=tag_list,
+                    wing=wmeta,
+                    room=rmeta,
                 )
             )
             if len(out) >= limit:
@@ -170,7 +189,19 @@ class ChromaDBSearchBackend:
             body_snip = re.sub(r"\s+", " ", body_snip)[:200]
             dist = dists[i] if i < len(dists) else None
             score = round(1.0 - float(dist), 4) if dist is not None else 0.5
-            out.append(SearchResult(path=path, title=title, snippet=body_snip, score=score, tags=tag_list))
+            wmeta = str(meta.get("wing") or "")
+            rmeta = str(meta.get("room") or "")
+            out.append(
+                SearchResult(
+                    path=path,
+                    title=title,
+                    snippet=body_snip,
+                    score=score,
+                    tags=tag_list,
+                    wing=wmeta,
+                    room=rmeta,
+                )
+            )
             if len(out) >= limit:
                 break
         return out

@@ -39,10 +39,18 @@ def _wiki_page_for_tag(vault: Path, tag: str) -> str | None:
     return None
 
 
+def _approx_tokens(text: str) -> int:
+    """Rough token estimate (~4 chars per token) for budgeting."""
+    return max(1, len(text) // 4)
+
+
 def build_wake_up(vault: Path, cfg: dict[str, Any]) -> str:
-    """Generate L0+L1 context blob (target ≤200 tokens)."""
+    """Generate L0+L1 context blob (default target ~170–200 tokens)."""
     persona = (cfg.get("persona") or {}).get("name") or "Gennie"
     version = cfg.get("version") or "?"
+    layers_cfg = (cfg.get("layers") or {}) if isinstance(cfg, dict) else {}
+    max_tokens = int(layers_cfg.get("wake_max_tokens", 200))
+    l1_bullets = int(layers_cfg.get("l1_topic_bullets", 8))
 
     tags_index = _load_tags_index(vault)
     recent = _load_recent_log(vault)
@@ -50,9 +58,9 @@ def build_wake_up(vault: Path, cfg: dict[str, Any]) -> str:
     raw_count = len(list((vault / "raw").rglob("*.md"))) if (vault / "raw").exists() else 0
     wiki_count = len(list((vault / "wiki").rglob("*.md"))) if (vault / "wiki").exists() else 0
 
-    # Build topic list sorted by file count desc, top 10
-    topics_sorted = sorted(tags_index.items(), key=lambda kv: -len(kv[1]))[:10]
-    overflow = max(0, len(tags_index) - 10)
+    # Build topic list sorted by file count desc, top N
+    topics_sorted = sorted(tags_index.items(), key=lambda kv: -len(kv[1]))[: max(1, l1_bullets)]
+    overflow = max(0, len(tags_index) - l1_bullets)
 
     topic_parts = []
     for tag, files in topics_sorted:
@@ -63,20 +71,25 @@ def build_wake_up(vault: Path, cfg: dict[str, Any]) -> str:
             topic_parts.append(f"{tag} ({len(files)} raw ⚠ no wiki page)")
 
     if not topic_parts:
-        topics_line = "Topics: (none yet — run llm-wiki ingest with --tags)"
+        topics_line = "L1 topics: (none yet — run llm-wiki ingest with --tags)"
     else:
         suffix = f" (+ {overflow} more)" if overflow else ""
-        topics_line = "Topics: " + " · ".join(topic_parts) + suffix
+        topics_line = "L1 topics: " + " · ".join(topic_parts) + suffix
 
     lines = [
-        f"## Vault: {persona}  (llm-wiki v{version})",
+        f"L0 identity: assistant for **{persona}** (llm-wiki v{version})",
         topics_line,
-        f"Wiki pages: {wiki_count} | raw/ files: {raw_count}",
+        f"Corpus: {wiki_count} wiki pages | {raw_count} raw files",
     ]
     if recent:
-        lines.append("Recent: " + " · ".join(recent))
+        lines.append("Recent log: " + " · ".join(recent))
 
-    return "\n".join(lines) + "\n"
+    blob = "\n".join(lines) + "\n"
+    # Soft trim if over budget (keep head lines)
+    while _approx_tokens(blob) > max_tokens and len(lines) > 2:
+        lines.pop()
+        blob = "\n".join(lines) + "\n"
+    return blob
 
 
 def update_claude_md(vault: Path, cfg: dict[str, Any]) -> None:
@@ -90,8 +103,8 @@ def update_claude_md(vault: Path, cfg: dict[str, Any]) -> None:
         "## Memory Stack\n\n"
         "<!-- Auto-updated by: llm-wiki wake-up --update-claude -->\n"
         f"{blob}\n"
-        "**L2** Open wiki/ pages tagged for the current topic.\n"
-        "**L3** Search raw/ and outputs/ when wiki/ answer is insufficient.\n"
+        "**L2 (on-demand)** Open wiki/ pages for the active tag/topic; use `wing`/`room` in frontmatter to narrow scope.\n"
+        "**L3 (on-demand)** Full vault search (`llm-wiki` search / MCP `wiki_search`) when L2 is insufficient.\n"
     )
 
     text = claude_md.read_text(encoding="utf-8")
