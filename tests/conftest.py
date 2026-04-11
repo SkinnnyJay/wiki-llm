@@ -199,6 +199,9 @@ def claude_runner() -> Any:
     **Vault visibility:** passes ``--add-dir`` with the vault path and ``--`` before the
     prompt (``--add-dir`` otherwise consumes the prompt as another directory).
 
+    **Plugin loading:** passes ``--plugin-dir`` with the repo root (current Claude Code CLI).
+    For a persistent install instead, use **README** / **WORKFLOWS.md** (marketplace + ``/plugin install``).
+
     **Settings sources:** default ``--setting-sources=project`` so we do **not** merge
     ``~/.claude/settings.json`` (its ``env`` block often injects ``ANTHROPIC_API_KEY``,
     which forces **API credits** and yields “Credit balance is too low” even when
@@ -255,8 +258,11 @@ def claude_runner() -> Any:
             [
                 "--output-format",
                 output_format,
-                "--plugin-dir",
-                str(pd),
+            ]
+        )
+        cmd.extend(["--plugin-dir", str(pd)])
+        cmd.extend(
+            [
                 "--add-dir",
                 str(vault),
             ]

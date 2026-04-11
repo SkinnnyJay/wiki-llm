@@ -123,6 +123,36 @@ class TestGrepSearch:
 
 
 # ---------------------------------------------------------------------------
+# raw/ validation (shared lib — CLI + MCP)
+# ---------------------------------------------------------------------------
+
+
+class TestRawValidate:
+    def test_validate_ok(self, vault):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.config_loader import load_config
+        from lib.raw_validate import validate_raw_file_result
+
+        cfg = load_config(vault)
+        r = validate_raw_file_result(vault, cfg, "notes.md", autofix=False)
+        assert r["valid"] is True
+        assert r["path"] == "raw/notes.md"
+        assert not r.get("issues")
+
+    def test_validate_issues(self, vault):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.config_loader import load_config
+        from lib.raw_validate import validate_raw_file_result
+
+        bad = vault / "raw" / "bad.md"
+        bad.write_text("```\nno closing fence\n", encoding="utf-8")
+        cfg = load_config(vault)
+        r = validate_raw_file_result(vault, cfg, "bad.md", autofix=False)
+        assert r["valid"] is False
+        assert r.get("issues")
+
+
+# ---------------------------------------------------------------------------
 # Search backend factory (get_search_backend)
 # ---------------------------------------------------------------------------
 
@@ -320,7 +350,9 @@ class TestMCPServer:
         assert "wiki_search" in names
         assert "wiki_kg_query" in names
         assert "wiki_benchmark_run" in names
-        assert len(tools) >= 25
+        assert "wiki_metrics_stats" in names
+        assert "wiki_graph_build" in names
+        assert len(tools) >= 30
 
     def test_tool_call_status(self, vault):
         resp = self._call(vault, "tools/call", {"name": "wiki_status", "arguments": {}})
@@ -465,6 +497,285 @@ class TestMCPHttpBridge:
             except (urllib.error.URLError, ConnectionRefusedError, OSError):
                 time.sleep(0.05)
         raise AssertionError("HTTP MCP server did not become ready")
+
+    def test_post_notification_initialized_returns_204(self, vault):
+        import socket
+        import threading
+        import time
+        import urllib.error
+        import urllib.request
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+
+        def run():
+            sys.path.insert(0, str(SCRIPTS))
+            from mcp_sse import run_sse_server
+
+            run_sse_server(vault, port=port, host="127.0.0.1")
+
+        threading.Thread(target=run, daemon=True).start()
+        body = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        for _ in range(50):
+            try:
+                req = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/",
+                    data=body.encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    assert resp.status == 204
+                    assert resp.read() == b""
+                return
+            except (urllib.error.URLError, ConnectionRefusedError, OSError):
+                time.sleep(0.05)
+        raise AssertionError("HTTP MCP server did not become ready")
+
+
+class TestMCPNotifications:
+    """JSON-RPC notifications: no response on stdio; HTTP 204."""
+
+    def test_stdio_notifications_initialized_empty_stdout(self, vault):
+        env = _env()
+        env["LLM_WIKI_VAULT"] = str(vault)
+        proc = subprocess.run(
+            [sys.executable, str(MCP_SERVER)],
+            input=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n",
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=15,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert proc.stdout.strip() == ""
+
+    def test_stdio_notifications_cancelled_empty_stdout(self, vault):
+        env = _env()
+        env["LLM_WIKI_VAULT"] = str(vault)
+        proc = subprocess.run(
+            [sys.executable, str(MCP_SERVER)],
+            input=json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "method": "notifications/cancelled",
+                    "params": {"requestId": 42, "reason": "test"},
+                }
+            )
+            + "\n",
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=15,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert proc.stdout.strip() == ""
+
+
+class TestMCPHardening:
+    """MCP tool filtering, validation, truncation, and HTTP gate (Phase hardening)."""
+
+    def _call(self, vault, method, params=None):
+        req = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}
+        env = _env()
+        env["LLM_WIKI_VAULT"] = str(vault)
+        proc = subprocess.run(
+            [sys.executable, str(MCP_SERVER)],
+            input=json.dumps(req) + "\n",
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=15,
+        )
+        assert proc.returncode == 0, proc.stderr
+        return json.loads(proc.stdout.strip())
+
+    def test_tools_list_read_only_excludes_mutating_tools(self, tmp_path):
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {"enabled": True, "search_backend": "fts5", "tools_mode": "read_only"},
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+        resp = self._call(v, "tools/list")
+        names = {t["name"] for t in resp["result"]["tools"]}
+        assert "wiki_search" in names
+        assert "wiki_kg_add" not in names
+        assert "wiki_configure" not in names
+
+    def test_tools_list_benchmark_disabled(self, tmp_path):
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {"enabled": True, "search_backend": "fts5", "benchmark_tool_enabled": False},
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+        resp = self._call(v, "tools/list")
+        names = {t["name"] for t in resp["result"]["tools"]}
+        assert "wiki_benchmark_run" not in names
+        assert "wiki_benchmark_suites" not in names
+
+    def test_configure_allowlist_blocks(self, tmp_path):
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {
+                    "enabled": True,
+                    "search_backend": "fts5",
+                    "configure_allowlist": ["viewer."],
+                },
+                "viewer": {"enabled": True, "port": 8765},
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+        resp = self._call(
+            v,
+            "tools/call",
+            {
+                "name": "wiki_configure",
+                "arguments": {"key": "mcp.search_backend", "value": '"grep"'},
+            },
+        )
+        data = json.loads(resp["result"]["content"][0]["text"])
+        assert data.get("success") is False
+        assert "configure_allowlist" in (data.get("error") or "")
+
+    def test_invalid_search_scope(self, vault):
+        resp = self._call(
+            vault,
+            "tools/call",
+            {"name": "wiki_search", "arguments": {"query": "x", "scope": "bad"}},
+        )
+        assert resp.get("error", {}).get("code") == -32602
+
+    def test_max_response_truncation(self, tmp_path):
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {
+                    "enabled": True,
+                    "search_backend": "fts5",
+                    "max_response_chars": 80,
+                },
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+        resp = self._call(v, "tools/call", {"name": "wiki_status", "arguments": {}})
+        text = resp["result"]["content"][0]["text"]
+        assert len(text) <= 200
+        assert "truncated" in text.lower()
+
+    def test_sse_exits_non_loopback_when_required(self, tmp_path):
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {"enabled": True, "sse_require_loopback": True},
+                "knowledge_graph": {"enabled": False},
+                "git": {"enabled": False},
+            })
+        )
+        code = (
+            "import sys\n"
+            f"sys.path.insert(0, {repr(str(SCRIPTS))})\n"
+            "from pathlib import Path\n"
+            "from mcp_sse import run_sse_server\n"
+            f"run_sse_server(Path({repr(str(v))}), port=19991, host='0.0.0.0')\n"
+        )
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert proc.returncode == 1
+        assert "loopback" in (proc.stderr + proc.stdout).lower()
+
+    def test_sse_token_unauthorized(self, tmp_path):
+        import socket
+        import threading
+        import time
+        import urllib.error
+        import urllib.request
+
+        v = tmp_path / "llm-wiki"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps({
+                "version": 1,
+                "mcp": {"enabled": True, "sse_token": "test-secret-token"},
+                "knowledge_graph": {"enabled": False},
+                "git": {"enabled": False},
+            })
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# c\n")
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+
+        def run():
+            sys.path.insert(0, str(SCRIPTS))
+            from mcp_sse import run_sse_server
+
+            run_sse_server(v, port=port, host="127.0.0.1")
+
+        threading.Thread(target=run, daemon=True).start()
+        for _ in range(50):
+            try:
+                req = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/",
+                    data=json.dumps(
+                        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+                    ).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                try:
+                    urllib.request.urlopen(req, timeout=2)
+                except urllib.error.HTTPError as e:
+                    if e.code == 401:
+                        return
+            except (urllib.error.URLError, ConnectionRefusedError, OSError):
+                time.sleep(0.05)
+        raise AssertionError("Expected 401 from MCP HTTP without token")
 
 
 # ---------------------------------------------------------------------------

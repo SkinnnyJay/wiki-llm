@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -56,6 +57,34 @@ def test_memory_recall_uses_scope(vault: Path) -> None:
     # grep backend may be used in minimal env
     results = mem.memory_recall(vault, cfg, "uniquekeywordxyz123", limit=3)
     assert isinstance(results, list)
+
+
+def test_auto_prune_respects_max_sessions(vault: Path) -> None:
+    """Oldest session files removed after save when count exceeds memory.max_sessions."""
+    import time
+
+    cfg = json.loads((vault / "config.json").read_text())
+    cfg["memory"]["max_sessions"] = 2
+    (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    cfg = json.loads((vault / "config.json").read_text())
+    mem_root = mem.memory_dir(vault, cfg)
+    # Distinct mtimes (seconds apart) so prune order is deterministic across platforms.
+    base = time.time() - 400.0
+    for i, sid in enumerate(["old", "mid", "new"]):
+        p = mem_root / f"{sid}.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            f"---\nsession_id: {sid}\n---\n\n# {sid}\n",
+            encoding="utf-8",
+        )
+        ts = base + i * 100.0
+        os.utime(p, (ts, ts))
+    mem.memory_save(vault, cfg, "trigger", summary="prune run")
+    stems = {p.stem for p in mem_root.glob("*.md")}
+    assert len(stems) == 2, stems
+    assert "trigger" in stems
+    assert "old" not in stems
+    assert "mid" not in stems
 
 
 def test_raw_validate_skips_memory(tmp_path: Path) -> None:

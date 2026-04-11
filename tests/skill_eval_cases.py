@@ -31,6 +31,8 @@ MINIMAL_SKILL_IDS: frozenset[str] = frozenset(
 # Intentionally no ``claude -p`` smoke row: network/API or redundant with other tiers.
 SKILL_EVAL_EXCLUDE: frozenset[str] = frozenset(
     {
+        # Router index only (no standalone smoke test)
+        "wiki-extract",
         # Extraction (live sources / paywalls / APIs)
         "wiki-extract-annas",
         "wiki-extract-crunchbase",
