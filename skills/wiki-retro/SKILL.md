@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Wiki retro — Retrospective
 
-Summarize **research velocity**, **source mix**, **topic coverage**, **wiki health**, and **open questions** from **`wiki/log.md`**, **`raw/.preparation-log.jsonl`** (if present), vault **git** history (if enabled), and a **wiki-lint**-style pass. Inspired by team retros (e.g. gstack `/retro`); output is **read-only analysis** plus optional updates to **`wiki-learn`** memory.
+Summarize **research velocity**, **source mix**, **topic coverage**, **wiki health**, and **open questions** from **`wiki/log.md`**, **`raw/.preparation-log.jsonl`** (if present), vault **git** history (if enabled), and a **wiki-lint**-style pass. Output is **read-only analysis** plus optional updates to **`wiki-learn`** memory.
 
 ## Pre-flight
 

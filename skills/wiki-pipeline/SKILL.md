@@ -10,7 +10,7 @@ effort: high
 
 # Wiki pipeline — Orchestrator
 
-Run the standard **llm-wiki** path: **Source → Ingest → Prepare → Maintain → Build → Validate**, with explicit **gates** where the user can review before continuing. Inspired by sprint pipelines (e.g. gstack’s `/autoplan`); this is **domain-specific** to the vault.
+Run the standard **llm-wiki** path: **Source → Ingest → Prepare → Maintain → Build → Validate**, with explicit **gates** where the user can review before continuing. This is **domain-specific** to the vault.
 
 See **`skills/references/pipeline-artifacts.md`** for what each stage writes and what reads it.
 

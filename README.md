@@ -20,6 +20,10 @@ This repository is the **plugin**: commands, skills, templates, and `bin/llm-wik
 
 ## Inspiration
 
+> If I have seen further it is by standing on the shoulders of Giants.
+
+— Isaac Newton, letter to Robert Hooke (1675).
+
 The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
 
 ---
@@ -186,12 +190,6 @@ Prefer **`llm-wiki smoke-test`** over ad-hoc `PYTHONPATH`; if you need raw pytes
 - **Ingest paths** — `--out` must stay under `raw/`.
 - **Wikilinks** — `[[Page]]` / `[[page.md|label]]`; general Markdown: [Markdown Guide](https://www.markdownguide.org/basic-syntax/).
 - **Vault git** — With `git.enabled`, **`llm-wiki git lifecycle`** audits commits by phase; see [`commands/git-lifecycle.md`](commands/git-lifecycle.md).
-
----
-
-## Using llm-wiki with gstack
-
-[garrytan/gstack](https://github.com/garrytan/gstack) is a broader Claude Code skill stack (review, QA, ship, browse). **llm-wiki** focuses on a **dedicated vault** (`raw/` + `wiki/` + ingest + viewers). Use **gstack** for app/repo workflow; use **llm-wiki** for the knowledge layer. [gstack install](https://github.com/garrytan/gstack#install--30-seconds).
 
 ---
 

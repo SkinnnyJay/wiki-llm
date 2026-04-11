@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Wiki upgrade — Self-update
 
-Update the **wiki-llm** plugin checkout (this repository), re-run **`./setup`** if present, and verify the user’s **`llm-wiki/config.json`** still matches the template schema expectations. Inspired by gstack’s `/gstack-upgrade`; **no telemetry**.
+Update the **wiki-llm** plugin checkout (this repository), re-run **`./setup`** if present, and verify the user’s **`llm-wiki/config.json`** still matches the template schema expectations. **No telemetry**.
 
 ## Pre-flight
 
