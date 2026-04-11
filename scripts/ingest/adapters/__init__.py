@@ -6,6 +6,7 @@ from ingest.adapters.pdf_marker import PdfMarkerAdapter
 from ingest.adapters.pdf_markitdown import PdfMarkitdownAdapter
 from ingest.adapters.pdf_mineru import PdfMineruAdapter
 from ingest.adapters.web_firecrawl import FirecrawlAdapter
+from ingest.adapters.web_playwright import PlaywrightAdapter
 from ingest.adapters.youtube import YoutubeAdapter
 from ingest.adapters.perplexity import PerplexityAdapter
 from ingest.adapters.twitter import TwitterAdapter
@@ -21,6 +22,7 @@ ADAPTERS = [
     PdfMarkitdownAdapter,
     PdfMineruAdapter,
     FirecrawlAdapter,
+    PlaywrightAdapter,
     YoutubeAdapter,
     PerplexityAdapter,
     TwitterAdapter,

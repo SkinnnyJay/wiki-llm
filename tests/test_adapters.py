@@ -63,6 +63,21 @@ def test_hackernews_adapter_unknown_arg_exits(tmp_path: Path) -> None:
     _run_bad_args(HackerNewsAdapter, ["--not-a-real-flag"], tmp_path)
 
 
+def test_hackernews_parse_item_ref() -> None:
+    from ingest.adapters.hackernews import _parse_item_ref
+
+    assert _parse_item_ref("47725583") == 47725583
+    assert _parse_item_ref("  https://news.ycombinator.com/item?id=47725583  ") == 47725583
+    assert _parse_item_ref("http://news.ycombinator.com/item?id=1") == 1
+    assert _parse_item_ref("not-a-url") is None
+
+
+def test_hackernews_invalid_item_ref_exits(tmp_path: Path) -> None:
+    from ingest.adapters.hackernews import HackerNewsAdapter
+
+    _run_bad_args(HackerNewsAdapter, ["not-a-url"], tmp_path)
+
+
 def test_pdf_vision_setup_warns_without_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """When pdf2image, anthropic, and poppler look OK, missing API key yields a clear warning."""
     import ingest.adapters.pdf_vision as pv
@@ -127,6 +142,22 @@ def test_firecrawl_bad_url_exits(tmp_path: Path) -> None:
     from ingest.adapters.web_firecrawl import FirecrawlAdapter
 
     _run_bad_args(FirecrawlAdapter, [""], tmp_path)
+
+
+def test_playwright_setup_warns_without_package(monkeypatch: pytest.MonkeyPatch) -> None:
+    import ingest.adapters.web_playwright as wp
+
+    monkeypatch.setattr(wp, "_playwright_import_ok", lambda: False)
+    from ingest.adapters.web_playwright import PlaywrightAdapter
+
+    warns = PlaywrightAdapter.setup_checks({})
+    assert warns and "pip install playwright" in warns[0]
+
+
+def test_playwright_bad_url_exits(tmp_path: Path) -> None:
+    from ingest.adapters.web_playwright import PlaywrightAdapter
+
+    _run_bad_args(PlaywrightAdapter, [""], tmp_path)
 
 
 def test_youtube_import_or_parse_exits(tmp_path: Path) -> None:

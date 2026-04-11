@@ -119,6 +119,7 @@ SKILL_EVALS: list[dict[str, Any]] = [
             "brave",
             "perplexity",
             "firecrawl",
+            "playwright",
             "ingest",
         ],
     },

@@ -504,6 +504,7 @@ _INTEGRATION_ENV: dict[str, str] = {
 
 _INTEGRATION_HINT: dict[str, str] = {
     "firecrawl": "Get key: https://firecrawl.dev/app/api-keys  |  Or: npm install -g firecrawl-cli && firecrawl login",
+    "playwright": "pip install playwright && playwright install chromium  |  Optional: Playwright MCP in Cursor/Claude for interactive browsing (separate from vault MCP)",
     "perplexity": "Get key: https://www.perplexity.ai/settings/api",
     "twitter": "Get auth_token cookie from browser DevTools → Application → Cookies → auth_token  |  Install: npm install -g @steipete/bird  |  Zero-config for public tweets (no token needed)",
     "brave": "Get free key: https://api.search.brave.com  |  Modes: web | news | llm-context (RAG) | answers",
@@ -576,6 +577,10 @@ def cmd_integrations(args: argparse.Namespace) -> int:
                     cfg.setdefault("integrations", {}).setdefault(cls.id, {})["enabled"] = True
                     print(f"               ✓ Saved to ~/.claude/settings.json")
                     changed = True
+            elif warns and not env_var:
+                hint = _INTEGRATION_HINT.get(cls.id, "")
+                if hint:
+                    print(f"               {hint}")
             elif not warns:
                 en = slice_.get("enabled", True)
                 try:
