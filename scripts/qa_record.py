@@ -5,7 +5,8 @@ Usage (from plugin repo root):
   python3 scripts/qa_record.py --scenario cli-smoke
   python3 scripts/qa_record.py --all
 
-Requires: claude on PATH, API credentials for Claude. Writes to tests/fixtures/recordings/ (gitignored).
+Requires: claude on PATH and a working Claude Code login (subscription/OAuth by default; API keys
+stripped from the subprocess env unless --bare or --keep-anthropic-env). Writes to tests/fixtures/recordings/ (gitignored).
 Next: python3 scripts/qa_extract_fixture.py tests/fixtures/recordings/<file>.jsonl
 """
 
@@ -23,6 +24,10 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO = SCRIPT_DIR.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from lib.claude_env import strip_anthropic_api_credentials
+
 RECORDINGS = REPO / "tests" / "fixtures" / "recordings"
 BIN_LLM_WIKI = REPO / "bin" / "llm-wiki"
 
@@ -109,6 +114,9 @@ def _run_claude(
     budget: str,
     timeout: int,
     output_path: Path,
+    bare: bool,
+    no_max_budget: bool,
+    keep_anthropic_env: bool,
 ) -> int:
     claude = shutil.which("claude")
     if not claude:
@@ -121,22 +129,38 @@ def _run_claude(
     env["PYTHONPATH"] = p if not prev else f"{p}{os.pathsep}{prev}"
     if vault is not None:
         env["LLM_WIKI_VAULT"] = str(vault)
+    if not bare and not keep_anthropic_env:
+        env = strip_anthropic_api_credentials(env)
 
-    cmd = [
-        claude,
-        "-p",
-        "--bare",
-        "--no-session-persistence",
-        "--dangerously-skip-permissions",
-        "--max-budget-usd",
-        budget,
-        "--output-format",
-        "stream-json",
-        "--include-hook-events",
-        "--plugin-dir",
-        str(REPO),
-        prompt,
-    ]
+    cmd = [claude, "-p"]
+    if bare:
+        cmd.append("--bare")
+    else:
+        # Match tests/conftest claude_runner: avoid merging ~/.claude/settings.json env (API key).
+        ss = os.environ.get("CLAUDE_RUNNER_SETTING_SOURCES", "project").strip()
+        if ss:
+            cmd.extend(["--setting-sources", ss])
+    cmd.extend(
+        [
+            "--no-session-persistence",
+            "--dangerously-skip-permissions",
+        ]
+    )
+    if not no_max_budget:
+        cmd.extend(["--max-budget-usd", budget])
+    cmd.extend(
+        [
+            "--verbose",
+            "--output-format",
+            "stream-json",
+            "--include-hook-events",
+            "--plugin-dir",
+            str(REPO),
+        ]
+    )
+    if vault is not None:
+        cmd.extend(["--add-dir", str(vault)])
+    cmd.extend(["--", prompt])
     print("Recording to", output_path, file=sys.stderr)
     with open(output_path, "w", encoding="utf-8") as f:
         r = subprocess.run(
@@ -159,6 +183,21 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Record Claude -p stream-json for QA fixtures")
     ap.add_argument("--scenario", metavar="NAME", help="Scenario name")
     ap.add_argument("--all", action="store_true", help="Run every scenario")
+    ap.add_argument(
+        "--bare",
+        action="store_true",
+        help="Pass --bare to claude (API key only; disables OAuth/keychain — not for subscription auth)",
+    )
+    ap.add_argument(
+        "--no-max-budget",
+        action="store_true",
+        help="Omit --max-budget-usd (use with Claude Code subscription; flag caps API spend)",
+    )
+    ap.add_argument(
+        "--keep-anthropic-env",
+        action="store_true",
+        help="Pass ANTHROPIC_API_KEY through (default: strip for subscription/OAuth CLI login)",
+    )
     args = ap.parse_args()
     if not args.scenario and not args.all:
         ap.print_help()
@@ -193,6 +232,9 @@ def main() -> int:
                 budget=sc["budget"],
                 timeout=int(sc["timeout"]),
                 output_path=out,
+                bare=args.bare,
+                no_max_budget=args.no_max_budget,
+                keep_anthropic_env=args.keep_anthropic_env,
             )
             if r != 0:
                 rc = r
