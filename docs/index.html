@@ -35,6 +35,7 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a href="#setup">Setup</a>
+          <a href="#slash-commands">Slash commands</a>
           <a href="#what-you-get">What you get</a>
           <a href="#details">Details</a>
           <a href="memory/index.html#metrics-dashboard">Memory</a>
@@ -88,6 +89,22 @@
             </div>
             <pre><code>/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
 /plugin install llm-wiki@llm-wiki-local</code></pre>
+          </div>
+
+          <div class="slash-commands-hero" id="slash-commands" aria-labelledby="slash-commands-heading">
+            <p class="hero-story-label" id="slash-commands-heading">Claude Code slash commands</p>
+            <p class="hero-body">
+              Type <code class="inline-code">/</code> in chat — each <code class="inline-code">commands/&lt;name&gt;.md</code> file is
+              <code class="inline-code">/llm-wiki:&lt;name&gt;</code>. Day-to-day you’ll reach for
+              <code class="inline-code">/llm-wiki:ingest</code>,
+              <code class="inline-code">/llm-wiki:query</code>,
+              <code class="inline-code">/llm-wiki:memory</code>,
+              <code class="inline-code">/llm-wiki:status</code>,
+              <code class="inline-code">/llm-wiki:build-og</code>, and
+              <code class="inline-code">/llm-wiki:mcp</code>
+              as often as <code class="inline-code">setup</code> / <code class="inline-code">configure</code>. Full catalog with short descriptions is under
+              <a href="#slash-command-catalog">Skills &amp; commands</a>.
+            </p>
           </div>
 
           <aside class="terminal-card" aria-label="Setup preview">
@@ -192,6 +209,22 @@
             <h3>Skills &amp; Commands</h3>
             <p>Use bundled prompts, CLI commands, and agent skills instead of rebuilding the workflow in every repo.</p>
             <span class="feature-link">Jump to workflows</span>
+          </a>
+
+          <a class="feature-card" href="#slash-commands">
+            <span class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 7h6"/>
+                <path d="M4 12h4"/>
+                <path d="M4 17h6"/>
+                <path d="M14 7h6"/>
+                <path d="M14 12h6"/>
+                <path d="M14 17h6"/>
+              </svg>
+            </span>
+            <h3>Slash commands</h3>
+            <p><code class="inline-code">/llm-wiki:…</code> prompts in Claude Code — one markdown file per command under <code class="inline-code">commands/</code>.</p>
+            <span class="feature-link">How slash commands work</span>
           </a>
 
           <a class="feature-card" href="memory/index.html#metrics-dashboard">
@@ -349,6 +382,119 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
             <p>
               The repo bundles the operational layer too: CLI commands, slash-command prompts, and agent skills that describe how the wiki should be maintained. The goal is to show a small, memorable command surface first, then let deeper docs carry the rest. For the full CLI surface, see <a href="#commands">Commands and use cases</a> below.
             </p>
+
+            <h4 id="slash-command-catalog">Claude Code slash commands</h4>
+            <p class="detail-note">
+              Prompt bodies live in <a href="https://github.com/SkinnnyJay/wiki-llm/tree/main/commands"><code class="inline-code">commands/</code></a>; invoke as <code class="inline-code">/llm-wiki:&lt;name&gt;</code> (hyphenated filenames stay hyphenated, e.g. <code class="inline-code">graph-knowledge</code>). After plugin changes, <code class="inline-code">/reload-plugins</code> in Claude Code. Each name below links to the markdown source on GitHub.
+            </p>
+
+            <h5 class="slash-group-title">Daily driver</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/setup.md"><code>/llm-wiki:setup</code></a></dt>
+                <dd>New vault, re-wizard, vault-only, or memory-only — <strong>wiki-setup</strong>.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/configure.md"><code>/llm-wiki:configure</code></a></dt>
+                <dd>Quick tweaks to <code class="inline-code">config.json</code> (<code class="inline-code">wiki_configure</code>, <code class="inline-code">llm-wiki configure -i</code>).</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/status.md"><code>/llm-wiki:status</code></a></dt>
+                <dd>Vault health — integrations, search backend, KG; MCP <code class="inline-code">wiki_status</code>.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/ingest.md"><code>/llm-wiki:ingest</code></a></dt>
+                <dd>Land sources in <code class="inline-code">raw/</code>, then merge to <code class="inline-code">wiki/</code> — adapters, limits, provenance.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/query.md"><code>/llm-wiki:query</code></a></dt>
+                <dd>Answer from the wiki with citations; optional save back to <code class="inline-code">wiki/</code> — <strong>wiki-query</strong>.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/build-og.md"><code>/llm-wiki:build-og</code></a></dt>
+                <dd>Build static viewer + <code class="inline-code">wiki-data.json</code> (<code class="inline-code">build-site</code> alias).</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/lint.md"><code>/llm-wiki:lint</code></a></dt>
+                <dd>Wiki health — orphans, broken wikilinks, contradictions — <strong>wiki-lint</strong>.</dd>
+              </div>
+            </dl>
+
+            <h5 class="slash-group-title">Memory &amp; MCP</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/memory.md"><code>/llm-wiki:memory</code></a></dt>
+                <dd>Session memory under <code class="inline-code">raw/memory/</code> — save, list, recall, prune — <strong>wiki-session-memory</strong>.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/mcp.md"><code>/llm-wiki:mcp</code></a></dt>
+                <dd>MCP server (stdio or SSE), <code class="inline-code">mcp install</code>, search/KG backends per config.</dd>
+              </div>
+            </dl>
+
+            <h5 class="slash-group-title">Graphs &amp; integrations</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/graph.md"><code>/llm-wiki:graph</code></a></dt>
+                <dd>Link graph / D3 views — <code class="inline-code">graph --mode links|knowledge</code>.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/graph-knowledge.md"><code>/llm-wiki:graph-knowledge</code></a></dt>
+                <dd>Knowledge-style cluster view (shortcut for <code class="inline-code">graph --mode knowledge</code>).</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/integrations.md"><code>/llm-wiki:integrations</code></a></dt>
+                <dd>Adapter readiness, keys, Firecrawl-style tooling — <code class="inline-code">integrations status|validate|wizard|set-key</code>.</dd>
+              </div>
+            </dl>
+
+            <h5 class="slash-group-title">Raw layer</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/raw-prepare.md"><code>/llm-wiki:raw-prepare</code></a></dt>
+                <dd>Validate/clean <code class="inline-code">raw/</code>, <code class="inline-code">raw finish</code>, prep for wiki-ingest — <strong>wiki-raw-prepare</strong>.</dd>
+              </div>
+            </dl>
+
+            <h5 class="slash-group-title">Research &amp; benchmarks</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/research.md"><code>/llm-wiki:research</code></a></dt>
+                <dd>Ad-hoc topic research (not the same as <strong>query</strong>, which reads existing <code class="inline-code">wiki/</code>).</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/research-loop.md"><code>/llm-wiki:research-loop</code></a></dt>
+                <dd>Batch tasks from <code class="inline-code">research-tasks.json</code> / YAML.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/benchmark.md"><code>/llm-wiki:benchmark</code></a></dt>
+                <dd>Retrieval benchmarks (LME / LoCoMo / ConvoMem) — ties to <a href="memory/index.html#metrics-dashboard">memory hub</a> charts.</dd>
+              </div>
+            </dl>
+
+            <h5 class="slash-group-title">Vault git</h5>
+            <dl class="commands-dl slash-commands-dl">
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/git-status.md"><code>/llm-wiki:git-status</code></a></dt>
+                <dd>Short status inside the vault repo.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/git-log.md"><code>/llm-wiki:git-log</code></a></dt>
+                <dd>History / log views scoped to the vault.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/git-diff.md"><code>/llm-wiki:git-diff</code></a></dt>
+                <dd>Diffs for vault changes.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/git-snapshot.md"><code>/llm-wiki:git-snapshot</code></a></dt>
+                <dd>Snapshot workflow helpers.</dd>
+              </div>
+              <div>
+                <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/git-lifecycle.md"><code>/llm-wiki:git-lifecycle</code></a></dt>
+                <dd>Lifecycle views across vault git history.</dd>
+              </div>
+            </dl>
 
             <div class="command-story">
               <div class="command-story-header">
