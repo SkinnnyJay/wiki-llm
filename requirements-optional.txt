@@ -1,4 +1,8 @@
 # Optional pip deps for llm-wiki CLI (use a venv: python3 -m venv .venv && .venv/bin/pip install -r requirements-optional.txt)
+#
+# Playwright (viewer browser smoke: tests/test_viewer_playwright.py, RUN_BROWSER_TESTS=1):
+#   pip install playwright && playwright install chromium
+playwright>=1.40
 # Format-specific deps are lazy — only install what you need.
 # Each format has a reference file under skills/references/ingest-<format>.md
 #

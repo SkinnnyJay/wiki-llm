@@ -23,6 +23,40 @@ LLM_WIKI = REPO / "scripts" / "llm_wiki.py"
 GOLDEN_DIR = REPO / "tests" / "fixtures" / "golden"
 
 
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").lower() in ("1", "true", "yes")
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """One-time stderr notice when expensive / external tiers are enabled."""
+    lines: list[str] = []
+    if _truthy_env("RUN_NETWORK_TESTS"):
+        lines.append(
+            "llm-wiki pytest: RUN_NETWORK_TESTS=1 — external HTTPS/network may be used."
+        )
+    if _truthy_env("RUN_CLAUDE_TESTS"):
+        lines.append(
+            "llm-wiki pytest: RUN_CLAUDE_TESTS=1 — Claude CLI; subscription or API usage may apply."
+        )
+    if _truthy_env("RUN_CODEX_SKILL_EVALS"):
+        lines.append(
+            "llm-wiki pytest: RUN_CODEX_SKILL_EVALS=1 — Codex CLI; API usage may apply."
+        )
+    if _truthy_env("RUN_BROWSER_TESTS"):
+        lines.append(
+            "llm-wiki pytest: RUN_BROWSER_TESTS=1 — Playwright (local browser; not an LLM)."
+        )
+    if _truthy_env("RUN_MINIMAL_SKILL_EVALS"):
+        lines.append(
+            "llm-wiki pytest: RUN_MINIMAL_SKILL_EVALS=1 — only core wiki-query/wiki-status/wiki-session-memory skill evals."
+        )
+    if lines:
+        print("---", file=sys.stderr)
+        for line in lines:
+            print(line, file=sys.stderr)
+        print("---", file=sys.stderr)
+
+
 def _env_with_scripts(base: dict[str, str] | None = None) -> dict[str, str]:
     env = dict(os.environ) if base is None else {**base}
     p = str(SCRIPTS)
@@ -55,6 +89,11 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         if os.environ.get("RUN_CODEX_SKILL_EVALS", "").lower() not in ("1", "true", "yes"):
             pytest.skip(
                 "Codex skill evals off (set RUN_CODEX_SKILL_EVALS=1)"
+            )
+    if "browser" in item.keywords:
+        if os.environ.get("RUN_BROWSER_TESTS", "").lower() not in ("1", "true", "yes"):
+            pytest.skip(
+                "Browser tests off (set RUN_BROWSER_TESTS=1 or: llm-wiki smoke-test --browser)"
             )
 
 
