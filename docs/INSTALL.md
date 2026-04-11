@@ -1,10 +1,25 @@
+<p align="center">
+  <img src="assets/readme-banner.png" alt="llm-wiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+
 # Install and first run
 
 **Terminology:** **Vault** = your `llm-wiki/` folder; **plugin repo** = this repository (CLI, commands, skills). See [`QUICKSTART.md`](./QUICKSTART.md).
 
+**Order in this doc:** **Claude Code** → **`llm-wiki` CLI** → **bash / shell** (longer examples).
+
 <a id="install-claude-code"></a>
 
-## Claude Code (recommended): slash commands first
+## 1. Claude Code (recommended)
+
+### Install and reload
 
 1. Add the marketplace and install **llm-wiki** (catalog name in [`marketplace.json`](../marketplace.json): `llm-wiki-local`):
 
@@ -17,7 +32,7 @@
 
 3. **Scaffold the vault in chat:** **`/llm-wiki:setup`** (same text as [`commands/setup.md`](../commands/setup.md)). That creates **`llm-wiki/`** with `raw/`, `wiki/`, `config.json`, and vault rules.
 
-4. **Next commands:** **`/llm-wiki:status`** (health), **`/llm-wiki:configure`** (quick config). Use **`/llm-wiki:ingest`** and skills **wiki-ingest**, **wiki-maintainer**, **wiki-pipeline** for the ongoing loop. Every prompt lives under [`commands/`](../commands/) (`/llm-wiki:<name>` → `commands/<name>.md`).
+4. **Next:** **`/llm-wiki:status`** (health), **`/llm-wiki:configure`** (quick config). Use **`/llm-wiki:ingest`** and skills **wiki-ingest**, **wiki-maintainer**, **wiki-pipeline** for the ongoing loop. Every prompt lives under [`commands/`](../commands/) (`/llm-wiki:<name>` → `commands/<name>.md`). **Full index** (all slash names + summaries + CLI hints): [`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md).
 
 After upstream plugin changes: **`/plugin marketplace update`**. Official docs: [Discover and install plugins](https://docs.anthropic.com/en/discover-plugins), [plugin marketplaces](https://docs.anthropic.com/en/docs/claude-code/plugin-marketplaces).
 
@@ -25,13 +40,29 @@ After upstream plugin changes: **`/plugin marketplace update`**. Official docs: 
 
 ---
 
-## Cursor / OpenAI Codex
+## 2. Cursor / OpenAI Codex
 
-No Claude **plugin** install — use **[`AGENTS.md`](../AGENTS.md)**, project rules **[`rules/llm-wiki.mdc`](../rules/llm-wiki.mdc)**, and **`commands/*.md`** as manual prompts (same text as **`/llm-wiki:…`**). Run **`bin/llm-wiki`** from a terminal when you need the CLI.
+No Claude **plugin** install — use **[`AGENTS.md`](../AGENTS.md)**, project rules **[`rules/llm-wiki.mdc`](../rules/llm-wiki.mdc)**, and **`commands/*.md`** as manual prompts (same text as **`/llm-wiki:…`**). Use **`bin/llm-wiki`** from a terminal when you need the CLI (see below).
+
+---
+
+## 3. CLI (`llm-wiki`)
+
+For **terminals, CI, and automation** — same behavior as driving the vault from chat, without slash commands.
+
+- Entrypoint: **`bin/llm-wiki`** or **`python3 scripts/llm_wiki.py`** from the plugin repo root (see [`CLI.md`](./CLI.md) for `PYTHONPATH` and subcommands).
+- Typical first run: **`llm-wiki setup --root .`**, then **`llm-wiki ingest …`**, **`validate`**, **`build-site`**.
+- Full green path: [`WORKFLOWS.md`](../WORKFLOWS.md) “Green path”.
+
+---
+
+## 4. Bash / shell (scripts and copy-paste)
+
+Multi-step shell flows, **`./setup`**, **`cd … && python3 -m http.server`**, and pipelines belong here — not required for day-to-day Claude Code use.
 
 <a id="install-development--clone"></a>
 
-## Development (clone of this repo)
+### Development (clone of this repo)
 
 ```bash
 ./setup
@@ -50,12 +81,6 @@ claude plugin validate /path/to/wiki-llm
 ```
 
 **Troubleshooting** (plugin missing, cache, ENOSPC): [`WORKFLOWS.md`](../WORKFLOWS.md) “Troubleshooting (green path)”.
-
----
-
-## Optional: scripted CLI (CI or power users)
-
-The same scaffold and loop are available via **`llm-wiki`** — see [`QUICKSTART.md`](./QUICKSTART.md) and [`WORKFLOWS.md`](../WORKFLOWS.md) “Green path”. [`CLI.md`](./CLI.md) lists subcommands and the `PYTHONPATH` note.
 
 ### Example: ingest → viewer → graph
 

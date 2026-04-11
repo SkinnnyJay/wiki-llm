@@ -35,10 +35,11 @@ Materialize sources into **`llm-wiki/raw/`**, then merge into **`wiki/`** with *
 
 Do **not** silently run a long ingest. Follow this pattern in the **user-visible reply**:
 
-1. **State the plan** — adapter name, vault path, **source type** (API vs page vs file), and **one-line risk** (rate limits, many HTTP round-trips, large PDFs, etc.).
+1. **State the plan** — adapter name, vault path, **source type** (API vs page vs file), and **one-line risk** (rate limits, many HTTP round-trips, large PDFs, etc.). A sentence of **why this adapter** beats the alternatives (from **`ingest --list`** and config) counts as useful “thinking.”
 2. **Run the CLI** — use **Bash** with **`2>&1`** so **stderr** merges with stdout (progress lines from many adapters go to stderr).
-3. **Narrate milestones** — after the command returns, summarize exit code and output path; if the tool UI looked “stuck,” explain that **timers often freeze** while the subprocess runs; **stderr progress** is the source of truth.
-4. **Next step** — either **wiki-ingest** merge, **`llm-wiki validate`**, or **`build-site --if-stale`** as appropriate.
+3. **Surface progress** — when the command finishes, **do not** only say “done.” **Quote or summarize** the useful lines from the combined output: adapter messages, URLs fetched, bytes/pages, paths written under **`raw/`**, warnings, and **exit code**. If output is long, show the **head and tail** (or the last ~30 lines) so the user sees that work happened. If the UI looked “stuck,” explain that **timers often freeze** while the subprocess runs; **stderr progress** is the source of truth.
+4. **Narrate milestones** — after the command returns, restate **where files landed** (`raw/...`) and what still **has not** happened (**`wiki/`** is unchanged until **wiki-ingest**).
+5. **Next step** — either **wiki-ingest** merge (with its own visible steps — see **wiki-ingest** skill), **`llm-wiki validate`**, or **`build-site --if-stale`** as appropriate.
 
 5. **Missing tools** — If **`playwright`** or **Firecrawl** are chosen but **`llm-wiki integrations status`** shows warnings, **offer** install/enable: **`pip install playwright && playwright install chromium`** for the **`playwright`** adapter, or Firecrawl CLI/API per **`commands/integrations.md`**. **Playwright MCP** in Cursor/Claude is a **separate** editor tool server from the vault **`llm-wiki` MCP**; use MCP for interactive browsing, **`llm-wiki ingest playwright …`** for the same **`raw/`** markdown contract as other adapters.
 

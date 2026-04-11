@@ -1,8 +1,21 @@
+<p align="center">
+  <img src="docs/assets/readme-banner.png" alt="llm-wiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+
 # llm-wiki workflows
 
 **First run:** [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — vault vs plugin repo, five-minute path, tier table (basic → advanced).
 
 Canonical paths through the vault. Voice and epistemics: [`prompts/PERSONA.md`](prompts/PERSONA.md). Principles: [`ETHOS.md`](ETHOS.md).
+
+**Slash commands:** full index and per-command summaries → [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) (prompt sources: [`commands/`](commands/)).
 
 **Cursor / OpenAI Codex (no Claude Code plugin):** [`AGENTS.md`](AGENTS.md) (how each tool loads this repo) — use **`bin/llm-wiki`** from a terminal, **`rules/llm-wiki.mdc`** / **`.cursor/rules/`** in Cursor, and **`commands/*.md`** for the same prompts as **`/llm-wiki:…`** slash commands.
 
@@ -117,5 +130,5 @@ python3 scripts/.tmp/demo_full_flow.py
 
 ## Related
 
-- Slash commands: [`commands/`](commands/)
+- Slash commands (index + details): [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) — prompt files: [`commands/`](commands/)
 - CLI reference: [`docs/CLI.md`](docs/CLI.md)

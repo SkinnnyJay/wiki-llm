@@ -6,7 +6,7 @@
   <title>llm-wiki - Claude Code plugin for knowledge vaults</title>
   <meta
     name="description"
-    content="llm-wiki is a Claude Code plugin for persistent knowledge vaults with schema-driven ingest, static graph viewers, and reusable wiki workflows."
+    content="llm-wiki is a Claude Code plugin: use /llm-wiki:… slash commands for vault setup, ingest, query, and memory — no terminal required for day-to-day work."
   />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,7 +39,7 @@
           <a href="#what-you-get">What you get</a>
           <a href="#details">Details</a>
           <a href="memory/index.html#metrics-dashboard">Memory</a>
-          <a href="#commands">Commands</a>
+          <a href="#commands">CLI reference</a>
           <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         </nav>
       </div>
@@ -53,15 +53,15 @@
           <p class="eyebrow">Claude Code Plugin</p>
           <h1 id="hero-title">llm-wiki</h1>
           <p class="hero-outcome" id="hero-outcome">
-            <strong>In short:</strong> install the plugin → <code class="inline-code">llm-wiki setup</code> → capture in
+            <strong>In short:</strong> install the plugin → type <code class="inline-code">/llm-wiki:setup</code> in chat → capture in
             <code class="inline-code">raw/</code> → curate <code class="inline-code">wiki/</code> →
-            <code class="inline-code">build-site</code> when you want a static viewer.
+            <code class="inline-code">/llm-wiki:build-og</code> when you want a static viewer. From a shell, <code class="inline-code">llm-wiki build-site</code> and <code class="inline-code">llm-wiki build-og</code> are the same build (alias names).
           </p>
           <p class="hero-lead">
-            Turn scattered source material into a maintained wiki your agent can keep building on.
+            Turn scattered source material into a maintained wiki your agent can keep building on — mostly from <code class="inline-code">/</code> prompts, not memorized flags.
           </p>
           <p class="hero-body">
-            Scaffold <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, and schema-backed workflows so source captures stay immutable, curated pages stay linkable, and the command flow stays simple enough to reuse across repos.
+            Every slash command is a curated prompt under <code class="inline-code">commands/</code>: setup, ingest, query, memory, MCP, and more. You stay in Claude Code; the repo still gives you <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, and schema-backed workflows when you need depth.
           </p>
 
           <div class="lineage-note">
@@ -87,56 +87,56 @@
             <div class="install-shell-top">
               <span>Install once</span>
             </div>
-            <pre><code>/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
+            <pre data-code="claude"><code>/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
 /plugin install llm-wiki@llm-wiki-local</code></pre>
           </div>
 
           <div class="slash-commands-hero" id="slash-commands" aria-labelledby="slash-commands-heading">
-            <p class="hero-story-label" id="slash-commands-heading">Claude Code slash commands</p>
+            <p class="hero-story-label" id="slash-commands-heading">Why slash commands</p>
             <p class="hero-body">
               Type <code class="inline-code">/</code> in chat — each <code class="inline-code">commands/&lt;name&gt;.md</code> file is
-              <code class="inline-code">/llm-wiki:&lt;name&gt;</code>. Day-to-day you’ll reach for
+              <code class="inline-code">/llm-wiki:&lt;name&gt;</code>. No need to hunt for <code class="inline-code">bin/llm-wiki</code> for daily work: use
               <code class="inline-code">/llm-wiki:ingest</code>,
               <code class="inline-code">/llm-wiki:query</code>,
               <code class="inline-code">/llm-wiki:memory</code>,
               <code class="inline-code">/llm-wiki:status</code>,
               <code class="inline-code">/llm-wiki:build-og</code>, and
               <code class="inline-code">/llm-wiki:mcp</code>
-              as often as <code class="inline-code">setup</code> / <code class="inline-code">configure</code>. Full catalog with short descriptions is under
+              as often as <code class="inline-code">/llm-wiki:setup</code> or <code class="inline-code">/llm-wiki:configure</code>. Full catalog is under
               <a href="#slash-command-catalog">Skills &amp; commands</a>.
             </p>
           </div>
 
-          <aside class="terminal-card" aria-label="Setup preview">
+          <aside class="terminal-card" aria-label="Example slash in Claude Code">
             <div class="terminal-top">
               <span class="terminal-dot terminal-dot-red"></span>
               <span class="terminal-dot terminal-dot-amber"></span>
               <span class="terminal-dot terminal-dot-green"></span>
             </div>
-            <pre class="terminal-body"><code>$ bin/llm-wiki setup --root .
-✓ Created llm-wiki/raw/
-✓ Created llm-wiki/wiki/
-✓ Created llm-wiki/.schema/
-✓ Initialized vault config</code></pre>
+            <pre class="terminal-body" data-code="claude"><code># Claude Code (chat)
+/llm-wiki:setup
+
+✓ Walks vault setup — same outcome as llm-wiki setup --root .
+✓ raw/, wiki/, .schema/, config in one guided flow</code></pre>
           </aside>
 
           <div class="hero-story" aria-labelledby="hero-story-title">
-            <p class="hero-story-label" id="hero-story-title">Then try one clean first workflow</p>
+            <p class="hero-story-label" id="hero-story-title">First workflow (slash — easiest)</p>
             <div class="hero-story-grid">
               <div class="story-step">
                 <span class="story-step-title">1. Setup the vault</span>
-                <pre><code>bin/llm-wiki setup --root .</code></pre>
+                <pre data-code="claude"><code>/llm-wiki:setup</code></pre>
               </div>
               <div class="story-step">
                 <span class="story-step-title">2. Ingest one source</span>
-                <pre><code>bin/llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
+                <pre data-code="claude"><code>/llm-wiki:ingest</code></pre>
               </div>
               <div class="story-step">
                 <span class="story-step-title">3. Build the viewer</span>
-                <pre><code>bin/llm-wiki build-site</code></pre>
+                <pre data-code="claude"><code>/llm-wiki:build-og</code></pre>
               </div>
             </div>
-            <p class="hero-story-note">That path gets you from raw capture to a browseable graph-backed wiki without making the landing page feel like full documentation.</p>
+            <p class="hero-story-note">The prompts carry the flags and adapters for you. Prefer a terminal? Same steps map to <code class="inline-code">llm-wiki setup</code>, <code class="inline-code">ingest …</code>, and <code class="inline-code">llm-wiki build-site</code> (alias <code class="inline-code">build-og</code>, same build) — see <a href="#commands">CLI reference</a>.</p>
           </div>
 
           <div class="hero-actions">
@@ -207,7 +207,7 @@
               </svg>
             </span>
             <h3>Skills &amp; Commands</h3>
-            <p>Use bundled prompts, CLI commands, and agent skills instead of rebuilding the workflow in every repo.</p>
+            <p>Slash commands and skills first — optional <code class="inline-code">llm-wiki</code> CLI when you want scripts or CI.</p>
             <span class="feature-link">Jump to workflows</span>
           </a>
 
@@ -223,8 +223,8 @@
               </svg>
             </span>
             <h3>Slash commands</h3>
-            <p><code class="inline-code">/llm-wiki:…</code> prompts in Claude Code — one markdown file per command under <code class="inline-code">commands/</code>.</p>
-            <span class="feature-link">How slash commands work</span>
+            <p><code class="inline-code">/llm-wiki:…</code> is the easy path: one prompt per file in <code class="inline-code">commands/</code>, no terminal required.</p>
+            <span class="feature-link">See slash catalog</span>
           </a>
 
           <a class="feature-card" href="memory/index.html#metrics-dashboard">
@@ -257,7 +257,7 @@
             <p>
               The vault keeps raw inputs separate from curated knowledge. That lets you preserve the source of truth, revise derived notes safely, and keep schema-driven rules nearby.
             </p>
-            <pre><code>llm-wiki/
+            <pre data-code="bash"><code>llm-wiki/
   raw/        # immutable source captures
   wiki/       # curated markdown pages
   .schema/    # validation and structure rules
@@ -278,24 +278,36 @@
             <p>
               The pipeline is designed so new sources enter as recorded inputs first, then move through review and curation into the wiki layer.
             </p>
-            <div class="flow-list" aria-label="Ingest flow">
-              <div class="flow-step">Source<br /><span>file, URL, HN, optional connectors</span></div>
+            <div class="flow-list flow-list--ingest" aria-label="Ingest flow">
+              <div class="flow-step">
+                <span class="flow-step-title">Source</span>
+                <span class="flow-step-desc">file, URL, HN, optional connectors</span>
+              </div>
               <div class="flow-arrow" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 12h13"/>
                   <path d="m12 5 7 7-7 7"/>
                 </svg>
               </div>
-              <div class="flow-step">raw/<br /><span>captured without rewriting history</span></div>
+              <div class="flow-step">
+                <span class="flow-step-title">raw/</span>
+                <span class="flow-step-desc">captured without rewriting history</span>
+              </div>
               <div class="flow-arrow" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 12h13"/>
                   <path d="m12 5 7 7-7 7"/>
                 </svg>
               </div>
-              <div class="flow-step">wiki/<br /><span>curated markdown and linked notes</span></div>
+              <div class="flow-step">
+                <span class="flow-step-title">wiki/</span>
+                <span class="flow-step-desc">curated markdown and linked notes</span>
+              </div>
             </div>
-            <pre><code>llm-wiki ingest file ./notes.md --out clips/notes.md
+            <pre data-code="claude"><code># In chat
+/llm-wiki:ingest</code></pre>
+            <pre data-code="bash"><code># CLI equivalent (when you want exact flags)
+llm-wiki ingest file ./notes.md --out clips/notes.md
 llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
             <ul>
               <li>Files, URLs, and Hacker News threads can all enter the same workflow.</li>
@@ -310,7 +322,7 @@ llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
               <h3 id="static-viewer-title">Static Viewer</h3>
             </div>
             <p>
-              After ingest and curation, <code class="inline-code">build-site</code> turns the wiki into a static reader with graph data, linked-page browsing, and an app-like interface that is easy to host or inspect locally.
+              After ingest and curation, run the build so <code class="inline-code">wiki/.og/</code> gets <code class="inline-code">wiki-data.json</code> plus the static viewer (graph UI, search, page reader). In chat that is <code class="inline-code">/llm-wiki:build-og</code>. In the shell, <code class="inline-code">llm-wiki build-site</code> and <code class="inline-code">llm-wiki build-og</code> are the <strong>same subcommand</strong> — two names, one pipeline: <code class="inline-code">build-site</code> is the canonical spelling; <code class="inline-code">build-og</code> is an alias that matches the <code class="inline-code">.og</code> output folder and the slash command name.
             </p>
             <div class="viewer-preview" aria-hidden="true">
               <div class="viewer-preview-chrome">
@@ -369,9 +381,19 @@ llm-wiki ingest url https://example.com --out clips/example.md</code></pre>
                 </div>
               </div>
             </div>
-            <pre><code>llm-wiki build-site
-cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
-            <p class="detail-note">Serve the viewer over HTTP, not <code class="inline-code">file://</code>, so graph assets and wiki data load predictably.</p>
+            <pre data-code="claude"><code># Build (slash — runs the same pipeline as build-site / build-og)
+/llm-wiki:build-og</code></pre>
+            <pre data-code="bash"><code># Either name emits wiki/.og/ + wiki-data.json — pick one:
+llm-wiki build-site
+# llm-wiki build-og
+
+# Optional: build + local HTTP (port from viewer.port, default 8765)
+llm-wiki build-og --serve-background
+llm-wiki build-og --stop-serving
+# Identical flags on build-site, e.g. llm-wiki build-site --serve-background
+
+# Foreground (Ctrl+C stops): llm-wiki build-site --serve</code></pre>
+            <p class="detail-note">Static files must be served over HTTP, not <code class="inline-code">file://</code>, so graph assets and wiki data load predictably. The slash command runs the build only. From a shell, <code class="inline-code">--serve</code> / <code class="inline-code">--serve-background</code> work on <strong>both</strong> <code class="inline-code">build-site</code> and <code class="inline-code">build-og</code> (same flags); <code class="inline-code">--stop-serving</code> stops the background server (pid in <code class="inline-code">wiki/.og/.viewer-http.pid</code>). Docs often show <code class="inline-code">build-og</code> next to <code class="inline-code">--serve*</code> because the name matches <code class="inline-code">wiki/.og/</code>. You can use <code class="inline-code">./scripts/serve-viewer.sh</code> after a build if you prefer.</p>
           </article>
 
           <article class="detail-card" id="skills-commands" aria-labelledby="skills-commands-title">
@@ -380,15 +402,16 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
               <h3 id="skills-commands-title">Skills &amp; Commands</h3>
             </div>
             <p>
-              The repo bundles the operational layer too: CLI commands, slash-command prompts, and agent skills that describe how the wiki should be maintained. The goal is to show a small, memorable command surface first, then let deeper docs carry the rest. For the full CLI surface, see <a href="#commands">Commands and use cases</a> below.
+              The main surface is <strong>slash commands</strong> in Claude Code — each one is a prompt backed by the same skills as the CLI. Use <code class="inline-code">/</code> for day-to-day vault work; reach for <code class="inline-code">bin/llm-wiki</code> when you want automation, scripts, or exact flags. For the full terminal reference, see <a href="#commands">CLI reference</a> below.
             </p>
 
             <h4 id="slash-command-catalog">Claude Code slash commands</h4>
             <p class="detail-note">
-              Prompt bodies live in <a href="https://github.com/SkinnnyJay/wiki-llm/tree/main/commands"><code class="inline-code">commands/</code></a>; invoke as <code class="inline-code">/llm-wiki:&lt;name&gt;</code> (hyphenated filenames stay hyphenated, e.g. <code class="inline-code">graph-knowledge</code>). After plugin changes, <code class="inline-code">/reload-plugins</code> in Claude Code. Each name below links to the markdown source on GitHub.
+              This is the path we optimize for: prompt bodies live in <a href="https://github.com/SkinnnyJay/wiki-llm/tree/main/commands"><code class="inline-code">commands/</code></a>; invoke as <code class="inline-code">/llm-wiki:&lt;name&gt;</code> (hyphenated filenames stay hyphenated, e.g. <code class="inline-code">graph-knowledge</code>). After plugin changes, <code class="inline-code">/reload-plugins</code> in Claude Code. Each name below links to the markdown source on GitHub.
             </p>
 
-            <h5 class="slash-group-title">Daily driver</h5>
+            <h5 class="slash-group-title">Vault setup &amp; health</h5>
+            <p class="slash-group-note">First run, re-wizard, or when you need to tune config or sanity-check the vault — not the same rhythm as capture and read below.</p>
             <dl class="commands-dl slash-commands-dl">
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/setup.md"><code>/llm-wiki:setup</code></a></dt>
@@ -396,12 +419,17 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
               </div>
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/configure.md"><code>/llm-wiki:configure</code></a></dt>
-                <dd>Quick tweaks to <code class="inline-code">config.json</code> (<code class="inline-code">wiki_configure</code>, <code class="inline-code">llm-wiki configure -i</code>).</dd>
+                <dd>Quick tweaks to <code class="inline-code">config.json</code> — same flow as MCP <code class="inline-code">wiki_configure</code> or <code class="inline-code">llm-wiki configure -i</code> when you use the CLI.</dd>
               </div>
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/status.md"><code>/llm-wiki:status</code></a></dt>
                 <dd>Vault health — integrations, search backend, KG; MCP <code class="inline-code">wiki_status</code>.</dd>
               </div>
+            </dl>
+
+            <h5 class="slash-group-title">Core workflow</h5>
+            <p class="slash-group-note">What you reach for most often once the vault exists: add sources, ask questions, ship the viewer, keep quality in check.</p>
+            <dl class="commands-dl slash-commands-dl">
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/ingest.md"><code>/llm-wiki:ingest</code></a></dt>
                 <dd>Land sources in <code class="inline-code">raw/</code>, then merge to <code class="inline-code">wiki/</code> — adapters, limits, provenance.</dd>
@@ -412,7 +440,7 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
               </div>
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/build-og.md"><code>/llm-wiki:build-og</code></a></dt>
-                <dd>Build static viewer + <code class="inline-code">wiki-data.json</code> (<code class="inline-code">build-site</code> alias).</dd>
+                <dd>Emit <code class="inline-code">wiki/.og/</code> + <code class="inline-code">wiki-data.json</code>. CLI: <code class="inline-code">llm-wiki build-site</code> (canonical name) and <code class="inline-code">llm-wiki build-og</code> (alias, same flags — use either).</dd>
               </div>
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/lint.md"><code>/llm-wiki:lint</code></a></dt>
@@ -428,7 +456,7 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
               </div>
               <div>
                 <dt><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/commands/mcp.md"><code>/llm-wiki:mcp</code></a></dt>
-                <dd>MCP server (stdio or SSE), <code class="inline-code">mcp install</code>, search/KG backends per config.</dd>
+                <dd>MCP server (stdio or SSE), editor install, search/KG backends — same as <code class="inline-code">llm-wiki mcp …</code> when you need the terminal.</dd>
               </div>
             </dl>
 
@@ -499,49 +527,49 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
             <div class="command-story">
               <div class="command-story-header">
                 <h4>Try this first</h4>
-                <p>A minimal command path that demonstrates the whole loop.</p>
+                <p>Install the plugin once, then stay in the slash menu for the loop.</p>
               </div>
               <div class="command-example">
                 <div class="command-example-step">
                   <span class="command-example-label">Install</span>
-                  <code>/plugin install llm-wiki@llm-wiki-local</code>
+                  <code data-code="claude">/plugin install llm-wiki@llm-wiki-local</code>
                 </div>
                 <div class="command-example-step">
                   <span class="command-example-label">Setup</span>
-                  <code>llm-wiki setup --root .</code>
+                  <code data-code="claude">/llm-wiki:setup</code>
                 </div>
                 <div class="command-example-step">
                   <span class="command-example-label">Ingest</span>
-                  <code>llm-wiki ingest url https://example.com --out clips/example.md</code>
+                  <code data-code="claude">/llm-wiki:ingest</code>
                 </div>
                 <div class="command-example-step">
                   <span class="command-example-label">Build</span>
-                  <code>llm-wiki build-site</code>
+                  <code data-code="claude">/llm-wiki:build-og</code>
                 </div>
               </div>
             </div>
 
             <div class="command-list">
               <div class="command-group">
-                <h4>Core commands</h4>
+                <h4>Core (slash first)</h4>
                 <ul>
-                  <li><code class="inline-code">setup</code> scaffolds the vault layout.</li>
-                  <li><code class="inline-code">ingest</code> records new files, URLs, and other sources into <code class="inline-code">raw/</code>.</li>
-                  <li><code class="inline-code">build-site</code> generates the static reader and graph view.</li>
+                  <li><code class="inline-code">/llm-wiki:setup</code> scaffolds the vault — same as <code class="inline-code">llm-wiki setup</code>.</li>
+                  <li><code class="inline-code">/llm-wiki:ingest</code> drives sources into <code class="inline-code">raw/</code> — adapters and flags live in the prompt.</li>
+                  <li><code class="inline-code">/llm-wiki:build-og</code> emits the static reader into <code class="inline-code">wiki/.og/</code> — same pipeline as <code class="inline-code">llm-wiki build-site</code> or <code class="inline-code">llm-wiki build-og</code> (alias).</li>
                 </ul>
               </div>
               <div class="command-group">
                 <h4>Keep it healthy</h4>
                 <ul>
-                  <li><code class="inline-code">configure -i</code> helps tune the vault interactively.</li>
-                  <li><code class="inline-code">raw validate</code> and related raw commands help finish captures cleanly.</li>
-                  <li><code class="inline-code">wiki-ingest</code>, <code class="inline-code">wiki-query</code>, and other skills keep the workflow in chat.</li>
+                  <li><code class="inline-code">/llm-wiki:configure</code> or <code class="inline-code">/llm-wiki:status</code> for config and health checks.</li>
+                  <li><code class="inline-code">/llm-wiki:raw-prepare</code> and <code class="inline-code">/llm-wiki:lint</code> for raw cleanup and wiki quality.</li>
+                  <li>Skills like <strong>wiki-ingest</strong> and <strong>wiki-query</strong> align with the slash flows — use CLI only when you need non-interactive scripts.</li>
                 </ul>
               </div>
             </div>
 
             <div class="support-note-list">
-              <p><strong>Also works with:</strong> manual clone for local plugin work, direct CLI usage via <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code>, Cursor and Codex through <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a>, and Obsidian as an optional reader for <code class="inline-code">llm-wiki/wiki/</code>.</p>
+              <p><strong>Also works with:</strong> <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code> for CI and power users; Cursor and Codex via <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md">AGENTS.md</a>; manual clone for plugin development; Obsidian as an optional reader for <code class="inline-code">llm-wiki/wiki/</code>.</p>
             </div>
             <p class="detail-note">
               Commands, workflows, and ethos live in
@@ -562,14 +590,20 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
             <p>
               Three ideas share the word <em>memory</em> here: <strong>session memory</strong> (per-chat notes under <code class="inline-code">raw/memory/</code> when enabled), <strong>search backends</strong> for MCP and the wiki (lexical, semantic, or hybrid with reciprocal-rank fusion), and <strong>benchmark docs</strong> for long-context retrieval evaluation (LME, LoCoMo, ConvoMem)—separate from vault content.
             </p>
-            <pre><code># Session memory (after memory.enabled in config)
+            <pre data-code="claude"><code># In chat — session notes &amp; MCP search context
+/llm-wiki:memory
+/llm-wiki:mcp
+
+# Retrieval benchmarks (plugin repo)
+/llm-wiki:benchmark</code></pre>
+            <pre data-code="bash"><code># After memory.enabled — CLI one-liners
 llm-wiki memory save --current "Pinned fact for this chat"
 llm-wiki memory list
 
-# Retrieval benchmarks (plugin repo)
+# Same benchmarks from the terminal (plugin repo)
 llm-wiki benchmark suites</code></pre>
             <ul>
-              <li><strong>Session memory:</strong> opt-in via <code class="inline-code">memory.enabled</code>; CLI <code class="inline-code">memory {save|log|list|show|recall|prune}</code>; hooks can write <code class="inline-code">.current-session</code> for <code class="inline-code">--current</code>.</li>
+              <li><strong>Session memory:</strong> opt-in via <code class="inline-code">memory.enabled</code>; start from <code class="inline-code">/llm-wiki:memory</code> — CLI <code class="inline-code">memory {save|log|list|show|recall|prune}</code> matches the same feature; hooks can write <code class="inline-code">.current-session</code> for <code class="inline-code">--current</code>.</li>
               <li><strong>MCP search:</strong> <code class="inline-code">mcp.search_backend</code> — <code class="inline-code">fts5</code> (BM25), <code class="inline-code">grep</code>, <code class="inline-code">chromadb</code> (embeddings), or <code class="inline-code">hybrid</code> (FTS5 + Chroma + RRF; <code class="inline-code">mcp.hybrid_rrf_k</code> defaults to 60).</li>
               <li><strong>Benchmarks:</strong> CLI and methodology in <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a>; charts and links on the <a href="memory/index.html#metrics-dashboard">Memory docs hub</a> (this site).</li>
             </ul>
@@ -579,9 +613,9 @@ llm-wiki benchmark suites</code></pre>
 
         <section class="commands-section" id="commands" aria-labelledby="commands-title">
           <span class="section-label">CLI</span>
-          <h2 id="commands-title">Commands and use cases</h2>
+          <h2 id="commands-title">Terminal &amp; automation (CLI)</h2>
           <p class="section-intro">
-            Run via <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code> from the repo root (or your vault). Use <code class="inline-code">--help</code> on any subcommand for flags.
+            Slash commands above are the friendly path. When you need scripts, CI, or exact flags, run <code class="inline-code">bin/llm-wiki</code> or <code class="inline-code">python3 scripts/llm_wiki.py</code> from the repo root or vault. Use <code class="inline-code">--help</code> on any subcommand.
           </p>
 
           <div class="commands-stack">
@@ -633,8 +667,12 @@ llm-wiki benchmark suites</code></pre>
               <h3 class="commands-group-title">Build, graphs &amp; context</h3>
               <dl class="commands-dl">
                 <div>
-                  <dt><code>llm-wiki build-site</code> / <code>build-og</code></dt>
-                  <dd>Emit <code class="inline-code">wiki-data.json</code> and the static viewer under the wiki tree.</dd>
+                  <dt><code>llm-wiki build-site</code></dt>
+                  <dd>Canonical subcommand: write <code class="inline-code">wiki-data.json</code> and the static viewer into <code class="inline-code">wiki/.og/</code>. Respects <code class="inline-code">viewer.enabled</code>.</dd>
+                </div>
+                <div>
+                  <dt><code>llm-wiki build-og</code></dt>
+                  <dd>Alias for <code class="inline-code">build-site</code> — identical behavior and flags (<code class="inline-code">--serve</code>, <code class="inline-code">--serve-background</code>, <code class="inline-code">--stop-serving</code>, <code class="inline-code">--if-stale</code>, <code class="inline-code">--port</code>). The name matches the <code class="inline-code">.og</code> folder and <code class="inline-code">/llm-wiki:build-og</code>.</dd>
                 </div>
                 <div>
                   <dt><code>llm-wiki graph</code> · <code>--mode links|knowledge</code></dt>
@@ -850,10 +888,23 @@ llm-wiki benchmark suites</code></pre>
       });
     }
 
+    function getCodeLabel(el) {
+      if (el.hasAttribute && el.hasAttribute('data-code')) {
+        return el.getAttribute('data-code');
+      }
+      var host = el.closest && el.closest('[data-code]');
+      if (host) return host.getAttribute('data-code');
+      return null;
+    }
+
     function wrapBlock(el, isCode) {
       if (el.closest('.code-copy-wrap')) return;
+      var label = getCodeLabel(el);
       var wrap = document.createElement('div');
       wrap.className = 'code-copy-wrap' + (isCode ? ' code-copy-wrap--code' : '');
+      if (label === 'claude' || label === 'bash') {
+        wrap.classList.add('code-copy-wrap--labeled');
+      }
       el.parentNode.insertBefore(wrap, el);
       wrap.appendChild(el);
 
@@ -862,7 +913,19 @@ llm-wiki benchmark suites</code></pre>
       btn.className = 'code-copy-btn';
       btn.setAttribute('aria-label', 'Copy code');
       setButtonIcon(btn, false);
-      wrap.insertBefore(btn, el);
+
+      var toolbar = document.createElement('div');
+      toolbar.className = 'code-copy-toolbar';
+      toolbar.setAttribute('role', 'presentation');
+      if (label === 'claude' || label === 'bash') {
+        var badge = document.createElement('span');
+        badge.className = 'code-context-badge code-context-badge--' + label;
+        badge.textContent = label === 'claude' ? 'Claude' : 'Bash';
+        badge.setAttribute('aria-hidden', 'true');
+        toolbar.appendChild(badge);
+      }
+      toolbar.appendChild(btn);
+      wrap.insertBefore(toolbar, el);
 
       attachCopy(wrap, el, btn);
     }

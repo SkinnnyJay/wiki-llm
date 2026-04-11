@@ -1,3 +1,14 @@
+<p align="center">
+  <img src="docs/assets/readme-banner.png" alt="llm-wiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+
 # Changelog
 
 All notable changes to the llm-wiki plugin are documented in this file.
@@ -8,6 +19,7 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **CLI** — **`build-site`** / **`build-og`**: **`--serve`**, **`--serve-background`** (records PID in **`wiki/.og/.viewer-http.pid`**), **`--stop-serving`**, **`--port`**; preview the static viewer over HTTP without a separate **`cd`** + **`http.server`** step.
 - **`playwright` ingest adapter** — Headless Chromium fetch to **`raw/`** (same markdown shape as **`url`** / Firecrawl); **`setup_checks`** + wizard hint when the Python package or browsers are missing; **`integrations wizard`** prints install hints for adapters with no API key (**`scripts/ingest/adapters/web_playwright.py`**, **`scripts/cli/core_commands.py`**).
 - **Docs** — **`commands/ingest.md`**, **`commands/integrations.md`**, **`skills/wiki-fetch`**, **`wiki-ingest`**, **`wiki-setup`** (Section 4 + Section 8), **`wiki-status`**, **`commands/setup.md`**, **`docs/ENV.md`**: **`llm-wiki ingest playwright`** vs optional **Playwright MCP** (editor) vs vault **`llm-wiki` MCP**.
 

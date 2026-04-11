@@ -14,6 +14,8 @@ Run the standard **llm-wiki** path: **Source → Ingest → Prepare → Maintain
 
 See **`skills/references/pipeline-artifacts.md`** for what each stage writes and what reads it.
 
+**Progress in chat** — At each stage boundary, **say which stage you are entering** (e.g. “Stage: raw prepare”, “Stage: wiki-ingest merge”). After each invoked skill or CLI, give a **one-paragraph recap** (what ran, what paths changed, exit OK or not) before moving on. Do not run the full pipeline without **visible checkpoints** unless the user explicitly asked for a silent / unattended run.
+
 ## Pre-flight
 
 1. Run **wiki-status** (or the pre-flight snippet in **wiki-research**). If **`_meta.setup_completed`** is false, stop and offer **wiki-setup**.

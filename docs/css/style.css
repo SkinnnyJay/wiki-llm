@@ -187,14 +187,56 @@ pre code {
   width: 100%;
 }
 
+.code-copy-toolbar {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.code-context-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-strong);
+  background: rgba(15, 22, 41, 0.92);
+  color: var(--muted);
+  line-height: 1.2;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.code-context-badge--claude {
+  color: #ddd6fe;
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(76, 29, 149, 0.22);
+}
+
+.code-context-badge--bash {
+  color: #bbf7d0;
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(20, 83, 45, 0.25);
+}
+
 .code-copy-wrap pre {
   padding-right: 2.75rem;
 }
 
+.code-copy-wrap--labeled pre,
+.code-copy-wrap--labeled.code-copy-wrap--code > code {
+  padding-right: 6.5rem;
+}
+
 .code-copy-btn {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
+  position: relative;
+  top: auto;
+  right: auto;
   z-index: 3;
   display: inline-flex;
   align-items: center;
@@ -264,6 +306,10 @@ pre code {
 
 .detail-card .code-copy-wrap pre {
   margin: 0;
+}
+
+.detail-card .code-copy-wrap + .code-copy-wrap {
+  margin-top: 0.65rem;
 }
 
 .site-header,
@@ -731,6 +777,18 @@ pre code {
   margin-top: 0;
 }
 
+.detail-card > p.slash-group-note {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 44rem;
+}
+
+.detail-card > h5.slash-group-title + p.slash-group-note {
+  margin-top: -0.15rem;
+}
+
 .commands-dl dt a {
   color: inherit;
   text-decoration: none;
@@ -764,41 +822,63 @@ pre code {
 
 .flow-list {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.45rem 0.55rem;
+  flex-wrap: nowrap;
   margin: 1rem 0;
+  width: 100%;
+}
+
+.flow-list--ingest .flow-step {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .flow-step {
-  min-width: 140px;
-  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.65rem 0.45rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: rgba(7, 11, 20, 0.45);
   color: var(--text);
-  font-weight: 600;
 }
 
-.flow-step span {
+.flow-step-title {
   display: block;
-  margin-top: 0.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-size: clamp(0.74rem, 1.15vw + 0.52rem, 0.98rem);
+}
+
+.flow-step-desc {
+  display: block;
+  margin-top: 0.35rem;
   color: var(--muted);
-  font-size: 0.87rem;
   font-weight: 400;
+  line-height: 1.35;
+  font-size: clamp(0.62rem, 0.95vw + 0.38rem, 0.84rem);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  max-width: 100%;
 }
 
 .flow-arrow {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  align-self: center;
   color: var(--accent);
 }
 
 .flow-arrow svg {
-  width: 1rem;
-  height: 1rem;
+  width: clamp(0.85rem, 1.5vw, 1.05rem);
+  height: clamp(0.85rem, 1.5vw, 1.05rem);
 }
 
 /* Mini mock of templates/site viewer (build-site output) */
@@ -1370,6 +1450,13 @@ pre code {
   .flow-list {
     align-items: stretch;
     flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .flow-list--ingest .flow-step {
+    flex: none;
+    width: 100%;
+    min-width: 0;
   }
 
   .flow-arrow {

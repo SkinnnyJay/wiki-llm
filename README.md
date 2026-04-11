@@ -14,7 +14,28 @@
 
 This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
 
-**Branding / images:** The main site logo includes AI-related provenance metadata (C2PA). See **[`docs/ASSETS.md`](docs/ASSETS.md)** if you redistribute or replace assets.
+## The wiki
+
+We treat the vault as **sources first, then curated notes**—not one undifferentiated pile of markdown.
+
+- **`raw/`** — Ingested captures (files, URLs, feeds, APIs) land here with explicit paths; optional **raw prepare** cleans messy HTML/PDF/OCR before you merge.
+- **`wiki/`** — The maintained layer: wikilinks, **`wiki/index.md`**, **`wiki/log.md`**, and topic pages. **wiki-ingest** and **wiki-maintainer** help fold `raw/` into structure without losing coherence.
+- **Ship** — Validate, **wiki-lint**, optional **vault git** with lifecycle-tagged commits, then **`build-site`** for a static viewer (serve over HTTP, not `file://`).
+- **See the shape** — On-demand **wikilink graphs**, optional **knowledge-graph** triples, and **MCP** search (BM25 by default; optional semantic/hybrid) so agents can navigate what you stored.
+- **Go wide** — Topic research and batch loops (**`/llm-wiki:research`**, **wiki-research-loop**) plan sources → `raw/` → `wiki/` with logging.
+
+Evidence, trust, and why **`raw/`** and **`wiki/`** differ: **[`ETHOS.md`](ETHOS.md)**.
+
+## Memory
+
+We split **vault knowledge**, **chat continuity**, and **retrieval evaluation**—so “memory” stays understandable and under your control.
+
+- **Session memory** (opt-in, **`memory.enabled`**) — Per-chat notes in **`raw/memory/`**; **save**, **recall**, **list**, **prune** via **`llm-wiki memory …`** or **`/llm-wiki:memory`**. Recall ranks the same way as vault search (FTS5 / grep / optional Chroma / hybrid).
+- **Learn file** — **`llm-wiki/.agent-memory.md`** (**wiki-learn**) holds durable patterns you promote from sessions or the wiki—compact, editable, next to the vault.
+- **MCP** — With **`llm-wiki mcp`**, the host can search the wiki, query the KG, and use session memory tools without dumping whole chats into context.
+- **Benchmarks** — **`llm-wiki benchmark`** runs optional **LME / LoCoMo / ConvoMem**-style retrieval tests over the vault index. That measures **search quality**, not “remembering the conversation.”
+
+More detail: **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)** (full feature survey).
 
 ---
 
@@ -39,9 +60,22 @@ The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gi
 /plugin install llm-wiki@llm-wiki-local
 ```
 
-More options (local marketplace, dev workflow, validation): [Install (Claude Code)](#install-claude-code) and [Install (development — clone)](#install-development--clone) below. Cursor and Codex users: **[`AGENTS.md`](AGENTS.md)** and project rules in **[`rules/llm-wiki.mdc`](rules/llm-wiki.mdc)**.
+**2. Reload and set up in chat** (vault wizard matches [`commands/setup.md`](commands/setup.md)):
 
-**2. Reload and set up in chat** — Run **`/reload-plugins`**, then **`/llm-wiki:setup`** (vault wizard; same text as [`commands/setup.md`](commands/setup.md)). Try **`/llm-wiki:status`** and **`/llm-wiki:configure`**. Day-to-day: **`/llm-wiki:ingest`** and skills **wiki-ingest**, **wiki-maintainer**, **wiki-pipeline** ([`commands/`](commands/) lists every slash prompt).
+```bash
+# Register slash commands and skills after install
+/reload-plugins
+# Interactive vault scaffold (same prompt as commands/setup.md)
+/llm-wiki:setup
+# Vault health, integrations, and MCP status
+/llm-wiki:status
+# Quick tweaks to llm-wiki/config.json
+/llm-wiki:configure
+# Land sources in raw/ (then curate with wiki-ingest / wiki-maintainer)
+/llm-wiki:ingest
+```
+
+In chat, run only the **`/…`** lines (`#` lines are comments for this README). For **raw → wiki** curation, use skills **wiki-ingest**, **wiki-maintainer**, and **wiki-pipeline**. Full index: [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md); prompt files: [`commands/`](commands/).
 
 **3. Or scaffold from a shell** (plugin on `PATH`, or `./bin/llm-wiki` from this repo):
 
@@ -58,16 +92,16 @@ That creates **`llm-wiki/`** with `raw/`, `wiki/`, `config.json`, and vault rule
 
 1. **Capture** — Ingest files or URLs into `raw/` (e.g. `llm-wiki ingest file …`, `ingest url …`).  
 2. **Curate** — In chat, use **`/llm-wiki:…`** commands and skills such as **wiki-ingest** / **wiki-maintainer** to merge material into `wiki/` with wikilinks and structure.  
-3. **Ship / browse** — `llm-wiki validate`, then `llm-wiki build-site` and serve the viewer over HTTP (not `file://`).
+3. **Ship / browse** — `llm-wiki validate`, then `llm-wiki build-site` (or **`build-og --serve`** / **`--serve-background`**; stop background with **`build-og --stop-serving`**) so the viewer is over HTTP (not `file://`).
 
 Minimal end-to-end example:
 
 ```bash
 llm-wiki setup --root .
 llm-wiki ingest file ./README.md --out notes/readme-clip.md
-llm-wiki build-site
-cd llm-wiki/wiki/.og && python3 -m http.server 8765
-# Open http://127.0.0.1:8765/
+# Build + local HTTP in one step (port from viewer.port, default 8765):
+llm-wiki build-og --serve-background
+echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 ```
 
 **Full green path, troubleshooting, git phases, MCP, benchmarks:** **[`WORKFLOWS.md`](WORKFLOWS.md)**. **Why `raw/` vs `wiki/`, evidence, and trust:** **[`ETHOS.md`](ETHOS.md)**.
@@ -84,7 +118,8 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765
 | Vault vs plugin, data flow | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Day-to-day flows and ops | [`WORKFLOWS.md`](WORKFLOWS.md) |
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
-| Slash-command prompts (`/llm-wiki:…`) | [`commands/`](commands/) |
+| Slash commands — index, summaries, CLI hints | [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) |
+| Slash prompt sources (`commands/*.md`) | [`commands/`](commands/) |
 | Agent skills (`wiki-ingest`, `wiki-query`, …) | [`skills/`](skills/) |
 | Environment variables and integrations | [`docs/ENV.md`](docs/ENV.md), [`.env.example`](.env.example) |
 | MCP server, search backends, knowledge graph | [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
@@ -152,7 +187,7 @@ claude plugin validate /path/to/wiki-llm
 
 ## Slash commands, skills, and agents (overview)
 
-In Claude Code, **`/llm-wiki:…`** maps to files under **[`commands/`](commands/)**. Skills live under **[`skills/*/SKILL.md`](skills/)** (e.g. **wiki-ingest**, **wiki-maintainer**, **wiki-query**, **wiki-research**, **wiki-session-memory**). Agents are in **[`agents/`](agents/)**. For the full tables that used to live here, browse those folders or see **WORKFLOWS**—the README stays an onboarding layer, not a second manual.
+**Full index** (every **`/llm-wiki:…`**, summary, links to prompt files and CLI): **[`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md)**. In Claude Code, **`/llm-wiki:…`** maps to **[`commands/`](commands/)**. Skills live under **[`skills/*/SKILL.md`](skills/)** (e.g. **wiki-pipeline**, **wiki-ingest**, **wiki-maintainer**, **wiki-query**, **wiki-research**, **wiki-research-loop**, **wiki-lint**, **wiki-retro**, **wiki-session-memory**). Agents are in **[`agents/`](agents/)**. See **[`WORKFLOWS.md`](WORKFLOWS.md)** for day-to-day flows.
 
 ---
 
@@ -166,11 +201,12 @@ llm-wiki ingest file ./README.md --out notes/readme-copy.md
 llm-wiki ingest hackernews --limit 5 --out research/hn-sample.md
 
 # In chat: merge raw → wiki (wiki-ingest / wiki-maintainer), then:
-llm-wiki build-site
-cd llm-wiki/wiki/.og && python3 -m http.server 8765
+llm-wiki build-og --serve-background
+echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 
 # Optional: link graph bundle
 llm-wiki graph-knowledge
+echo "Graph bundle: $(pwd)/.tmp/llm-wiki-graph/  →  http://127.0.0.1:8890/"
 cd .tmp/llm-wiki-graph && python3 -m http.server 8890
 ```
 

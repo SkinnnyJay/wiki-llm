@@ -11,6 +11,16 @@ Merge **new or updated** material from **`raw/`** into **`wiki/`**: topic/entity
 
 If the user just ran **`llm-wiki ingest`** and expects **`wiki/`** updates: **ingest only fills `raw/`**. This skill is the **merge** step. For the full **phased checklist** (list adapters → ingest → merge → build), use **`/llm-wiki:ingest`** (**`commands/ingest.md`**) so the agent shows steps, applies **generic source principles** (APIs vs pages, rate limits, provenance), and captures **stderr** (`2>&1`) for long runs.
 
+## Visibility (progress and thinking)
+
+Do **not** silently edit **`wiki/`**. Keep the user oriented:
+
+- **Before** merging — one short paragraph: which **`raw/`** files you are folding in, what topics or pages you expect to create or update, and any **tradeoff** (e.g. one big page vs split topics).
+- **During** the merge — **stream the work in chat**: short bullets as you complete each chunk (“mapped **X** to **[[Topic]]**”, “appended **wiki/log.md**”, “touched **wiki/index.md**”). If you pause to decide structure or wikilinks, state the **options** and **which you chose** (one or two sentences).
+- **After** — summarize **files changed**, **new wikilinks**, and anything left for **wiki-maintainer** or **wiki-lint**. If **`kg rebuild`** or **`build-site`** runs, say so and why.
+
+If the user only sees a wall of tool output, **extract** the human-readable summary into the reply (paths, counts, errors).
+
 ## Learn from each merge
 
 - After merging, **append `wiki/log.md`** with not only *what* merged but **what to try next time** for similar sources (e.g. “HN comments: use `--depth stories` first; API order ≠ homepage”).

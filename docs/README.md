@@ -1,14 +1,28 @@
+<p align="center">
+  <img src="assets/readme-banner.png" alt="llm-wiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+
 # GitHub Pages (`docs/`)
 
 This folder is the **published site** when you enable GitHub Pages from the repo’s **`/docs`** directory.
 
+**Doc convention (throughout `docs/`):** **Claude Code** (slash commands + skills) first, then the **`llm-wiki`** **CLI**, then **bash / shell** for scripts and automation.
+
 **Start here**
 
-- **[`INSTALL.md`](./INSTALL.md)** — Claude Code install, `/reload-plugins`, slash-first steps, dev clone  
-- **[`QUICKSTART.md`](./QUICKSTART.md)** — vault vs plugin repo, five-minute setup, capability tiers  
-- **[`INSPIRATION.md`](./INSPIRATION.md)** — credits and lineage  
-- **[`CLI.md`](./CLI.md)** — `llm-wiki` CLI entrypoint and subcommands  
-- **[`CONFIGURATION.md`](./CONFIGURATION.md)** — `config.json` reference  
+- **[`INSTALL.md`](./INSTALL.md)** — install order: Claude Code → CLI → bash examples  
+- **[`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md)** — every **`/llm-wiki:…`** command, summaries, links to [`commands/`](../commands/) and CLI  
+- **[`QUICKSTART.md`](./QUICKSTART.md)** — five-minute path with the same order  
+- **[`INSPIRATION.md`](./INSPIRATION.md)** — credits, lineage, feature survey (Claude → CLI → bash)  
+- **[`CLI.md`](./CLI.md)** — CLI reference + slash → CLI map  
+- **[`CONFIGURATION.md`](./CONFIGURATION.md)** — `/llm-wiki:configure`, `llm-wiki configure -i`, then `config.json`  
 - **[`ENV.md`](./ENV.md)** — environment variables  
 - **[`PUBLISHING.md`](./PUBLISHING.md)** — enable Pages, marketplace smoke tests  
 

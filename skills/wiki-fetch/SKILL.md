@@ -16,6 +16,8 @@ Use when asked to:
 - "scrape this site"
 - "pull this into the wiki"
 
+**User-visible progress** — Before any long command, state **which adapter** you will try first and **why** (from the priority table below). After **`llm-wiki ingest …`** or equivalent, **summarize stdout/stderr** (paths under **`raw/`**, errors, retries). When handing off to **wiki-ingest**, follow that skill’s **Visibility** section so the merge is not silent.
+
 ---
 
 ## Adapter Priority

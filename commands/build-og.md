@@ -10,8 +10,16 @@ Run **`llm-wiki build-site`** (alias **`build-og`**) to emit `wiki/.og/` and **`
 
 ```bash
 llm-wiki build-site
-./scripts/serve-viewer.sh
+# Optional: build and serve over HTTP in one step (static assets need HTTP, not file://)
+llm-wiki build-og --serve
+# Or non-blocking (writes wiki/.og/.viewer-http.pid):
+llm-wiki build-og --serve-background
+# Stop the background server:
+llm-wiki build-og --stop-serving
+# Port: viewer.port in config, or override: --port 8765
 ```
+
+Same behavior as **`./scripts/serve-viewer.sh`** after a build (that script only serves an existing `wiki/.og/`); it does not write the pid file used by **`--stop-serving`**.
 
 ## Arguments
 

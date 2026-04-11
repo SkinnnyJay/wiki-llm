@@ -1,4 +1,19 @@
+<p align="center">
+  <img src="assets/readme-banner.png" alt="llm-wiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+</p>
+
+
 # llm-wiki — quickstart
+
+**How these docs are ordered:** **Claude Code** (slash commands + skills) first, then the **`llm-wiki`** **CLI**, then **bash / shell** snippets for scripts, CI, and copy-paste automation.
+
+---
 
 **Terminology**
 
@@ -7,33 +22,46 @@
 | **Vault** | Your knowledge folder (usually `./llm-wiki/` inside a project): `wiki/`, `raw/`, `config.json`, etc. |
 | **Plugin repo** | This **wiki-llm** repository: CLI, skills, commands, and templates — not your vault. |
 
-**Claude Code:** prefer slash commands and skills first — see **[`INSTALL.md`](./INSTALL.md)** (`/reload-plugins`, `/llm-wiki:setup`, then **`/llm-wiki:…`** and **`commands/`**).
-
-**Cursor / Codex:** open this repo and use [`AGENTS.md`](../AGENTS.md) for tool-specific wiring.
+**Cursor / Codex:** open this repo and use [`AGENTS.md`](../AGENTS.md); prompts live in [`commands/`](../commands/) (same text as **`/llm-wiki:…`**).
 
 ---
 
 ## Five-minute path (basic)
 
-From the **plugin repo** root (or with `bin/llm-wiki` on your `PATH`):
+### 1. Claude Code (recommended)
+
+Install and reload (see **[`INSTALL.md`](./INSTALL.md)** for detail), then in chat:
+
+```text
+/reload-plugins
+/llm-wiki:setup
+```
+
+Merge **`raw/`** into **`wiki/`** with skills **wiki-ingest** and **wiki-maintainer** (or **`/llm-wiki:ingest`**). The CLI does not auto-write topic pages — that curation step is intentional.
+
+### 2. CLI (same vault, terminal)
+
+From the **plugin repo** root with `bin/llm-wiki` on your `PATH` (or `./bin/llm-wiki`):
+
+```bash
+llm-wiki setup --root . --defaults
+llm-wiki --vault ./llm-wiki ingest file ./README.md --out notes/readme-clip.md
+llm-wiki --vault ./llm-wiki validate
+llm-wiki --vault ./llm-wiki build-site
+```
+
+Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags. Full reference: [`CLI.md`](./CLI.md).
+
+### 3. Bash / shell (optional)
+
+Equivalent using explicit paths to the repo binary (good for scripts or one-off runs):
 
 ```bash
 ./bin/llm-wiki setup --root . --defaults
-```
-
-This creates **`./llm-wiki/`** with `wiki/`, `raw/`, `config.json`, and `CLAUDE.md`.
-
-Then:
-
-```bash
-# Optional: copy a file into raw/ or use ingest
 ./bin/llm-wiki --vault ./llm-wiki ingest file ./README.md --out notes/readme-clip.md
-
 ./bin/llm-wiki --vault ./llm-wiki validate
 ./bin/llm-wiki --vault ./llm-wiki build-site
 ```
-
-**In chat:** merge `raw/` into curated `wiki/` using the **wiki-ingest** / **wiki-maintainer** skills (or `/llm-wiki:ingest`). The CLI does not auto-write topic pages — that step is intentional curation.
 
 **Next:** full green path, troubleshooting, and optional features → [`WORKFLOWS.md`](../WORKFLOWS.md).
 
@@ -55,7 +83,8 @@ Then:
 | Feature | Doc |
 |---------|-----|
 | Claude Code install, `/reload-plugins`, dev clone | [`INSTALL.md`](./INSTALL.md) |
-| Slash commands (`/llm-wiki:…`) | [`commands/`](../commands/) |
+| Slash commands — index and details | [`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md) |
+| Slash prompt files (`/llm-wiki:…`) | [`commands/`](../commands/) |
 | Skills (wiki-ingest, wiki-query, …) | [`skills/*/SKILL.md`](../skills/) |
 | Session memory (`memory.enabled`, `raw/memory/`) | [`skills/wiki-session-memory/SKILL.md`](../skills/wiki-session-memory/SKILL.md) |
 | MCP + search backends | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
