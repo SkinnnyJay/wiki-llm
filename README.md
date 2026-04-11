@@ -3,9 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SkinnnyJay/wiki-llm"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repository"/></a>
-  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code: install instructions"/></a>
-  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor: AGENTS.md"/></a>
+  <a href="https://github.com/SkinnnyJay/wiki-llm" title="Repository on GitHub"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repo"/></a>
+  &nbsp;
+  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code" title="Install the plugin in Claude Code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code plugin"/></a>
+  &nbsp;
+  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md" title="AGENTS.md for Cursor and Codex"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor rules"/></a>
 </p>
 
 # llm-wiki
@@ -13,6 +15,16 @@
 **llm-wiki** is a **Claude Code plugin** (and a small Python CLI) that helps you keep a **personal knowledge vault** next to your projects. You capture sources into **`raw/`**, curate linked markdown in **`wiki/`**, and optionally generate a **static viewer**, wire **MCP search**, or turn on **session memory**—so your agent has a durable place to read and write, not a one-off chat dump.
 
 This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
+
+## Inspiration
+
+> If I have seen further it is by standing on the shoulders of Giants.
+
+— Isaac Newton, letter to Robert Hooke (1675).
+
+The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
+
+**Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**. Alternate install paths and scripted examples: **[`docs/INSTALL.md`](docs/INSTALL.md)**.
 
 ## The wiki
 
@@ -36,18 +48,6 @@ We split **vault knowledge**, **chat continuity**, and **retrieval evaluation**�
 - **Benchmarks** — **`llm-wiki benchmark`** runs optional **LME / LoCoMo / ConvoMem**-style retrieval tests over the vault index. That measures **search quality**, not “remembering the conversation.”
 
 More detail: **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)** (full feature survey).
-
----
-
-## Inspiration
-
-> If I have seen further it is by standing on the shoulders of Giants.
-
-— Isaac Newton, letter to Robert Hooke (1675).
-
-The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
-
-**Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**. Alternate install paths and scripted examples: **[`docs/INSTALL.md`](docs/INSTALL.md)**.
 
 ---
 
