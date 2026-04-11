@@ -30,10 +30,8 @@ scratchpad/
 .chromadb/
 .metrics.jsonl
 ./playwright-report/*
-# Ignore sibling trees under apps/; track the Next.js chat app in apps/web/
-/apps/*
-!/apps/web/
-!/apps/web/**
+# Experimental app(s) — not tracked in the plugin repo yet
+/apps/
 node_modules/*
 dist/*
 ./docs/memory/benchmarks/metrics/*
