@@ -45,6 +45,36 @@ from cli.ops_commands import (
 )
 
 
+def _add_build_site_args(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument(
+        "--if-stale",
+        action="store_true",
+        help="Only rebuild when wiki/ is newer than wiki/.og/wiki-data.json",
+    )
+    ap.add_argument(
+        "--serve",
+        action="store_true",
+        help="After build, serve wiki/.og over HTTP (blocking; Ctrl+C stops)",
+    )
+    ap.add_argument(
+        "--serve-background",
+        action="store_true",
+        help="After build, start HTTP server in background (prints URL and PID)",
+    )
+    ap.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help="Port for --serve / --serve-background (default: viewer.port in config, else 8765)",
+    )
+    ap.add_argument(
+        "--stop-serving",
+        action="store_true",
+        help="Stop background HTTP server started with --serve-background (wiki/.og/.viewer-http.pid)",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="llm-wiki")
     p.add_argument("--vault", help="Path to vault directory (default: ./llm-wiki or LLM_WIKI_VAULT)")
@@ -85,10 +115,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     pb = sub.add_parser("build-site", help="Emit wiki-data.json + static viewer")
     pb.add_argument("--alias-build-og", action="store_true", help=argparse.SUPPRESS)
-    pb.add_argument("--if-stale", action="store_true", help="Only rebuild when wiki/ is newer than wiki/.og/wiki-data.json")
+    _add_build_site_args(pb)
     pb.set_defaults(func=cmd_build_site)
     pbo = sub.add_parser("build-og", help="Alias for build-site")
-    pbo.add_argument("--if-stale", action="store_true", help="Only rebuild when wiki/ is newer than wiki/.og/wiki-data.json")
+    _add_build_site_args(pbo)
     pbo.set_defaults(func=cmd_build_site)
 
     pv = sub.add_parser("validate", help="Check vault layout")

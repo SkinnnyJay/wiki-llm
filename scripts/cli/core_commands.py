@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import shutil
+import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,6 +26,92 @@ from lib.raw_validate import normalize_raw_relpath, validate_raw_file_result
 from lib.research_loop import run_research_loop
 from ingest.registry import adapter_map, run_ingest
 from ingest import security as secscan
+
+VIEWER_HTTP_PID_NAME = ".viewer-http.pid"
+
+
+def _viewer_pid_path(og_dir: Path) -> Path:
+    return og_dir / VIEWER_HTTP_PID_NAME
+
+
+def _pid_is_running(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            k = ctypes.windll.kernel32
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            h = k.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not h:
+                return False
+            k.CloseHandle(h)
+            return True
+        except Exception:
+            return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    else:
+        return True
+
+
+def _terminate_pid(pid: int) -> bool:
+    if sys.platform == "win32":
+        r = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return r.returncode == 0
+    try:
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def cmd_stop_viewer_http(vault: Path) -> int:
+    """Stop background http.server recorded in ``wiki/.og/.viewer-http.pid``."""
+    og_dir = vault / "wiki" / ".og"
+    pid_path = _viewer_pid_path(og_dir)
+    if not pid_path.is_file():
+        print(
+            "No background viewer recorded for this vault "
+            f"(expected wiki/.og/{VIEWER_HTTP_PID_NAME}).",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        line = pid_path.read_text(encoding="utf-8").strip().splitlines()[0]
+        pid = int(line.strip())
+    except (OSError, ValueError, IndexError) as e:
+        print(f"Invalid pid file {pid_path}: {e}", file=sys.stderr)
+        try:
+            pid_path.unlink()
+        except OSError:
+            pass
+        return 1
+    if not _pid_is_running(pid):
+        try:
+            pid_path.unlink()
+        except OSError:
+            pass
+        print(f"Removed stale pid file (process {pid} was not running).")
+        return 0
+    if _terminate_pid(pid):
+        try:
+            pid_path.unlink()
+        except OSError:
+            pass
+        print(f"Stopped viewer HTTP server (PID {pid}).")
+        return 0
+    print(f"Could not stop process {pid}.", file=sys.stderr)
+    return 1
 
 
 def cmd_sync_agent_docs(args: argparse.Namespace) -> int:
@@ -268,23 +356,107 @@ def cmd_graph_knowledge(args: argparse.Namespace) -> int:
     return cmd_graph(args)
 
 
+def _serve_viewer_http(og_dir: Path, port: int, *, background: bool) -> int:
+    """Serve ``og_dir`` with ``python -m http.server`` (foreground or detached)."""
+    if not og_dir.is_dir():
+        print(f"Viewer directory missing: {og_dir}", file=sys.stderr)
+        return 1
+    url = f"http://127.0.0.1:{port}/"
+    if background:
+        pid_path = _viewer_pid_path(og_dir)
+        if pid_path.is_file():
+            try:
+                old_line = pid_path.read_text(encoding="utf-8").strip().splitlines()[0]
+                old_pid = int(old_line.split()[0])
+            except (OSError, ValueError, IndexError):
+                old_pid = -1
+            if old_pid > 0 and _pid_is_running(old_pid):
+                print(
+                    f"Background viewer already running (PID {old_pid}). "
+                    f"Stop with: llm-wiki build-og --stop-serving",
+                    file=sys.stderr,
+                )
+                return 1
+            try:
+                pid_path.unlink()
+            except OSError:
+                pass
+        popen_kw: dict = {
+            "args": [sys.executable, "-m", "http.server", str(port)],
+            "cwd": str(og_dir),
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if sys.platform == "win32":
+            cf = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            if cf:
+                popen_kw["creationflags"] = cf
+        else:
+            popen_kw["start_new_session"] = True
+        proc = subprocess.Popen(**popen_kw)
+        try:
+            pid_path.write_text(f"{proc.pid}\n", encoding="utf-8")
+        except OSError as e:
+            print(f"Warning: could not write {pid_path}: {e}", file=sys.stderr)
+        print(
+            f"Serving viewer → {url} (PID {proc.pid}; stop: llm-wiki build-og --stop-serving)",
+        )
+        return 0
+    print(f"Serving viewer → {url} (Ctrl+C to stop)")
+    try:
+        return subprocess.run(
+            [sys.executable, "-m", "http.server", str(port)],
+            cwd=str(og_dir),
+        ).returncode
+    except KeyboardInterrupt:
+        print("", file=sys.stderr)
+        return 0
+
+
 def cmd_build_site(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
+    stop_serving = getattr(args, "stop_serving", False)
+    serve = getattr(args, "serve", False)
+    serve_bg = getattr(args, "serve_background", False)
+    if stop_serving:
+        if serve or serve_bg:
+            print(
+                "Cannot combine --stop-serving with --serve or --serve-background.",
+                file=sys.stderr,
+            )
+            return 2
+        return cmd_stop_viewer_http(vault)
     cfg = load_config(vault)
+    if serve and serve_bg:
+        print("Note: --serve-background wins over --serve.", file=sys.stderr)
+        serve = False
+    port_arg = getattr(args, "port", None)
+    viewer = cfg.get("viewer") or {}
+    if (serve or serve_bg) and viewer.get("enabled") is False:
+        print(
+            "viewer.enabled is false; build skipped and cannot --serve. "
+            "Enable the viewer or run without --serve/--serve-background.",
+            file=sys.stderr,
+        )
+        return 1
     if getattr(args, "if_stale", False) and not site_is_stale(vault):
         print("Site is up-to-date; skipping build.")
-        return 0
-    out = build_site(vault, cfg)
-    print(f"Built site → {out}")
-    if cfg.get("git", {}).get("snapshot_after_build"):
-        try:
-            pfx = vgit.prefix_for_phase(cfg, "build") or "[build]"
-            msg = f"{pfx} wiki/.og static viewer"
-            print(vgit.git_snapshot(vault, cfg, msg))
-        except vgit.GitDisabledError:
-            pass
-        except Exception as e:
-            print("git snapshot (after build):", e, file=sys.stderr)
+        out = vault / "wiki" / ".og"
+    else:
+        out = build_site(vault, cfg)
+        print(f"Built site → {out}")
+        if cfg.get("git", {}).get("snapshot_after_build"):
+            try:
+                pfx = vgit.prefix_for_phase(cfg, "build") or "[build]"
+                msg = f"{pfx} wiki/.og static viewer"
+                print(vgit.git_snapshot(vault, cfg, msg))
+            except vgit.GitDisabledError:
+                pass
+            except Exception as e:
+                print("git snapshot (after build):", e, file=sys.stderr)
+    if serve or serve_bg:
+        port = port_arg if port_arg is not None else int(viewer.get("port", 8765))
+        return _serve_viewer_http(out, port, background=serve_bg)
     return 0
 
 
