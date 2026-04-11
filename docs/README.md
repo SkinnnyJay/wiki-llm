@@ -4,7 +4,11 @@ This folder is the **published site** when you enable GitHub Pages from the repo
 
 **Start here**
 
+- **[`INSTALL.md`](./INSTALL.md)** — Claude Code install, `/reload-plugins`, slash-first steps, dev clone  
 - **[`QUICKSTART.md`](./QUICKSTART.md)** — vault vs plugin repo, five-minute setup, capability tiers  
+- **[`INSPIRATION.md`](./INSPIRATION.md)** — credits and lineage  
+- **[`CLI.md`](./CLI.md)** — `llm-wiki` CLI entrypoint and subcommands  
+- **[`CONFIGURATION.md`](./CONFIGURATION.md)** — `config.json` reference  
 - **[`ENV.md`](./ENV.md)** — environment variables  
 - **[`PUBLISHING.md`](./PUBLISHING.md)** — enable Pages, marketplace smoke tests  
 

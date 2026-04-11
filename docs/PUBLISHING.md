@@ -16,7 +16,7 @@ After the first deploy, open `https://<org>.github.io/<repo>/` and confirm the r
   - Claude Code: `/plugin marketplace add https://github.com/<org>/<repo>` then install the plugin per published instructions; `/reload-plugins` and invoke one **`/llm-wiki:`** command.
   - Confirm **`bin/llm-wiki --version`** works from a clone at the tagged revision.
 
-Document any marketplace-specific steps in the root **`README.md`**; keep this file for maintainer checks.
+Document marketplace-specific steps in **`README.md`** and **[`docs/INSTALL.md`](./INSTALL.md)** as needed; keep this file for maintainer checks.
 
 ## Pre-release (tracked files)
 

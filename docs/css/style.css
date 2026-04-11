@@ -30,8 +30,8 @@
 }
 
 html {
-  /* Sticky page TOC + in-page anchors */
-  scroll-padding-top: 4.5rem;
+  /* Sticky site header + in-page anchors */
+  scroll-padding-top: 5.75rem;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -282,6 +282,9 @@ pre code {
 }
 
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   border-bottom: 1px solid var(--border);
   background: rgba(7, 11, 20, 0.85);
   backdrop-filter: blur(10px);
@@ -321,48 +324,6 @@ pre code {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-.page-toc {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  border-bottom: 1px solid var(--border);
-  background: rgba(7, 11, 20, 0.92);
-  backdrop-filter: blur(10px);
-}
-
-.page-toc-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.65rem;
-  padding: 0.6rem 0;
-  font-size: 0.88rem;
-}
-
-.page-toc-label {
-  color: var(--faint);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.72rem;
-  margin-right: 0.15rem;
-}
-
-.page-toc a {
-  padding: 0.38rem 0.72rem;
-  border-radius: 999px;
-  color: var(--muted);
-  border: 1px solid transparent;
-}
-
-.page-toc a:hover,
-.page-toc a:focus-visible {
-  color: var(--text);
-  background: var(--accent-dim);
-  border-color: rgba(56, 189, 248, 0.26);
-  text-decoration: none;
 }
 
 .site-nav {
@@ -1376,14 +1337,6 @@ pre code {
 }
 
 @media (max-width: 479px) {
-  .page-toc-label {
-    display: none;
-  }
-
-  .page-toc-inner {
-    gap: 0.35rem 0.45rem;
-  }
-
   .wrap {
     width: min(1280px, calc(100% - 1.2rem));
   }

@@ -37,24 +37,13 @@
           <a href="#setup">Setup</a>
           <a href="#what-you-get">What you get</a>
           <a href="#details">Details</a>
-          <a href="../memory/index.html#metrics-dashboard">Memory</a>
+          <a href="memory/index.html#metrics-dashboard">Memory</a>
           <a href="#commands">Commands</a>
           <a href="https://github.com/SkinnnyJay/wiki-llm">GitHub</a>
         </nav>
       </div>
     </div>
   </header>
-
-  <nav class="page-toc" aria-label="On this page">
-    <div class="wrap page-toc-inner">
-      <span class="page-toc-label">On this page</span>
-      <a href="#setup">Setup</a>
-      <a href="#what-you-get">What you get</a>
-      <a href="#details">Details</a>
-      <a href="#commands">Commands</a>
-      <a href="../memory/index.html#metrics-dashboard">Memory hub</a>
-    </div>
-  </nav>
 
   <main id="main-content">
     <section class="hero-section" id="setup" aria-labelledby="hero-title">
@@ -98,7 +87,7 @@
             </p>
             <p class="lineage-thanks">
               <strong>Memory &amp; retrieval:</strong>
-              <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a>
+              <a href="memory/index.html#metrics-dashboard">Memory docs hub</a>
               (session memory, MCP search, live benchmark charts — updated with <code class="inline-code">metrics-dashboard.json</code>).
               <a href="#memory-retrieval">Summary on this page</a>.
             </p>
@@ -216,7 +205,7 @@
             <span class="feature-link">Jump to workflows</span>
           </a>
 
-          <a class="feature-card" href="../memory/index.html#metrics-dashboard">
+          <a class="feature-card" href="memory/index.html#metrics-dashboard">
             <span class="feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 4 2 9l10 5 10-5-10-5Z"/>
@@ -433,7 +422,7 @@ cd llm-wiki/wiki/.og && python3 -m http.server 8765</code></pre>
               <h3 id="memory-retrieval-title">Memory &amp; retrieval</h3>
             </div>
             <p class="memory-hub-cta">
-              <a class="button button-primary" href="../memory/index.html#metrics-dashboard">Open memory hub — charts &amp; doc links</a>
+              <a class="button button-primary" href="memory/index.html#metrics-dashboard">Open memory hub — charts &amp; doc links</a>
             </p>
             <p>
               Three ideas share the word <em>memory</em> here: <strong>session memory</strong> (per-chat notes under <code class="inline-code">raw/memory/</code> when enabled), <strong>search backends</strong> for MCP and the wiki (lexical, semantic, or hybrid with reciprocal-rank fusion), and <strong>benchmark docs</strong> for long-context retrieval evaluation (LME, LoCoMo, ConvoMem)—separate from vault content.
@@ -447,7 +436,7 @@ llm-wiki benchmark suites</code></pre>
             <ul>
               <li><strong>Session memory:</strong> opt-in via <code class="inline-code">memory.enabled</code>; CLI <code class="inline-code">memory {save|log|list|show|recall|prune}</code>; hooks can write <code class="inline-code">.current-session</code> for <code class="inline-code">--current</code>.</li>
               <li><strong>MCP search:</strong> <code class="inline-code">mcp.search_backend</code> — <code class="inline-code">fts5</code> (BM25), <code class="inline-code">grep</code>, <code class="inline-code">chromadb</code> (embeddings), or <code class="inline-code">hybrid</code> (FTS5 + Chroma + RRF; <code class="inline-code">mcp.hybrid_rrf_k</code> defaults to 60).</li>
-              <li><strong>Benchmarks:</strong> CLI and methodology in <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a>; charts and links on the <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a> (this site).</li>
+              <li><strong>Benchmarks:</strong> CLI and methodology in <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a>; charts and links on the <a href="memory/index.html#metrics-dashboard">Memory docs hub</a> (this site).</li>
             </ul>
             <p class="detail-note">“Memory” in <code class="inline-code">docs/memory/benchmarks/</code> means long-context retrieval evaluation, not the session-memory feature under <code class="inline-code">raw/memory/</code>.</p>
           </article>
@@ -566,7 +555,7 @@ llm-wiki benchmark suites</code></pre>
                 </div>
                 <div>
                   <dt><code>llm-wiki security scan &lt;file&gt;</code></dt>
-                  <dd>Heuristic security scan on a path (e.g. prompt-injection patterns).</dd>
+                  <dd>Heuristic security scan on one file (e.g. prompt-injection patterns).</dd>
                 </div>
               </dl>
             </div>
@@ -584,7 +573,7 @@ llm-wiki benchmark suites</code></pre>
                 </div>
                 <div>
                   <dt><code>llm-wiki benchmark</code> (run · suites · report · history · compare · analyze)</dt>
-                  <dd>Retrieval benchmarks (LME / LoCoMo / ConvoMem); see <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> and <a href="../memory/index.html#metrics-dashboard">Memory docs hub</a>.</dd>
+                  <dd>Retrieval benchmarks (LME / LoCoMo / ConvoMem); see <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> and <a href="memory/index.html#metrics-dashboard">Memory docs hub</a>.</dd>
                 </div>
               </dl>
             </div>

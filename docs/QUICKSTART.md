@@ -7,7 +7,9 @@
 | **Vault** | Your knowledge folder (usually `./llm-wiki/` inside a project): `wiki/`, `raw/`, `config.json`, etc. |
 | **Plugin repo** | This **wiki-llm** repository: CLI, skills, commands, and templates — not your vault. |
 
-Install the plugin (Claude Code) or open this repo in Cursor/Codex and use [`AGENTS.md`](../AGENTS.md) for tool-specific wiring.
+**Claude Code:** prefer slash commands and skills first — see **[`INSTALL.md`](./INSTALL.md)** (`/reload-plugins`, `/llm-wiki:setup`, then **`/llm-wiki:…`** and **`commands/`**).
+
+**Cursor / Codex:** open this repo and use [`AGENTS.md`](../AGENTS.md) for tool-specific wiring.
 
 ---
 
@@ -52,6 +54,7 @@ Then:
 
 | Feature | Doc |
 |---------|-----|
+| Claude Code install, `/reload-plugins`, dev clone | [`INSTALL.md`](./INSTALL.md) |
 | Slash commands (`/llm-wiki:…`) | [`commands/`](../commands/) |
 | Skills (wiki-ingest, wiki-query, …) | [`skills/*/SKILL.md`](../skills/) |
 | Session memory (`memory.enabled`, `raw/memory/`) | [`skills/wiki-session-memory/SKILL.md`](../skills/wiki-session-memory/SKILL.md) |

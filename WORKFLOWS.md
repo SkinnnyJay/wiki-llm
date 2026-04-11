@@ -118,4 +118,4 @@ python3 scripts/.tmp/demo_full_flow.py
 ## Related
 
 - Slash commands: [`commands/`](commands/)
-- CLI reference: [README.md#cli-binllm-wiki](README.md)
+- CLI reference: [`docs/CLI.md`](docs/CLI.md)
