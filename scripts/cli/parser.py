@@ -49,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="llm-wiki")
     p.add_argument("--vault", help="Path to vault directory (default: ./llm-wiki or LLM_WIKI_VAULT)")
 
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd", required=False)
 
     pc = sub.add_parser("configure", help="Write config.json")
     pc.add_argument("--wiki-root")
@@ -68,6 +68,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     ps = sub.add_parser("setup", help="Scaffold vault from templates")
     ps.add_argument("--root", default=".", help="Project root containing llm-wiki/")
+    ps.add_argument(
+        "--vault",
+        metavar="PATH",
+        help="Vault directory (default: <root>/llm-wiki). Same as: llm-wiki --vault PATH setup …",
+    )
     ps.add_argument("-i", "--interactive", action="store_true", help="Force step-by-step wizard even in non-TTY")
     ps.add_argument("--defaults", action="store_true", help="Skip wizard, use defaults")
     ps.set_defaults(func=cmd_setup)
@@ -618,7 +623,13 @@ def build_parser() -> argparse.ArgumentParser:
     mlog = pmemory_sub.add_parser("log", help="Append a round entry (typically from Stop hook)")
     mlog.add_argument("--session-id", "-s", dest="session_id", default=None)
     mlog.add_argument("-c", "--current", action="store_true")
-    mlog.add_argument("--message-preview", default=None)
+    mlog.add_argument("--message-preview", default=None, help="Inline preview (avoid for multiline; use --message-preview-file from hooks)")
+    mlog.add_argument(
+        "--message-preview-file",
+        metavar="PATH",
+        default=None,
+        help="Read preview from file (UTF-8); preferred from shell hooks — avoids quoting bugs",
+    )
 
     mlist = pmemory_sub.add_parser("list", help="List session memory files")
     mlist.add_argument("--session-id", dest="session_filter", default=None)

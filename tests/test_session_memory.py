@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,6 +41,40 @@ def test_memory_save_and_log_round(vault: Path) -> None:
     text = p.read_text(encoding="utf-8")
     assert "Hello round" in text
     assert "Round 1" in text
+
+
+def test_memory_log_preview_file_cli(vault: Path, tmp_path: Path) -> None:
+    """--message-preview-file avoids shell quoting (multiline, quotes, box-drawing)."""
+    prev = tmp_path / "preview.txt"
+    tricky = 'SETUP\nwith "quotes"\nand ╔═╗ box\n'
+    prev.write_text(tricky, encoding="utf-8")
+    llm = REPO / "scripts" / "llm_wiki.py"
+    env = os.environ.copy()
+    p = str(REPO / "scripts")
+    env["PYTHONPATH"] = p + os.pathsep + env.get("PYTHONPATH", "") if env.get("PYTHONPATH") else p
+    r = subprocess.run(
+        [
+            sys.executable,
+            str(llm),
+            "--vault",
+            str(vault),
+            "memory",
+            "log",
+            "--session-id",
+            "sess-file",
+            "--message-preview-file",
+            str(prev),
+        ],
+        cwd=str(REPO),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    cfg = json.loads((vault / "config.json").read_text())
+    out = (mem.memory_dir(vault, cfg) / "sess-file.md").read_text(encoding="utf-8")
+    assert "quotes" in out
+    assert "╔═╗" in out
 
 
 def test_resolve_sessions_tag(vault: Path) -> None:

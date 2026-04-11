@@ -25,7 +25,12 @@ def main() -> int:
     # Repo-root .env / .env.local so ANTHROPIC_API_KEY etc. work without manual export.
     if str(os.environ.get("LLM_WIKI_SKIP_DOTENV", "")).lower() not in ("1", "true", "yes"):
         load_plugin_dotenv(plugin_root())
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    # No subcommand: common when `bin/llm-wiki` is on PATH (e.g. Claude plugin) and something probes bare `llm-wiki`.
+    if getattr(args, "cmd", None) is None:
+        parser.print_help()
+        return 0
     return args.func(args)
 
 

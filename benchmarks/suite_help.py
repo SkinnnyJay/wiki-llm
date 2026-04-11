@@ -24,10 +24,9 @@ python3 scripts/llm_wiki.py benchmark run locomo --limit 250
 python3 scripts/llm_wiki.py benchmark run convomem --data benchmarks/fixtures/convomem_tiny.json
 ```
 
-**Not implemented here:** Memory Palace’s **own** proprietary eval / quotes task — see
-`docs/memory/benchmarks/MEMPALACE.md` (deferred until upstream spec is vendored).
+**Not implemented here:** Memory Palace’s **own** proprietary eval / quotes task (deferred until an upstream spec is vendored).
 
-Full detail: **`benchmarks/README.md`**, comparisons: **`docs/memory/benchmarks/comparisons.md`**.
+Full detail: **`benchmarks/README.md`**; optional tracked run notes: **`docs/memory/benchmarks/runs/README.md`**.
 """
 
 

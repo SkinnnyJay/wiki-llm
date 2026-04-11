@@ -49,10 +49,13 @@ mv "$TMP" "$VAULT/.current-session"
 if [ "$HOOK_EVENT" = "Stop" ]; then
   STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
   if [ "$STOP_ACTIVE" = "true" ]; then exit 0; fi
-  MSG_PREVIEW=$(echo "$INPUT" | jq -r '.last_assistant_message // ""' | head -c 500)
+  # Write preview to a temp file — do not pass via argv (quotes/newlines/box-drawing break shell quoting).
+  PREV=$(mktemp "${TMPDIR:-/tmp}/llm_wiki_mem_preview.XXXXXX")
+  trap 'rm -f "$PREV"' EXIT
+  echo "$INPUT" | jq -r '.last_assistant_message // ""' > "$PREV"
   "$LLM_WIKI_BIN" --vault "$VAULT" memory log \
     --session-id "$SESSION_ID" \
-    --message-preview "$MSG_PREVIEW" || true
+    --message-preview-file "$PREV" || true
   exit 0
 fi
 

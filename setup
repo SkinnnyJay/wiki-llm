@@ -24,6 +24,9 @@ if [[ ${#detected[@]} -gt 0 ]]; then
 else
   echo "No .claude/ in repo, no ~/.codex — generic install."
 fi
+if [[ -d "$ROOT/.claude" ]]; then
+  echo "WARNING: $ROOT/.claude/ — Claude Code may skip plugin skills/commands. Remove it; use ~/.claude/settings.json. See WORKFLOWS.md / #44120."
+fi
 
 if [[ -f "$ROOT/.cursor/rules/llm-wiki.mdc" ]] || [[ -L "$ROOT/.cursor/rules/llm-wiki.mdc" ]]; then
   echo "Cursor rules: .cursor/rules/llm-wiki.mdc present"
@@ -41,7 +44,9 @@ echo "CLI check:"
 
 echo ""
 echo "Next steps:"
-echo "  1. Load plugin:  claude --plugin-dir \"$ROOT\"  (one-off), or  /plugin marketplace add \"$ROOT\"  →  install llm-wiki@llm-wiki-local  →  /reload-plugins"
+echo "  1. Claude Code plugin — dev:  claude --plugin-dir \"$ROOT\""
+echo "     Persistent install copies the whole tree (not .gitignore-aware). Before /plugin install:  \"$ROOT/scripts/plugin_dev_slim.sh\"  (dry-run)  then  … --apply"
+echo "     Then:  /plugin marketplace add \"$ROOT\"  →  /plugin install llm-wiki@llm-wiki-local  →  /reload-plugins"
 echo "  2. Scaffold vault:  \"$ROOT/bin/llm-wiki\" setup --root ."
 echo "  3. Or follow wiki-setup skill / WORKFLOWS.md"
 echo ""

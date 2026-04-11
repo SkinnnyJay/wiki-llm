@@ -80,6 +80,34 @@ def cmd_kg(args: argparse.Namespace) -> int:
     return 1
 
 
+def _resolve_message_preview_for_log(args: argparse.Namespace) -> tuple[str | None, int | None]:
+    """Return (preview, exit_code). exit_code is set on fatal read errors.
+
+    Prefer ``--message-preview-file`` so hooks avoid shell-quoting issues with
+    quotes, newlines, or box-drawing characters in assistant messages.
+    """
+    fp = getattr(args, "message_preview_file", None)
+    if fp:
+        p = Path(fp).expanduser()
+        if not p.is_file():
+            print(f"memory log: not a file: {fp}", file=sys.stderr)
+            return None, 1
+        try:
+            raw = p.read_bytes()
+        except OSError as e:
+            print(f"memory log: {e}", file=sys.stderr)
+            return None, 1
+        max_b = 4 * 1024 * 1024
+        if len(raw) > max_b:
+            print("memory log: preview file exceeds 4 MiB — refusing", file=sys.stderr)
+            return None, 1
+        return raw.decode("utf-8", errors="replace"), None
+    inline = getattr(args, "message_preview", None)
+    if inline is not None:
+        return inline, None
+    return os.environ.get("LLM_WIKI_MESSAGE_PREVIEW"), None
+
+
 def cmd_memory(args: argparse.Namespace) -> int:
     from lib import session_memory as mem
 
@@ -141,11 +169,14 @@ def cmd_memory(args: argparse.Namespace) -> int:
         except (ValueError, FileNotFoundError) as e:
             print(str(e), file=sys.stderr)
             return 1
+        preview, err = _resolve_message_preview_for_log(args)
+        if err is not None:
+            return err
         path = mem.memory_log_round(
             vault,
             cfg,
             sid,
-            message_preview=getattr(args, "message_preview", None),
+            message_preview=preview,
         )
         print(path.relative_to(vault))
         return 0
