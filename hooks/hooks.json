@@ -49,6 +49,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/llm_wiki_memory.sh",
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/llm_wiki_session_cleanup.sh",
+            "async": true
           }
         ]
       }
