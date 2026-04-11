@@ -3,7 +3,7 @@
 Manual test suite for verifying the full plugin flow before releases.
 Run through each section after significant changes; mark pass/fail in your notes.
 
-> **Quick smoke:** `bin/llm-wiki smoke-test -v` runs the full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay). See **§25** for tiers and recording.
+> **Quick smoke:** `bin/llm-wiki smoke-test -v` runs the full pytest suite (contracts, CLI help, vault flow, E2E, hooks, MCP stdio, golden replay). See **§25** (pytest tiers), **§26** (playbook vs tests), **§27** (automation levels — what can and cannot be asserted in CI).
 > This playbook also covers **manual** steps (viewer UI, marketplace install, cross-tool parity) that are not fully automated.
 
 ---
@@ -495,7 +495,10 @@ After any code change, verify these do not regress:
 | 4 | Hook scripts (`tests/test_hooks.py`, needs `jq`) | same | Free |
 | 5 | MCP stdio JSON-RPC (`tests/test_mcp_contract.py`) | same | Free |
 | 6 | Golden replay (`tests/test_replay_golden.py`, `tests/fixtures/golden/*.json`) | `bin/llm-wiki smoke-test -v` or `bin/llm-wiki smoke-test --replay` | Free |
-| 7 | Agent skill evals (`tests/test_skill_evals.py`) | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | API usage |
+| 7 | Agent skill evals (`tests/test_skill_evals.py`, `tests/skill_eval_cases.py`) | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | Agent CLI usage |
+| 7b | Optional Codex mirror (`tests/test_skill_evals_codex.py`) | `RUN_CODEX_SKILL_EVALS=1` + `pytest …` | Same scenarios as tier 7 |
+
+Tier 7 runs **`claude -p`** against shared scenarios in **`tests/skill_eval_cases.py`**. Optional **`tests/test_skill_evals_codex.py`** runs the same cases via **`codex exec`** when **`RUN_CODEX_SKILL_EVALS=1`**. Non-zero exit fails the test (full stdout/stderr on assertion). **`SKILL_EVAL_BACKEND`** on **`skill_eval_runner`** (in `conftest`) defaults to **claude** if anything still uses that fixture.
 
 **Golden replay**
 
@@ -508,9 +511,24 @@ After any code change, verify these do not regress:
 2. `python3 scripts/qa_extract_fixture.py tests/fixtures/recordings/<file>.jsonl -o tests/fixtures/golden/<name>.json`
 3. Review and edit the JSON; commit the golden file.
 
-**Claude CLI isolation (for evals and recording)**
+**Claude CLI (skill evals + recording)**
 
-Use `claude -p --bare --no-session-persistence --dangerously-skip-permissions --max-budget-usd <n>` so sessions are not persisted to disk and spend is capped. The harness in `tests/conftest.py` (`claude_runner`) follows this pattern. For maximum isolation, run with `HOME` pointing at a temp directory (optional).
+`test_skill_evals.py` uses `claude -p` with `--no-session-persistence` and `--dangerously-skip-permissions`. **`claude_runner`** uses **`_env_for_skill_eval`**, **`stdin=DEVNULL`**, **`--add-dir` `<vault>`** and **`--`** before the prompt (so the prompt is not parsed as another `--add-dir` path), and **drops `ANTHROPIC_*` from the subprocess env by default** (so pytest does not inherit API keys from `.env` / IDE). By default **`--setting-sources=project`**: **`~/.claude/settings.json`** is *not* merged (its `env` block often injects an API key and forces **API credits**, which fails with “Credit balance is too low” while **Claude Max** still works in an interactive session). Override with **`CLAUDE_RUNNER_SETTING_SOURCES=user,project,local`** to match full interactive merges. Set **`CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV=1`** to pass API keys through. **`--bare` is opt-in.** `scripts/qa_record.py` supports `--bare`, `--no-max-budget`, `--keep-anthropic-env`, and the same **`CLAUDE_RUNNER_SETTING_SOURCES`** default when not `--bare`.
+
+**Manual `claude -p` (portable paths)** — use the plugin repo root and vault as variables, not hardcoded machine paths:
+
+```bash
+# Run from the plugin repo (clone) root, or set REPO_ROOT explicitly.
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+VAULT="${LLM_WIKI_VAULT:-$REPO_ROOT/templates/llm-wiki}"
+export PATH="$REPO_ROOT/bin:${PATH}"
+export LLM_WIKI_VAULT="$VAULT"
+
+# Replace the final quoted string with your real task (the line below matches tier-7 wiki-query).
+claude -p --setting-sources project --no-session-persistence --dangerously-skip-permissions \
+  --output-format text --plugin-dir "$REPO_ROOT" --add-dir "$VAULT" -- \
+  'You are in the llm-wiki vault. Answer in 2 sentences: what do we know about authentication or OAuth? You must cite at least one path under wiki/ (e.g. wiki/auth.md).'
+```
 
 **Cleanup**
 
@@ -520,9 +538,77 @@ Use `claude -p --bare --no-session-persistence --dangerously-skip-permissions --
 
 ---
 
+## 26 — Automated coverage vs playbook (matrix)
+
+**Intent:** `smoke-test` is the default gate; it does **not** replace every manual row above. Use this table to see what pytest already exercises and what remains **manual** or **opt-in**.
+
+| Playbook area | Automated tests (default `smoke-test`) | Gaps / manual |
+|---------------|----------------------------------------|----------------|
+| **§0** Gate | `sync_agent_docs.test.py` (shared doc parity); `test_check_plugin_repo_cli_matches_qa_gate` (`check --plugin-repo`); `compileall` via that check | §0.4 alone: also run `python3 -m compileall scripts/ -q` if you want stdout-only compile without pytest |
+| **§1–2** Setup / configure | `test_e2e_flow.py` (setup `--defaults`, configure, validate); `vault_flow.test.py`; `test_error_paths.py` (config edge cases) | Interactive setup (`-i`), custom `--vault` path, git init on setup — spot-check |
+| **§3–4** Ingest / raw | `vault_flow.test.py`; `test_adapters.py`, `test_dedup.py`, `test_tagger.py`, `test_pipeline.py`; `test_error_paths.py` | Full security-scan matrix, git snapshot on ingest, every raw flag — spot-check |
+| **§5** Validate / lint | E2E + `vault_flow` wikilinks; `test_error_paths.py` | `list-topics` — covered indirectly; confirm with CLI if desired |
+| **§6** Search backends | `test_mcp.py` (FTS5, grep, chroma/hybrid where deps exist) | Every fallback combination on every OS — spot-check |
+| **§7** Knowledge graph | `test_mcp.py` KG helpers; E2E `kg add/query/stats` | SQLite backend variants — `test_mcp.py` / CLI spot-check |
+| **§8** Session memory | `test_session_memory.py`; E2E memory save/list/recall/show | Prune edge cases, bad metadata — spot-check |
+| **§9** Git | `test_mcp.py` or dedicated git tests if present — **partial** | Full git matrix (§9) — manual or expand tests |
+| **§10** MCP | `test_mcp_contract.py` (stdio JSON-RPC); `test_mcp.py` (tools/search) | **§10b** SSE/HTTP server, port conflicts — manual; **§10.16–10.17** `mcp install` / `mcp start` — manual |
+| **§11** Viewer | — | **All browser / UI** — manual |
+| **§12** Graph CLI | E2E + `vault_flow` `graph --out` | `graph --mode knowledge`, empty wiki — partially in other tests; spot-check |
+| **§13–15** Research / benchmarks / metrics | `test_benchmark.py`, `test_locomo_convomem_suites.py`, `test_lme_failure_qids.py`; E2E `metrics stats` | Full benchmark suites with real data paths — opt-in / CI |
+| **§16** Agent docs | `sync_agent_docs.test.py` | Deliberate drift test (§16.3) — manual destructive check |
+| **§17** Plugin manifests | `plugin_contracts.test.py` (commands/skills/adapters) | `integrations wizard`, live API validate — manual |
+| **§18** Error paths | `test_error_paths.py`, `url_safety.test.py` | Permission-denied, concurrency, 10MB files — manual or future tests |
+| **§19** CLI help | `cli_help.test.py` (every subcommand `--help`) | `unknown subcommand` UX — spot-check |
+| **§20** Hooks | `test_hooks.py` (needs `jq`) | Real IDE hook triggers — manual |
+| **§21** Slash commands | `plugin_contracts.test.py` (command files + skills) | Prompt quality — manual |
+| **§22** Skills (agent) | Tier **7** `test_skill_evals.py` + `tests/skill_eval_cases.py` (`RUN_CLAUDE_TESTS=1`); optional Codex mirror | All 12 skills end-to-end — manual in product |
+| **§23** E2E scenario | `test_e2e_flow.py` mirrors the script (including final `validate`, `check`, then `teardown --purge`) | — |
+| **§24** Regression | Same as §0 + §23 + MCP/hooks/replay | Periodic §11/§10b manual passes before release |
+
+**Markers:** `pytest -m network` (opt-in), `-m replay` (golden only), `-m claude` (skill evals, opt-in).
+
+---
+
+## 27 — Automation levels (programmatic vs manual)
+
+**Can every playbook row be automated?** **No.** Some checks require a **browser**, **user home files**, **live credentials**, **interactive TTY**, or **destructive** side effects. The project goal is **strong programmatic coverage** for deterministic behavior plus an explicit **manual tier** for the rest — not a brittle 1:1 mapping of §1–§24 to pytest.
+
+### Levels (use these names in CI and release notes)
+
+| Level | Command | What is asserted | Typical use |
+|-------|---------|------------------|-------------|
+| **L0 — Default gate** | `bin/llm-wiki smoke-test -v` | Full offline pytest: contracts, CLI `--help`, vault flows, E2E (`test_e2e_flow.py`), hooks (`jq`), MCP stdio contract, golden replay, adapters, error paths, session memory, benchmarks that do not need network — **see §26** | Every PR / push |
+| **L0b — Replay only** | `bin/llm-wiki smoke-test --replay` | Golden CLI fixtures only (`@pytest.mark.replay`) | Quick regression on parser/CLI changes |
+| **L1 — Network opt-in** | `RUN_NETWORK_TESTS=1 bin/llm-wiki smoke-test --network` or `pytest -m network` | HTTPS reachability (`tests/network.test.py`) | Environments that allow egress |
+| **L2 — Agent CLI (paid / local)** | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | `claude plugin validate` + tier-7 skill evals (`test_skill_evals.py`); needs Claude Code CLI + subscription/OAuth | Maintainer machines, pre-release |
+| **L2b — Codex skill mirror** | `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` | Same scenarios via `codex exec` | Optional second agent |
+| **L3 — Manual / product** | Checklists **§11**, **§10b** (SSE), **§10.16–17** (`mcp install`), interactive **§1.2 / §2.2**, live **integrations validate** | Human or dedicated E2E infrastructure | Release candidate, marketplace submission |
+
+### What is intentionally *not* fully programmatic
+
+| Reason | Examples (playbook) |
+|--------|---------------------|
+| **Browser / DOM** | §11 viewer (search, D3 graph, “Open in editor”) |
+| **Writes outside repo** | §10.16 `mcp install` → `~/.claude/`, `./mcp.json` |
+| **Long-lived processes / ports** | §10b SSE server, §10.17 background MCP |
+| **Secrets / billing** | §17 live API validation; any row requiring real provider keys |
+| **Interactive UX** | Setup/configure wizards (`-i`) |
+| **Subjective** | §21–§22 “prompt quality”, agent strategy in real Claude/Cursor |
+
+### Growing automation safely
+
+Add **new pytest tests** when a case is **deterministic** (subprocess, `tmp_path`, no network). Keep **manual** rows for UI and environment-specific checks. When you add a test, update **§26** so the matrix stays truthful.
+
+---
+
 ## Version history
 
 | Date | Change |
 |------|--------|
 | 2026-04-09 | Initial playbook covering all CLI, MCP, skill, and integration tests |
 | 2026-04-10 | §25 automation harness (tiers, golden replay, recording, cleanup) |
+| 2026-04-10 | Skill eval scenarios in `tests/skill_eval_cases.py`; Claude default; optional Codex in `test_skill_evals_codex.py` (`RUN_CODEX_SKILL_EVALS=1`) |
+| 2026-04-10 | `claude_runner` / `qa_record`: `--add-dir` vault + `--` before prompt; QAPLAYBOOK portable `claude -p` example (`$REPO_ROOT`, no hardcoded paths) |
+| 2026-04-10 | §26 coverage matrix; E2E final `validate`+`check`; `test_check_plugin_repo_cli_matches_qa_gate` for §0.3 |
+| 2026-04-10 | §27 automation levels (L0–L3): programmatic vs manual; what cannot be CI-asserted |
