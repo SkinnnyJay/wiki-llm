@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme-banner.png" alt="llm-wiki" width="100%" />
+  <img src="docs/site/assets/readme-banner.png" alt="llm-wiki" width="100%" />
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 **New here?** Start with **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (five-minute vault path + basic / intermediate / advanced tiers). **Vault** = your `llm-wiki/` folder; **plugin repo** = this repository.
 
-**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`**). Published home: **`docs/index.html`** — see [`docs/README.md`](docs/README.md) and [`docs/PUBLISHING.md`](docs/PUBLISHING.md). Inspiration: [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [MemPalace](https://github.com/milla-jovovich/mempalace) ([Ben Sigman on X](https://x.com/bensig/status/2041229266432733356)), Newton’s letter to Hooke (shoulders of giants).
+**Docs site (GitHub Pages):** enable Pages from the **`/docs`** folder on `main` (with **`docs/.nojekyll`**). Root **`docs/index.html`** redirects to **`docs/site/index.html`** — see [`docs/README.md`](docs/README.md) and [`docs/PUBLISHING.md`](docs/PUBLISHING.md). Inspiration: [Karpathy’s *LLM Wiki* gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [MemPalace](https://github.com/milla-jovovich/mempalace) ([Ben Sigman on X](https://x.com/bensig/status/2041229266432733356)), Newton’s letter to Hooke (shoulders of giants).
 
 Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview): **`llm-wiki/`** holds **`raw/`**, **`wiki/`**, optional **`outputs/`**, **`CLAUDE.md`**. Plugin tooling: ingest, validate, static viewer, optional Git, MCP, KG, benchmarks, **opt-in session memory** (`memory.enabled`, **`raw/memory/`**).
 
@@ -32,10 +32,12 @@ Personal knowledge vault for [Claude Code](https://docs.anthropic.com/en/docs/cl
 | Plugin + agent **persona** (voice, epistemics) | [`prompts/PERSONA.md`](prompts/PERSONA.md), [`agents/wiki-librarian.md`](agents/wiki-librarian.md), [`agents/research-runner.md`](agents/research-runner.md) |
 | Optional tool-calling persona hook | [`skills/references/context-persona.md`](skills/references/context-persona.md) |
 | Canonical flows and troubleshooting | [`WORKFLOWS.md`](WORKFLOWS.md) |
+| Environment variables (`.env`, pytest tiers, hooks) | [`docs/ENV.md`](docs/ENV.md), [`.env.example`](.env.example) |
+| GitHub Pages design (landing + Memory hub) | [`docs/DESIGN.md`](docs/DESIGN.md) |
 | Retrieval benchmark roadmap, LME gap notes (not session memory) | [`docs/memory/benchmarks/README.md`](docs/memory/benchmarks/README.md); CLI + knobs [`benchmarks/README.md`](benchmarks/README.md) |
-| MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) |
+| MCP server (stdio or HTTP), search + KG backends | [`docs/AGENTS.shared.md`](docs/AGENTS.shared.md) (MCP section), [`skills/references/mcp-and-kg.md`](skills/references/mcp-and-kg.md) (includes security model and `mcp.*` hardening) |
 | Builder principles (raw vs wiki, evidence) | [`ETHOS.md`](ETHOS.md) |
-| Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Contributing / PR scope | [`CONTRIBUTING.md`](CONTRIBUTING.md), optional maintainer backlog [`TODOS.md`](TODOS.md) |
 
 ---
 
@@ -125,7 +127,7 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 | `security scan <file>` | Print heuristic scan JSON (does not mutate the file). |
 | `memory` | **`memory {save|log|list|show|recall|prune}`** — per-session markdown under **`raw/memory/`** when **`memory.enabled`**; **`--current`** reads **`llm-wiki/.current-session`**. |
 | `check` | Fast vault/config sanity; **`--plugin-repo`** verifies agent docs match **`docs/AGENTS.shared.md`** and runs `compileall` on `scripts/`; **`--claude-validate`** runs `claude plugin validate` when the CLI is on `PATH`. |
-| `sync-agent-docs` | Regenerate **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`**, **`.claude/rules/llm-wiki.md`** from **`docs/AGENTS.shared.md`**. **`--check`** exits non-zero if anything is out of sync (CI uses **`check --plugin-repo`**). |
+| `sync-agent-docs` | Regenerate **`AGENTS.md`**, **`CLAUDE.md`**, **`rules/llm-wiki.mdc`** from **`docs/AGENTS.shared.md`**. **`--check`** exits non-zero if anything is out of sync (CI uses **`check --plugin-repo`**). |
 | `smoke-test` | Run **`pytest tests/`** from the plugin root. Default is **offline** (skips optional suites). **`--network`** enables **`@pytest.mark.network`** tests; **`--claude`** enables **`claude plugin validate`**. Also **`-v`**, **`--only-contracts`**, then pytest args after **`--`**. |
 | `test-report` | **Integration report:** runs real **`llm-wiki`** subprocesses (help matrix, temp vault pipeline, harvested safe lines from **`commands/*.md`**, skill frontmatter checks, optional **`--network`**, **`claude plugin validate`** if on `PATH`). Prints a **Markdown** table; **`--json FILE`** for machine output. Does **not** invoke an LLM or execute slash commands in chat. |
 
@@ -140,8 +142,9 @@ You do not need `PYTHONPATH` (the script prepends `scripts/` to `sys.path`). **A
 ## Example: from zero to graph
 
 ```bash
-# 1) Load plugin (development)
-claude --plugin-dir /path/to/wiki-llm
+# 1) Load plugin (development) — e.g. from a shell (see [CLI reference](https://code.claude.com/docs/en/cli-reference)):
+#    claude --plugin-dir /path/to/wiki-llm
+#    Or install from chat: /plugin marketplace add /path/to/wiki-llm → /plugin install llm-wiki@llm-wiki-local → /reload-plugins
 
 # 2) Scaffold vault
 llm-wiki setup --root .
@@ -191,11 +194,19 @@ From the cloned repo (optional sanity check):
 ./setup
 ```
 
-Load the plugin in Claude Code:
+Load the plugin in Claude Code (pick one):
 
-```bash
-claude --plugin-dir /path/to/wiki-llm
-```
+- **Quick (one-off session):** `claude --plugin-dir /path/to/wiki-llm` — see [CLI reference](https://code.claude.com/docs/en/cli-reference). This is what **`tests/conftest.py`** uses for **`claude -p`** skill evals.
+
+- **Persistent install:** add this repo as a marketplace, then install the catalog plugin:
+
+  ```text
+  /plugin marketplace add /path/to/wiki-llm
+  /plugin install llm-wiki@llm-wiki-local
+  /reload-plugins
+  ```
+
+  Or from a shell: `claude plugin marketplace add /path/to/wiki-llm` then `claude plugin install llm-wiki@llm-wiki-local`.
 
 Reload plugins after changes: `/reload-plugins`
 

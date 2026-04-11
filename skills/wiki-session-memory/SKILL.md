@@ -30,6 +30,18 @@ llm-wiki memory prune --keep 30
 - **`llm-wiki/.agent-memory.md`** — distilled cross-session patterns (**wiki-learn**).
 - **`raw/memory/*.md`** — per-session raw records; promote recurring patterns into **`.agent-memory.md`** when appropriate.
 
+## Recall quality
+
+**`memory recall`** uses the vault **search backend** (`mcp.search_backend` in `config.json` — fts5, grep, chromadb, or hybrid). Results match how **`wiki_search`** / CLI search would rank the same text: keyword-heavy notes work well with **fts5**; broader or conceptual queries improve with **chromadb** / **hybrid** (optional `pip install chromadb`). See **`skills/references/mcp-and-kg.md`** § Search backends.
+
+## `memory.max_sessions`
+
+When **`memory.max_sessions`** is a **positive integer**, **`memory save`** and **`memory log`** run an automatic prune **after** each write: the **oldest** session files (by file modification time) are deleted until the count is ≤ the cap. Set **`0`** for unlimited files (manual **`memory prune`** only).
+
+## Security and privacy
+
+Session files may be **git-tracked** if the user commits **`raw/`**. Do not store API keys, tokens, or other secrets in **`raw/memory/*.md`** — keep credentials in gitignored config (e.g. **`.claude/settings.local.json`**) or env vars per **`docs/ENV.md`**.
+
 ## Done looks like
 
 - User knows whether memory is enabled and where files live (**`raw/memory/`**).

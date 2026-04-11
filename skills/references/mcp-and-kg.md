@@ -4,6 +4,26 @@ Companion to **wiki-setup**, **wiki-status**, **wiki-query**, **wiki-ingest**, a
 
 ---
 
+## MCP implementation (stdlib server vs Python SDK)
+
+The MCP server is **`scripts/mcp_server.py`**: **line-delimited JSON-RPC over stdio** (and optional HTTP via **`scripts/mcp_sse.py`**), **stdlib only** — no required `pip install` to run tools. That keeps marketplace installs and PEP 668–restricted environments workable.
+
+The official **[Model Context Protocol Python SDK](https://github.com/modelcontextprotocol/python-sdk)** (`mcp` on PyPI) is the conventional choice for **new** MCP servers that already depend on packaging. This project keeps a **custom server** deliberately so the plugin does not add a hard MCP dependency; protocol updates are maintained in-tree. Revisit an SDK migration only if maintenance cost or host compatibility clearly outweighs zero-dependency installs.
+
+### Limits and notifications (stdio + HTTP)
+
+| Transport | Limit |
+|-----------|--------|
+| **stdio** (`mcp_server.py`) | Each JSON-RPC line must be **≤ 32 MiB**; larger lines are logged and skipped. |
+| **HTTP** (`mcp_sse.py`) | **`Content-Length`** must be **≤ 32 MiB**; otherwise **413** with a JSON-RPC error (body not read). |
+| **Tool result size** | Config **`mcp.max_response_chars`** truncates the serialized JSON string returned from **`tools/call`**. |
+
+**Notifications:** **`notifications/initialized`** and **`notifications/cancelled`** return **no JSON-RPC result** on stdio (no stdout line). On HTTP, the server responds with **204 No Content** (no body). **`notifications/cancelled`** carries **`params.requestId`** (and optional **`params.reason`**) per the [MCP cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities) spec. This server is **single-threaded** on stdio: it **cannot interrupt** a running tool handler; cancellation is acknowledged for protocol compatibility and logging.
+
+**Logging:** Tool errors and several control paths log with **`mcp_request_id`**, **`mcp_method`**, **`mcp_tool`**, and **`mcp_cancelled_request_id`** (where applicable) in the **`extra`** dict for log aggregators, plus a human-readable **` \| key=value`** suffix in the message on stderr.
+
+---
+
 ## CLI > MCP when local
 
 | Context | Preferred | Why |
@@ -15,6 +35,35 @@ Companion to **wiki-setup**, **wiki-status**, **wiki-query**, **wiki-ingest**, a
 **Rule of thumb:** If you can run `llm-wiki` in a shell, do that. Use MCP tools when the agent framework requires tool-call semantics (e.g., it has no shell access) or when the editor has already registered the MCP server and the tools are available in the tool palette.
 
 Skills should always show the **CLI form first** and note the MCP equivalent parenthetically, not the other way around.
+
+---
+
+## MCP security model
+
+**Trust boundary:** Any client that can invoke MCP tools on your machine has **vault-equivalent power**: read files under the vault, change `config.json`, trigger ingest (network/subprocess), mutate the knowledge graph and session memory, and run benchmarks (network/cache). Treat MCP like **shell access to the vault**.
+
+**stdio (default):** The editor spawns `mcp_server.py`; exposure is limited to processes on your user session.
+
+**HTTP (`--transport sse`):** The same tool surface is available over **plaintext HTTP** on `mcp.host`/`mcp.port`. Binding to **non-loopback** addresses exposes the vault to the LAN unless firewalled. Prefer **`127.0.0.1`**, use **`mcp.sse_require_loopback`** / **`mcp.sse_token`** (see config keys below), or put a reverse proxy with TLS in front for remote use.
+
+**Secrets:** `wiki_read_page` can read **any path under the vault** (e.g. `config.json`). Do not store raw API keys in tracked files; use env vars (see [`docs/ENV.md`](../../docs/ENV.md)).
+
+---
+
+## Operational matrix (MCP tools)
+
+Rough classification for operators — see `mcp.tools_mode` / `mcp.tools_allowlist` to restrict.
+
+| Risk | Tools |
+|------|--------|
+| **Network / subprocess** (ingest adapters) | `wiki_ingest` — adapter + **`post_ingest`** (CLI parity: `force`, `force_security`, manual `tags`); gated by `integrations.<adapter>.enabled` and optional `mcp.ingest_enabled` |
+| **Network / disk (benchmarks)** | `wiki_benchmark_run` (and dataset downloads) — hidden with `wiki_benchmark_suites` when `mcp.benchmark_tool_enabled` is false |
+| **Config write** | `wiki_configure` — optional `mcp.configure_allowlist` limits keys |
+| **Search index / site** | `wiki_reindex`, `wiki_build_site` (optional `if_stale`), `wiki_graph_build` (D3 bundle — writes under output dir) |
+| **KG writes** | `wiki_kg_add`, `wiki_kg_invalidate`, `wiki_kg_rebuild` |
+| **Session memory writes / deletes** | `memory_save`, `memory_log`, `memory_prune` |
+| **Subprocess (git)** | `wiki_git_status` — read-only git; no arbitrary shell |
+| **Read-mostly** | `wiki_wake_up`, `wiki_status`, `wiki_list_topics`, `wiki_validate`, `wiki_read_page`, `wiki_graph`, `wiki_search`, `wiki_find_related`, `wiki_search_index_status`, `wiki_kg_query`, `wiki_kg_timeline`, `wiki_kg_stats`, `wiki_raw_validate` (optional `autofix`), `wiki_metrics_stats`, `wiki_metrics_query`, `wiki_benchmark_suites`, `memory_list`, `memory_show`, `memory_recall` |
 
 ---
 
@@ -30,7 +79,17 @@ All settings live in `llm-wiki/config.json`:
     "port": 8891,
     "host": "127.0.0.1",
     "search_backend": "fts5",
-    "hybrid_rrf_k": 60
+    "hybrid_rrf_k": 60,
+    "tools_mode": "full",
+    "tools_allowlist": [],
+    "max_response_chars": 500000,
+    "read_page_max_chars": 0,
+    "configure_allowlist": [],
+    "benchmark_tool_enabled": true,
+    "ingest_enabled": true,
+    "sse_require_loopback": true,
+    "sse_token": "",
+    "status_file_count_ttl_seconds": 45
   },
   "knowledge_graph": {
     "enabled": true,
@@ -44,6 +103,8 @@ All settings live in `llm-wiki/config.json`:
   }
 }
 ```
+
+**Optional hardening (`mcp.*`):** **`tools_mode`** — `full` (default), `read_only` (search/query/list tools only), or `custom` (only names in **`tools_allowlist`**; an empty allowlist behaves like **`read_only`**). **`max_response_chars`** — cap serialized JSON per tool result (`0` = unlimited). **`read_page_max_chars`** — truncate **`wiki_read_page`** body when `> 0` (the tool’s **`max_chars`** argument overrides). **`configure_allowlist`** — if non-empty, **`wiki_configure`** only allows listed keys; prefix rules end with `.` (e.g. `mcp.`). **`benchmark_tool_enabled`** — hide **`wiki_benchmark_run`** and **`wiki_benchmark_suites`** when `false`. **`ingest_enabled`** — hide **`wiki_ingest`** when `false`. **`sse_require_loopback`** — when `true`, HTTP MCP refuses to bind to non-loopback hosts. **`sse_token`** — when non-empty, HTTP clients must send **`Authorization: Bearer …`** or **`X-LLM-Wiki-Token`**. Plaintext HTTP; use a reverse proxy with TLS for untrusted networks. **`status_file_count_ttl_seconds`** — TTL for cached **`wiki_status`** raw/wiki `*.md` counts.
 
 **Session memory (`memory.*`):** Opt-in. When `memory.enabled` is `true`, hooks and `llm-wiki memory …` write **`raw/memory/<session-id>.md`**. **`raw validate`** skips that directory; search still indexes it (`scope="memory"`). **`llm-wiki/.current-session`** stores the active session id for **`--current`**.
 
@@ -112,7 +173,9 @@ for r in get_search_backend(Path('llm-wiki')).search('query', limit=10):
 
 MCP equivalent: `wiki_search` tool. Use when agent has no shell access. Pass **`scope: "memory"`** to search only session memory files.
 
-**Benchmarks:** MCP tool **`wiki_benchmark_run`** runs LME / LoCoMo / ConvoMem against the vault (same as `llm-wiki benchmark run …`). Use **`use_llm`**: true to enable LLM rerank for that run per `benchmark.search.rerank_llm` (API or CLI `invoke`). Prefer the **CLI** when you have a shell (`llm-wiki benchmark run …`).
+**Benchmarks:** **`wiki_benchmark_run`** matches `llm-wiki benchmark run` (suite, limit, backend, compressor, **`top_k`**, optional **`data_path`** under vault or benchmark cache, **`no_metrics`**, **`use_llm`**). **`wiki_benchmark_suites`** returns the same help text as **`llm-wiki benchmark suites`**. Prefer the **CLI** for full matrix runs (`--backend all`, etc.).
+
+**Metrics (read-only on MCP):** **`wiki_metrics_stats`** / **`wiki_metrics_query`** mirror **`llm-wiki metrics stats`** and **`metrics query`**; use the **CLI** for **`metrics record`**, **`clear`**, **`report`**, **`summary`**.
 
 ### Session memory (CLI — preferred locally)
 
@@ -194,6 +257,7 @@ Optional: set `memory.max_sessions` for auto-prune after saves.
 | Feature | Command | What it does |
 |---------|---------|-------------|
 | **Wikilink graph** | `llm-wiki graph --mode knowledge` | D3 visualization of `[[wikilink]]` topology — clusters of connected pages |
+| **Wikilink graph (MCP)** | `wiki_graph_build` | Same bundle as **`graph`** CLI; distinct from **`wiki_graph`** (JSON export for agents) |
 | **Entity KG** | `llm-wiki kg query/stats/rebuild` | Structured triples (entity → relationship → target) extracted from wiki content |
 
 These are complementary: the wikilink graph shows page-level connectivity; the entity KG stores fact-level relationships.

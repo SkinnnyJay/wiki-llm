@@ -37,11 +37,15 @@ From a clone of this repo:
 
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidance on PR scope and splitting large changes.
 
+### CLI source layout (plugin repo)
+
+The entrypoint is **`scripts/llm_wiki.py`** (loads repo `.env`, then `main()`). Command implementations live under **`scripts/cli/`**: **`core_commands.py`** (setup, ingest, raw, git, integrations, …), **`mcp_commands.py`**, **`ops_commands.py`** (kg, memory, metrics, benchmark, interactive configure), and **`parser.py`** defines the **`argparse`** tree. Add new subcommands next to related commands and register them in **`parser.py`**.
+
 Slash commands and skills document a per-surface **`## Smoke check`** (CLI + agent prompt) for manual runs in Claude Code.
 
 ## Green path (first-time vault)
 
-1. **Install the plugin** (development): `claude --plugin-dir /path/to/wiki-llm` then `/reload-plugins`.
+1. **Install the plugin** (development): from a shell, **`claude --plugin-dir /path/to/wiki-llm`** for a one-off session ([CLI reference](https://code.claude.com/docs/en/cli-reference)), **or** in Claude Code run **`/plugin marketplace add /path/to/wiki-llm`**, **`/plugin install llm-wiki@llm-wiki-local`**, **`/reload-plugins`** for a persistent install.
 2. **Scaffold:** `llm-wiki setup --root .` → creates `llm-wiki/` with `config.json`, `wiki/`, `raw/`, `outputs/`, `CLAUDE.md`, `research-tasks.json`.
 3. **Configure (optional):** `llm-wiki --vault ./llm-wiki configure -i` or set `persona.name`, `viewer`, `git`, etc.
 4. **Validate:** `llm-wiki --vault ./llm-wiki validate` and, when the wiki has links, `validate --wikilinks`.
@@ -71,7 +75,7 @@ Slash commands and skills document a per-surface **`## Smoke check`** (CLI + age
 
 | Symptom | Try |
 |--------|-----|
-| Plugin commands not visible | `/reload-plugins`; confirm `claude --plugin-dir` points at this repo. |
+| Plugin / skills / commands **missing entirely** | **1)** There must be **no** `.claude/` folder inside the **wiki-llm plugin repo** — not even gitignored `settings.local.json` — or Claude Code **will not load** plugin `skills/` or `commands/` ([#44120](https://github.com/anthropics/claude-code/issues/44120)). Use **`~/.claude/settings.json`** or **`~/.claude/settings.local.json`** for env/keys. **2)** Load the plugin: **`claude --plugin-dir /path/to/wiki-llm`** (one-off) **or** **`/plugin marketplace add …`**, **`/plugin install llm-wiki@llm-wiki-local`**, **`/reload-plugins`** (persistent). **3)** If still broken: `rm -rf ~/.claude/plugins/cache`, restart, reinstall. **4)** `/plugin` → **Errors** tab for load failures. |
 | `validate` fails (missing files) | Run `llm-wiki setup` or restore `llm-wiki/wiki/index.md`, `CLAUDE.md`, `config.json` from [`templates/llm-wiki/`](templates/llm-wiki/). |
 | No **`outputs/`** (vault scaffolded before it existed) | `mkdir -p llm-wiki/outputs` and merge the **`outputs/`** section from [`templates/llm-wiki/CLAUDE.md`](templates/llm-wiki/CLAUDE.md) into your vault `CLAUDE.md`. |
 | `validate --wikilinks` fails | Broken `[[links]]` to missing pages — create the target `.md` or remove the link. |
@@ -114,4 +118,3 @@ python3 scripts/.tmp/demo_full_flow.py
 
 - Slash commands: [`commands/`](commands/)
 - CLI reference: [README.md#cli-binllm-wiki](README.md)
-- Optional pairing with [gstack](https://github.com/garrytan/gstack) for browser QA / ship workflows: [README.md#using-llm-wiki-with-gstack](README.md#using-llm-wiki-with-gstack)

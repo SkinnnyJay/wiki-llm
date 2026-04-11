@@ -18,7 +18,7 @@ If **`.agent-memory.md`** exists at the vault root, use **wiki-learn** to append
 
 ## Session memory (optional)
 
-If **`memory.enabled`** in **`config.json`**, per-chat notes live under **`raw/memory/<session-id>.md`** (**wiki-session-memory**). Prefer **`llm-wiki memory save --current …`** (CLI over MCP when local). **`raw validate`** skips **`raw/memory/`**; tagging and search still index those files.
+If **`memory.enabled`** in **`config.json`**, per-chat notes live under **`raw/memory/<session-id>.md`** (**wiki-session-memory**). Prefer **`llm-wiki memory save --current …`** (CLI over MCP when local). **`raw validate`** skips **`raw/memory/`**; tagging and search still index those files. A positive **`memory.max_sessions`** auto-deletes oldest files after each save/log. Do not store secrets in session files if the vault is committed to git — see plugin **`docs/ENV.md`**.
 
 ## Retrospective (optional)
 

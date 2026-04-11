@@ -7,6 +7,13 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Claude Code dev docs** — document **`claude --plugin-dir`** as the usual one-off dev load again (current CLI); marketplace install remains the persistent option. **`tests/conftest.py`** and **`scripts/qa_record.py`** always pass **`--plugin-dir`** (removed the **`claude --help`** probe).
+
+### Fixed
+- **Claude Code plugin skills** — stop syncing agent rules to **`.claude/rules/`** inside the plugin repo. A **`.claude/`** directory in a plugin prevents discovery of root **`skills/`** ([anthropics/claude-code#44120](https://github.com/anthropics/claude-code/issues/44120)); use **`rules/llm-wiki.mdc`** + **`AGENTS.md`** / **`CLAUDE.md`** only.
+- **`.gitignore`** — ignore **`.claude/`** under the plugin repo so local **`settings.local.json`** cannot sit next to **`skills/`** and block plugin discovery.
+
 ### Added
 - **Session memory** — opt-in **`memory.*`** config, **`llm-wiki memory {save|log|list|show|recall|prune}`**, MCP tools (`memory_save`, `memory_list`, `memory_show`, `memory_recall`, `memory_prune`), search scope **`memory`**, hooks **`llm_wiki_memory.sh`** (Stop / PostCompact / SessionEnd), **`wiki-session-memory`** skill, **`commands/memory.md`**, **`raw/memory/`** excluded from raw prepare validation scans
 

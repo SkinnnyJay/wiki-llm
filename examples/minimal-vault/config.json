@@ -140,7 +140,7 @@
     "max_sessions": 50,
     "_comment_enabled": "Per-session memory files under raw/memory/ (hooks + memory CLI).",
     "_comment_dir": "Directory under vault for session memory markdown files.",
-    "_comment_max_sessions": "Auto-prune oldest sessions beyond this count (0 = unlimited)."
+    "_comment_max_sessions": "After each memory save/log: if file count > this, delete oldest by mtime (0 = unlimited auto-prune off; use memory prune manually)."
   },
   "storage": {
     "search_db": ".search.sqlite3",

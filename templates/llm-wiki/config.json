@@ -125,8 +125,20 @@
     "host": "127.0.0.1",
     "search_backend": "fts5",
     "hybrid_rrf_k": 60,
+    "tools_mode": "full",
+    "tools_allowlist": [],
+    "max_response_chars": 500000,
+    "read_page_max_chars": 0,
+    "configure_allowlist": [],
+    "benchmark_tool_enabled": true,
+    "ingest_enabled": true,
+    "sse_require_loopback": true,
+    "sse_token": "",
+    "status_file_count_ttl_seconds": 45,
     "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
-    "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)"
+    "_comment_transport": "transport: stdio (default, editor MCP) | sse — HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)",
+    "_comment_tools_mode": "full | read_only | custom — custom + empty tools_allowlist behaves as read_only",
+    "_comment_hardening": "configure_allowlist limits wiki_configure keys (prefix rules end with .). sse_token enables HTTP auth; use HTTPS via proxy for remote. See skills/references/mcp-and-kg.md"
   },
   "knowledge_graph": {
     "enabled": true,
@@ -140,7 +152,7 @@
     "max_sessions": 50,
     "_comment_enabled": "Per-session memory files under raw/memory/ (hooks + memory CLI).",
     "_comment_dir": "Directory under vault for session memory markdown files.",
-    "_comment_max_sessions": "Auto-prune oldest sessions beyond this count (0 = unlimited)."
+    "_comment_max_sessions": "After each memory save/log: if file count > this, delete oldest by mtime (0 = unlimited auto-prune off; use memory prune manually)."
   },
   "storage": {
     "search_db": ".search.sqlite3",

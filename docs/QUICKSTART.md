@@ -58,6 +58,8 @@ Then:
 | MCP + search backends | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
 | Evidence layers, trust | [`ETHOS.md`](../ETHOS.md) |
 | Architecture (vault vs plugin) | [`docs/architecture.md`](./architecture.md) |
+| Env vars (`.env`, integrations, pytest opt-in) | [`docs/ENV.md`](./ENV.md), [`../.env.example`](../.env.example) |
+| GitHub Pages UI (tokens, sticky TOC, metrics charts) | [`docs/DESIGN.md`](./DESIGN.md), [`docs/site/css/style.css`](./site/css/style.css) |
 
 ---
 

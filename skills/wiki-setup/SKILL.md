@@ -26,6 +26,17 @@ Slash command **`/llm-wiki:setup`** loads this skill. Three ways to run it:
 
 **Combined:** A **full** run is “vault + memory in one wizard” when the user does **not** choose vault-only or memory-only at **Routing** (below).
 
+### Configure without the full wizard
+
+When the user only wants to **change a setting** (not re-run the whole skill):
+
+- **`/llm-wiki:configure`** — prompt in **`commands/configure.md`**: prefer MCP **`wiki_configure`** when available; otherwise **`llm-wiki configure -i`** or preview-then-write edits with the same **iron rule** as this skill.
+- **Memory-only** — still use **`/llm-wiki:setup`** routing (**memory-only**) or jump to **Section 8c** below.
+
+### Status (health check)
+
+- **`/llm-wiki:status`** — prompt in **`commands/status.md`**; implements **wiki-status** (MCP **`wiki_status`**, **`llm-wiki integrations status`**, optional deeper checks). Use after setup or when the user asks if the vault is ready.
+
 ---
 
 ## Routing — ask once after pre-check

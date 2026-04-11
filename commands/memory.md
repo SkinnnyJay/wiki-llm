@@ -24,3 +24,8 @@ $ARGUMENTS
 
 - **CLI:** From the vault root: `llm-wiki memory list` (empty ok if memory disabled).
 - **Prompt:** Invoke **wiki-session-memory**; confirm `memory.enabled` in `llm-wiki/config.json` when using writes.
+
+## See also
+
+- **[`docs/ENV.md`](../docs/ENV.md)** — session memory, `max_sessions` auto-prune, recall vs search backend, privacy.
+- **[`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md)** — MCP tools and search backends.

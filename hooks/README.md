@@ -37,7 +37,7 @@ Fires on every Claude stop. Updates the Memory Stack only if `wiki/` changed sin
 
 ### Plugin install (recommended)
 
-When llm-wiki is installed as a Claude Code plugin (marketplace or `--plugin-dir`), hooks are **auto-loaded** from `hooks/hooks.json`. The scripts use `${CLAUDE_PLUGIN_ROOT}/bin/llm-wiki` to find the CLI — no PATH configuration needed.
+When llm-wiki is installed as a Claude Code plugin (marketplace install or a CLI that supports session plugin loading), hooks are **auto-loaded** from `hooks/hooks.json`. The scripts use `${CLAUDE_PLUGIN_ROOT}/bin/llm-wiki` to find the CLI — no PATH configuration needed.
 
 ### Manual install (standalone / dev clone)
 

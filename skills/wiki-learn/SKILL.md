@@ -8,6 +8,8 @@ user-invocable: false
 
 Persist **patterns**, **preferences**, **pitfalls**, and **next steps** across sessions in a single human-reviewable file: **`llm-wiki/.agent-memory.md`**. Plain Markdown (no DB). Optional: integrate with **wiki-retro** (recommendations → **Next Steps**).
 
+**Privacy:** This file is assistant-facing notes, not canonical **`wiki/`** evidence — but if the vault is in git, treat it like any tracked doc: **do not** record secrets, API keys, or confidential tokens here; use env or gitignored settings instead.
+
 ## Pre-flight
 
 1. Ensure **`llm-wiki/`** exists. If **`.agent-memory.md`** is missing, create it from the template below (or append sections to an existing file).

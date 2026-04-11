@@ -185,12 +185,17 @@ Run through each section after significant changes; mark pass/fail in your notes
 | 10.2 | MCP disabled | Set `mcp.enabled: false` → `bin/llm-wiki mcp` | Exit 1, `MCP server disabled` |
 | 10.3 | wiki_status tool | Send JSON-RPC `wiki_status` call | Returns vault status info |
 | 10.4 | wiki_search tool | Send `wiki_search` with query | Returns search results |
-| 10.5 | wiki_ingest tool | Send `wiki_ingest` with adapter + args | Ingests; returns result |
+| 10.5 | wiki_ingest tool | Send `wiki_ingest` with adapter + source | Adapter runs + `post_ingest`; returns message and exit info |
 | 10.6 | wiki_validate tool | Send `wiki_validate` | Returns validation status |
 | 10.7 | wiki_kg_query tool | Send `wiki_kg_query` with entity | Returns KG triples |
 | 10.8 | memory_save tool | Send `memory_save` | Saves session memory |
 | 10.9 | memory_recall tool | Send `memory_recall` with query | Returns matching memories |
 | 10.10 | wiki_benchmark_run | Send `wiki_benchmark_run` with suite | Runs benchmark; returns metrics |
+| 10.18 | tools_mode read_only | Set `mcp.tools_mode: read_only` → `tools/list` | No mutating tools (`wiki_kg_add`, `wiki_configure`, …) |
+| 10.19 | benchmark_tool_enabled | Set `mcp.benchmark_tool_enabled: false` → `tools/list` | `wiki_benchmark_run` and `wiki_benchmark_suites` absent |
+| 10.20 | configure_allowlist | Set `mcp.configure_allowlist` to e.g. `["viewer."]` → `wiki_configure` for `mcp.*` | Result `success: false`, allowlist error |
+| 10.21 | Invalid `wiki_search` scope | `tools/call` with `scope: "bad"` | JSON-RPC error `-32602` |
+| 10.22 | max_response_chars | Set `mcp.max_response_chars: 80` → `wiki_status` | Truncation marker in text payload |
 
 ### 10b — SSE/HTTP transport
 
@@ -201,6 +206,11 @@ Run through each section after significant changes; mark pass/fail in your notes
 | 10.13 | HTTP POST /mcp | Same as above but to `/mcp` | Same response |
 | 10.14 | Invalid JSON body | POST garbage body | HTTP 400 |
 | 10.15 | Port already in use | Start SSE on occupied port | Error message, exit 1 |
+| 10.23 | sse_require_loopback | `mcp.sse_require_loopback: true`, host `0.0.0.0` | Process exits 1; stderr mentions loopback |
+| 10.24 | sse_token | Set `mcp.sse_token` → POST without `Authorization` / `X-LLM-Wiki-Token` | HTTP 401 |
+| 10.25 | JSON-RPC notification | POST `{"jsonrpc":"2.0","method":"notifications/initialized"}` (no `id`) | HTTP **204**; empty body |
+| 10.26 | Stdio notification | Same `notifications/initialized` line to stdio MCP | Exit 0; **no stdout** line |
+| 10.27 | Size limits | Documented in [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) § Limits | stdio line ≤ 32 MiB; HTTP `Content-Length` ≤ 32 MiB; tool JSON capped by `mcp.max_response_chars` |
 
 ### 10c — MCP install
 
@@ -288,7 +298,7 @@ Run through each section after significant changes; mark pass/fail in your notes
 
 | # | Test | Steps | Pass criteria |
 |---|------|-------|---------------|
-| 16.1 | Sync (generate) | Edit `docs/AGENTS.shared.md` → `bin/llm-wiki sync-agent-docs` | `AGENTS.md`, `CLAUDE.md`, `rules/llm-wiki.mdc`, `.claude/rules/llm-wiki.md` updated |
+| 16.1 | Sync (generate) | Edit `docs/AGENTS.shared.md` → `bin/llm-wiki sync-agent-docs` | `AGENTS.md`, `CLAUDE.md`, `rules/llm-wiki.mdc` updated |
 | 16.2 | Sync check (pass) | After sync → `bin/llm-wiki sync-agent-docs --check` | Exit 0 |
 | 16.3 | Sync check (fail) | Manually edit `AGENTS.md` to diverge → `--check` | Non-zero exit; reports mismatch |
 | 16.4 | Missing shared doc | Remove `docs/AGENTS.shared.md` → sync | Error message |
@@ -356,7 +366,7 @@ Verify each command file exists and contains coherent prompt text.
 
 | # | Command | File | Quick check |
 |---|---------|------|-------------|
-| 21.1 | setup | `commands/setup.md` | References `bin/llm-wiki setup` |
+| 21.1 | setup | `commands/setup.md` | Slash `/llm-wiki:setup` (also `/llm-wiki:wiki-setup`); wizard in `skills/wiki-setup/SKILL.md` |
 | 21.2 | ingest | `commands/ingest.md` | References adapter flow |
 | 21.3 | query | `commands/query.md` | References search + citations |
 | 21.4 | research | `commands/research.md` | References research skill |

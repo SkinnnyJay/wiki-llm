@@ -1,8 +1,28 @@
 ---
-description: Root setup entry — vault (llm-wiki) and/or session memory. Follows wiki-setup with optional combined wizard; tracks can run alone or together.
+name: setup
+description: Root setup entry — vault (llm-wiki) and/or session memory. Full wizard body lives in skills/wiki-setup/SKILL.md.
 ---
 
 # Setup — vault and/or session memory
+
+## Claude Code — “unknown skill” / slash not found
+
+- **Prefer the slash menu:** type **`/`**, then filter with **`setup`**, **`llm`**, or **`wiki`**. Do not hand-type Skill-tool IDs unless the UI documents them.
+- **Two valid plugin ids** (same workflow): **`llm-wiki:setup`** (this file) and **`llm-wiki:wiki-setup`** (directory skill `skills/wiki-setup/SKILL.md`).
+- After changing the plugin: **`/reload-plugins`**. Re-add the marketplace if needed, or use **`claude plugin marketplace update llm-wiki-local`** when your CLI exposes the **`claude plugin`** subcommands.
+- **If every plugin skill is “unknown”:** Claude Code **skips `skills/`** when the plugin repo contains a **`.claude/`** directory (e.g. synced rules or **`settings.local.json`**). Remove or relocate that folder so the plugin root has no **`.claude/`** (use **`~/.claude/settings.json`** for personal env). See [anthropics/claude-code#44120](https://github.com/anthropics/claude-code/issues/44120).
+
+Full wizard steps, routing, and Section 8c (memory) are in **`skills/wiki-setup/SKILL.md`**.
+
+---
+
+## In Claude (slash commands)
+
+| Slash | Use for |
+|-------|---------|
+| **`/llm-wiki:setup`** | New vault, full re-wizard, **vault-only**, or **memory-only** — follows **wiki-setup** (preview before write). |
+| **`/llm-wiki:configure`** | **Quick tweaks** to existing **`config.json`** — MCP **`wiki_configure`**, **`llm-wiki configure -i`**, or guided edits. See **`commands/configure.md`**. |
+| **`/llm-wiki:status`** | **Health check** — integrations, config, search/KG, optional tool checks; MCP **`wiki_status`**. See **`commands/status.md`** (**wiki-status** skill). |
 
 **`/llm-wiki:setup`** is the **root entry** for configuration. It maps to the **wiki-setup** skill, which defines two **tracks** that share one preview/commit discipline:
 
@@ -36,4 +56,4 @@ $ARGUMENTS
 ## Smoke check
 
 - **CLI:** Run the primary `llm-wiki` command(s) shown in this file; use a configured vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
-- **Prompt:** In Claude Code with this plugin loaded, run **`/llm-wiki:setup`** and confirm the agent follows **wiki-setup** routing (full vs vault-only vs memory-only).
+- **Prompt:** In Claude Code with this plugin loaded, run **`/llm-wiki:setup`** or **`/llm-wiki:wiki-setup`** and confirm the agent follows **wiki-setup** routing (full vs vault-only vs memory-only).
