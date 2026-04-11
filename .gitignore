@@ -9,7 +9,10 @@ scripts/.tmp/
 # QA automation: raw stream-json recordings (large)
 tests/fixtures/recordings/
 .cursor/
-.claude/settings.local.json
+# Never keep a .claude/ directory inside this plugin repo: Claude Code skips plugin
+# skills/commands when any .claude/ exists here (anthropics/claude-code#44120). Use
+# ~/.claude/settings.json or ~/.claude/settings.local.json for personal env instead.
+.claude/
 .venv-*/
 # Local vault (created by `llm-wiki setup`); tracked by its own git repo
 /llm-wiki/

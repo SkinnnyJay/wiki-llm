@@ -1,0 +1,16 @@
+# See https://pre-commit.com — run: pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^scripts/
+  - repo: local
+    hooks:
+      - id: compileall
+        name: python compileall (scripts + benchmarks)
+        entry: python3 -m compileall -q scripts benchmarks
+        language: system
+        pass_filenames: false
+        always_run: true
