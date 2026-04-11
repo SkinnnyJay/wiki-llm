@@ -29,3 +29,13 @@ scratchpad/
 .kg.json
 .chromadb/
 .metrics.jsonl
+./playwright-report/*
+# Ignore sibling trees under apps/; track the Next.js chat app in apps/web/
+/apps/*
+!/apps/web/
+!/apps/web/**
+node_modules/*
+dist/*
+./docs/memory/benchmarks/metrics/*
+./docs/memory/benchmarks/runs/*
+./test-results/*
