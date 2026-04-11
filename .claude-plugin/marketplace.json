@@ -1,5 +1,8 @@
 {
   "name": "llm-wiki-local",
+  "metadata": {
+    "description": "Local marketplace for developing wiki-llm: `claude --plugin-dir <this-repo>` for one-off sessions, or `/plugin marketplace add <this-repo>` then `/plugin install llm-wiki@llm-wiki-local` for a persistent install."
+  },
   "owner": {
     "name": "local"
   },
