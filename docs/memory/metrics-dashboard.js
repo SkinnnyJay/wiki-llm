@@ -256,6 +256,58 @@
     }
   }
 
+  function renderPeerLme(data) {
+    var card = document.getElementById('peer-lme-card');
+    var pl = data.peer_lme;
+    if (!card || !pl) return;
+    var sum = document.getElementById('peer-lme-summary');
+    if (sum && pl.summary) {
+      sum.textContent = pl.summary;
+    }
+    var tbody = document.getElementById('peer-lme-tbody');
+    var rows = pl.editorial_reference_overall_10 || [];
+    if (tbody && rows.length > 0) {
+      clearList(tbody);
+      rows.forEach(function (row) {
+        var tr = document.createElement('tr');
+        var ov = row.overall;
+        var dsia = [row.data_integrity, row.simplicity, row.integration, row.arch_maturity];
+        var dsiaStr = dsia.every(function (x) {
+          return x == null;
+        })
+          ? '—'
+          : dsia
+              .map(function (x) {
+                return x == null ? '—' : String(x);
+              })
+              .join(' / ');
+        var r5 = row.lme_r_at_5;
+        var r5Str = r5 == null ? 'Run locally' : String(r5);
+
+        var td0 = document.createElement('td');
+        td0.textContent = row.peer || '';
+        var td1 = document.createElement('td');
+        td1.textContent = ov == null ? '—' : String(ov);
+        var td2 = document.createElement('td');
+        td2.textContent = dsiaStr;
+        var td3 = document.createElement('td');
+        td3.textContent = r5Str;
+
+        tr.appendChild(td0);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tr.appendChild(td3);
+        tbody.appendChild(tr);
+      });
+    }
+    var foot = document.getElementById('peer-lme-footnote');
+    if (foot) {
+      foot.textContent =
+        'D / S / I / A = Data Integrity, Simplicity, Integration, Arch Maturity. Editorial numbers are for comparison tables; run llm-wiki benchmark run lme --peer … to measure LME R@5 and write benchmark.peer.* metrics.';
+    }
+    card.hidden = false;
+  }
+
   function renderExternals(data) {
     var list = document.getElementById('metrics-externals-list');
     if (!list || !data.externals) return;
@@ -307,6 +359,7 @@
         );
         try {
           renderExternals(data);
+          renderPeerLme(data);
           buildCharts(data);
         } catch (e) {
           setStatus(

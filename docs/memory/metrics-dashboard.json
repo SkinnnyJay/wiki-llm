@@ -1,7 +1,7 @@
 {
-  "updated": "2026-04-09",
-  "source_note": "Update this JSON when serious benchmark runs land. The Memory hub charts read this file from the same directory; keep numbers consistent with benchmarks/README.md.",
-  "headline": "LME (LongMemEval-cleaned) N=500: R@5 = 0.98, 10 failures — target R@5 = 1.0.",
+  "updated": "2026-04-12",
+  "source_note": "Update this JSON when serious benchmark runs land. The Memory hub charts read this file; keep LME/LoCoMo numbers aligned with benchmarks/README.md. Peer LME R@5 and peer dimension scores come from local runs (benchmark.peer.<id>.* in .metrics.jsonl); editorial reference rows below are for comparison tables only—see benchmarks/peers/rubric_overrides.json.",
+  "headline": "Vault LME (LongMemEval-cleaned) N=500: R@5 = 0.98, 10 failures — target R@5 = 1.0. Peer backends use the same JSON via benchmark run lme --peer <id>; headline peer R@5 is recorded when you run the harness, not in this file.",
   "lme": {
     "suite": "lme",
     "dataset": "HF lme_s_cleaned.json",
@@ -30,6 +30,56 @@
       "note": "locomo10.json via LME harness; not comparable to LME R@5"
     }
   ],
+  "peer_lme": {
+    "summary": "Optional peer memory stacks (mem0, mempalace, claude-mem, supermemory) run the same LongMemEval-shaped task as vault LME. Install/cache under ~/.cache/llm-wiki-benchmarks/peers (not in git). Metrics: benchmark.peer.<id>.recall_at_5 and benchmark.peer.<id>.dimensions.* in the vault metrics JSONL when metrics are enabled. Four dimensions merge automated proxies with editorial overrides in benchmarks/peers/rubric_overrides.json.",
+    "cli": "llm-wiki benchmark run lme --peer mem0 --limit 50",
+    "docs_repo_paths": [
+      "benchmarks/README.md#peer-lme-optional-external-memory-stacks",
+      "benchmarks/peers/rubric_overrides.json"
+    ],
+    "editorial_reference_overall_10": [
+      {
+        "peer": "mempalace",
+        "overall": 8.25,
+        "data_integrity": 10,
+        "simplicity": 9,
+        "integration": 8,
+        "arch_maturity": 6,
+        "lme_r_at_5": null,
+        "note": "Editorial rubric only; LME R@5 requires MEMPALACE_BENCH_CMD or upstream adapter"
+      },
+      {
+        "peer": "claude-mem",
+        "overall": 7.5,
+        "data_integrity": 7,
+        "simplicity": 6,
+        "integration": 9,
+        "arch_maturity": 8,
+        "lme_r_at_5": null,
+        "note": "Editorial rubric; LME R@5 requires CLAUDE_MEM_BENCH_CMD bridge"
+      },
+      {
+        "peer": "mem0",
+        "overall": null,
+        "data_integrity": null,
+        "simplicity": null,
+        "integration": null,
+        "arch_maturity": null,
+        "lme_r_at_5": null,
+        "note": "Dimensions from proxies when mem0ai runs; install optional dep + OPENAI_API_KEY"
+      },
+      {
+        "peer": "supermemory",
+        "overall": 6.5,
+        "data_integrity": 8,
+        "simplicity": 4,
+        "integration": 6,
+        "arch_maturity": 8,
+        "lme_r_at_5": null,
+        "note": "Editorial rubric until a headless client is wired; stub skips automated LME"
+      }
+    ]
+  },
   "externals": [
     {
       "name": "LongMemEval (paper)",
@@ -42,7 +92,7 @@
       "url": "https://snap-research.github.io/locomo/"
     },
     {
-      "name": "Memory Palace",
+      "name": "Memory Palace (MemPalace)",
       "note": "Different tasks and metrics — align methodology before comparing ranks.",
       "url": "https://github.com/milla-jovovich/mempalace"
     },
@@ -50,6 +100,11 @@
       "name": "ConvoMem (HF)",
       "note": "Salesforce dataset; wiki-llm needs LME-shaped conversion for apples-to-apples retrieval.",
       "url": "https://huggingface.co/datasets/Salesforce/ConvoMem"
+    },
+    {
+      "name": "Peer LME in wiki-llm",
+      "note": "Same HF LME JSON through optional adapters; see benchmarks/README.md and rubric_overrides.json.",
+      "url": "https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md"
     }
   ]
 }

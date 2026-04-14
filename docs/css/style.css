@@ -1603,3 +1603,32 @@ pre code {
   padding-left: 1.2rem;
   color: var(--muted);
 }
+
+.memory-peer-lme-card {
+  margin-top: 1.5rem;
+}
+
+.memory-peer-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 0;
+}
+
+.memory-peer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.memory-peer-table th,
+.memory-peer-table td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.memory-peer-table th {
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(19, 26, 46, 0.35);
+}

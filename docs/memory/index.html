@@ -95,6 +95,28 @@
             </p>
             <ul id="metrics-externals-list" class="memory-externals-list"></ul>
           </article>
+
+          <article class="detail-card memory-peer-lme-card" id="peer-lme-card" hidden>
+            <div class="detail-heading">
+              <span class="detail-kicker">Peers</span>
+              <h2 id="peer-lme-title">Peer LME (optional memory backends)</h2>
+            </div>
+            <p class="detail-note" id="peer-lme-summary"></p>
+            <div class="memory-peer-table-wrap">
+              <table class="memory-peer-table" id="peer-lme-table" aria-label="Editorial reference dimensions for peer systems">
+                <thead>
+                  <tr>
+                    <th scope="col">Peer</th>
+                    <th scope="col">Editorial overall (0–10)</th>
+                    <th scope="col">D / S / I / A</th>
+                    <th scope="col">LME R@5 (harness)</th>
+                  </tr>
+                </thead>
+                <tbody id="peer-lme-tbody"></tbody>
+              </table>
+            </div>
+            <p class="detail-note" id="peer-lme-footnote"></p>
+          </article>
         </section>
 
         <div class="lineage-note memory-hub-lineage">
@@ -154,6 +176,7 @@
             <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/benchmarks/README.md">benchmarks/README.md</a> (repo root) — how to run suites, read metrics, tune search</li>
             <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/runs/README.md">docs/memory/benchmarks/runs/README.md</a> — optional tracked JSON / write-ups</li>
             <li><a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/docs/memory/benchmarks/metrics/README.md">docs/memory/benchmarks/metrics/README.md</a> — optional <code class="inline-code">runs.jsonl</code> mirror for charts</li>
+            <li><a href="./metrics-dashboard.json"><code class="inline-code">metrics-dashboard.json</code></a> — live snapshot for this page (vault LME, LoCoMo, peer editorial reference)</li>
           </ul>
         </article>
         </div>

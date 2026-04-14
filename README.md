@@ -14,6 +14,8 @@
 
 **llm-wiki** is a **Claude Code plugin** (and a small Python CLI) that helps you keep a **personal knowledge vault** next to your projects. You capture sources into **`raw/`**, curate linked markdown in **`wiki/`**, and optionally generate a **static viewer**, wire **MCP search**, or turn on **session memory**—so your agent has a durable place to read and write, not a one-off chat dump.
 
+It turns scattered source material into a **maintained wiki** your agent can keep improving over time—**slash-command first** (e.g. **`/llm-wiki:setup`**, **`/llm-wiki:ingest`**, **`/llm-wiki:build-og`**), without living in flag hell. **Quick setup (docs site):** [skinnnyjay.github.io/wiki-llm/index.html#setup](https://skinnnyjay.github.io/wiki-llm/index.html#setup).
+
 This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
 
 ## Inspiration
@@ -22,7 +24,7 @@ This repository is the **plugin**: commands, skills, templates, and `bin/llm-wik
 
 — Isaac Newton, letter to Robert Hooke (1675).
 
-The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
+The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** and **[Karpathy on X](https://x.com/karpathy/status/2039805659525644595)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work (**[Milla & Ben on X](https://t.co/tQaFQWWn4y)**; [more context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
 
 **Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**. Alternate install paths and scripted examples: **[`docs/INSTALL.md`](docs/INSTALL.md)**.
 

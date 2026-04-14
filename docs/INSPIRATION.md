@@ -17,7 +17,7 @@
 
 — Isaac Newton, letter to Robert Hooke (1675).
 
-The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work ([context](https://x.com/bensig/status/2041229266432733356)). The goal of **llm-wiki** is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
+The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** and **[Karpathy on X](https://x.com/karpathy/status/2039805659525644595)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work (**[Milla & Ben on X](https://t.co/tQaFQWWn4y)**; [more context](https://x.com/bensig/status/2041229266432733356)). The goal of **llm-wiki** is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
 
 **How features are described below:** **Claude Code** (slash commands + skills) first, then **CLI** (`llm-wiki`), then **bash / shell** when it is mainly for scripts or servers.
 

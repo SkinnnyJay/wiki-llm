@@ -6,8 +6,31 @@
   <title>llm-wiki - Claude Code plugin for knowledge vaults</title>
   <meta
     name="description"
-    content="llm-wiki is a Claude Code plugin: use /llm-wiki:… slash commands for vault setup, ingest, query, and memory — no terminal required for day-to-day work."
+    content="llm-wiki: scattered sources → a maintained wiki your agent can improve — slash-first (/llm-wiki:setup, ingest, build-og), not flag hell. Claude Code plugin + CLI; inspired by Karpathy’s LLM Wiki gist and MemPalace."
   />
+  <!-- Social / SMS link previews (Open Graph + Twitter; iMessage uses og:*) -->
+  <link rel="canonical" href="https://skinnnyjay.github.io/wiki-llm/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="llm-wiki" />
+  <meta property="og:title" content="llm-wiki — Claude Code plugin for knowledge vaults" />
+  <meta
+    property="og:description"
+    content="Scattered sources → a maintained wiki your agent can improve. Slash-first setup, ingest, build-og. Claude Code plugin + CLI; inspired by Karpathy’s LLM Wiki gist and MemPalace."
+  />
+  <meta property="og:url" content="https://skinnnyjay.github.io/wiki-llm/" />
+  <meta property="og:image" content="https://skinnnyjay.github.io/wiki-llm/assets/readme-banner.png" />
+  <meta property="og:image:width" content="1376" />
+  <meta property="og:image:height" content="768" />
+  <meta property="og:image:alt" content="llm-wiki — knowledge vault workflow for Claude Code" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="llm-wiki — Claude Code plugin for knowledge vaults" />
+  <meta
+    name="twitter:description"
+    content="Scattered sources → a maintained wiki your agent can improve. Slash-first setup, ingest, build-og. Claude Code plugin + CLI."
+  />
+  <meta name="twitter:image" content="https://skinnnyjay.github.io/wiki-llm/assets/readme-banner.png" />
+  <meta name="twitter:image:alt" content="llm-wiki — knowledge vault workflow for Claude Code" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
@@ -58,7 +81,7 @@
             <code class="inline-code">/llm-wiki:build-og</code> when you want a static viewer. From a shell, <code class="inline-code">llm-wiki build-site</code> and <code class="inline-code">llm-wiki build-og</code> are the same build (alias names).
           </p>
           <p class="hero-lead">
-            Turn scattered source material into a maintained wiki your agent can keep building on — mostly from <code class="inline-code">/</code> prompts, not memorized flags.
+            Turn scattered source material into a maintained wiki your agent can keep improving over time — <strong>slash-command first</strong> (<code class="inline-code">/llm-wiki:setup</code>, <code class="inline-code">/llm-wiki:ingest</code>, <code class="inline-code">/llm-wiki:build-og</code>), not flag hell.
           </p>
           <p class="hero-body">
             Every slash command is a curated prompt under <code class="inline-code">commands/</code>: setup, ingest, query, memory, MCP, and more. You stay in Claude Code; the repo still gives you <code class="inline-code">raw/</code>, <code class="inline-code">wiki/</code>, and schema-backed workflows when you need depth.
@@ -75,10 +98,12 @@
             </p>
             <p class="lineage-thanks">
               Pattern credit and thanks to
-              <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>.
+              <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>
+              · <a href="https://x.com/karpathy/status/2039805659525644595">Karpathy on X</a>.
               Also inspired by
               <a href="https://github.com/milla-jovovich/mempalace">MemPalace</a>
-              (<a href="https://x.com/bensig/status/2041229266432733356">Ben Sigman on X</a>).
+              · <a href="https://t.co/tQaFQWWn4y">Milla &amp; Ben on X</a>
+              (<a href="https://x.com/bensig/status/2041229266432733356">more context</a>).
               This repo is a concrete plugin implementation for Claude Code and adjacent agent tooling.
             </p>
           </div>
@@ -785,8 +810,12 @@ llm-wiki benchmark suites</code></pre>
         Pattern credit:
         <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy · LLM Wiki gist</a>
         <span aria-hidden="true">·</span>
+        <a href="https://x.com/karpathy/status/2039805659525644595">Karpathy on X</a>
+        <span aria-hidden="true">·</span>
         <a href="https://github.com/milla-jovovich/mempalace">MemPalace</a>
-        (<a href="https://x.com/bensig/status/2041229266432733356">Ben Sigman on X</a>)
+        <span aria-hidden="true">·</span>
+        <a href="https://t.co/tQaFQWWn4y">Milla &amp; Ben on X</a>
+        (<a href="https://x.com/bensig/status/2041229266432733356">more context</a>)
       </p>
     </div>
   </footer>
