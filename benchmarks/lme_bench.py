@@ -154,6 +154,7 @@ def run_lme(
     t0 = time.monotonic()
     rows: list[dict[str, Any]] = []
     cli_pool_serial: PersistentCLIPool | None = None
+    parallel_pool: PersistentCLIPool | None = None
 
     def _serial_cli_pool(inv: str, cli_l: list[str] | None) -> PersistentCLIPool | None:
         nonlocal cli_pool_serial
@@ -169,343 +170,351 @@ def run_lme(
             )
         return cli_pool_serial
 
-    for idx, entry in enumerate(data):
-        # One haystack per question — do not accumulate prior questions' sessions.
-        bench_root = bench_parent if parallel_workers == 1 else bench_parent / f"q_{idx:05d}"
-        if parallel_workers > 1:
-            bench_root.mkdir(parents=True)
-        bench_raw = bench_root / "raw" / "bench"
-        if parallel_workers == 1 and bench_raw.exists():
-            shutil.rmtree(bench_raw)
-
-        sessions = entry["haystack_sessions"]
-        session_ids = entry["haystack_session_ids"]
-        dates = entry["haystack_dates"]
-        question = entry["question"]
-        gold = set(entry["answer_session_ids"])
-        qid = entry.get("question_id", str(idx))
-
-        path_to_sid = write_benchmark_vault(
-            bench_root,
-            cfg_run,
-            sessions=sessions,
-            session_ids=session_ids,
-            dates=dates,
-            compressor=comp,
-        )
-        corpus_sids = list(session_ids)
-
-        cfg_idx = deep_merge(cfg_run, {})
-        if backend == "chromadb":
-            cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "chromadb"}})
-        elif backend == "grep":
-            cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "grep"}})
-        elif backend == "hybrid":
-            cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "fts5"}})
-            cfg_idx.setdefault("benchmark", {})["search"] = {
-                **(cfg_idx.get("benchmark") or {}).get("search", {}),
-                "backend": "hybrid",
-                "hybrid_enabled": True,
-            }
-        else:
-            cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "fts5"}})
-
-        save_config(bench_root, cfg_idx)
-        search_fn = get_benchmark_search_fn(bench_root, cfg_idx, backend_name=backend)
-
-        from lib.search import get_search_backend
-
-        be = get_search_backend(bench_root, cfg_idx)
-        if reindex:
-            be.reindex()
-            if backend == "hybrid":
-                try:
-                    from lib.search_chromadb import ChromaDBSearchBackend
-
-                    ChromaDBSearchBackend(bench_root, cfg_idx).reindex()
-                except Exception:
-                    pass
-
-        bcfg = (cfg_idx.get("benchmark") or {}).get("search") or {}
-        n_fetch = max(
-            int(bcfg.get("rerank_top_n", 50)),
-            top_k * 4,
-            20,
-            len(corpus_sids),
-        )
-        if backend == "fts5" and bcfg.get("prf_rrf", True):
-            from benchmarks.bench_harness import _bench_doc_tokens, prf_or_rrf_paths_with_and
-
-            max_tok = int(bcfg.get("tfidf_max_chars", 80000))
-            ht = bool(bcfg.get("tfidf_head_tail", True))
-            docs_tokens = {
-                rel: _bench_doc_tokens(bench_root, rel, max_tok, head_tail=ht)
-                for rel in path_to_sid
-            }
-            paths = prf_or_rrf_paths_with_and(
+    try:
+        for idx, entry in enumerate(data):
+            # One haystack per question — do not accumulate prior questions' sessions.
+            bench_root = bench_parent if parallel_workers == 1 else bench_parent / f"q_{idx:05d}"
+            if parallel_workers > 1:
+                bench_root.mkdir(parents=True)
+            bench_raw = bench_root / "raw" / "bench"
+            if parallel_workers == 1 and bench_raw.exists():
+                shutil.rmtree(bench_raw)
+    
+            sessions = entry["haystack_sessions"]
+            session_ids = entry["haystack_session_ids"]
+            dates = entry["haystack_dates"]
+            question = entry["question"]
+            gold = set(entry["answer_session_ids"])
+            qid = entry.get("question_id", str(idx))
+    
+            path_to_sid = write_benchmark_vault(
                 bench_root,
-                cfg_idx,
-                question,
-                limit=n_fetch,
-                rrf_k=int(bcfg.get("hybrid_k", 60)),
-                path_to_sid=path_to_sid,
-                tfidf_rrf=bool(bcfg.get("tfidf_rrf", True)),
-                docs_tokens=docs_tokens,
-                rrf_boost_or=int(bcfg.get("rrf_boost_or", 2)),
-                tfidf_rrf_weight=float(bcfg.get("tfidf_rrf_weight", 1.0)),
-                and_rrf=bool(bcfg.get("and_rrf", True)),
+                cfg_run,
+                sessions=sessions,
+                session_ids=session_ids,
+                dates=dates,
+                compressor=comp,
             )
-            late_w = float(bcfg.get("or_late_rrf_weight", 0) or 0)
-            if late_w > 0:
-                from lib.search import FTS5SearchBackend
-
-                fts_late = FTS5SearchBackend(bench_root, cfg_idx)
-                paths_or_late = [r.path for r in fts_late.search(question, limit=n_fetch)]
-                paths = reciprocal_rank_fusion_weighted(
-                    [(paths, 1.0), (paths_or_late, late_w)],
-                    k=int(bcfg.get("hybrid_k", 60)),
+            corpus_sids = list(session_ids)
+    
+            cfg_idx = deep_merge(cfg_run, {})
+            if backend == "chromadb":
+                cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "chromadb"}})
+            elif backend == "grep":
+                cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "grep"}})
+            elif backend == "hybrid":
+                cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "fts5"}})
+                cfg_idx.setdefault("benchmark", {})["search"] = {
+                    **(cfg_idx.get("benchmark") or {}).get("search", {}),
+                    "backend": "hybrid",
+                    "hybrid_enabled": True,
+                }
+            else:
+                cfg_idx = deep_merge(cfg_idx, {"mcp": {"search_backend": "fts5"}})
+    
+            save_config(bench_root, cfg_idx)
+            search_fn = get_benchmark_search_fn(bench_root, cfg_idx, backend_name=backend)
+    
+            from lib.search import get_search_backend
+    
+            be = get_search_backend(bench_root, cfg_idx)
+            if reindex:
+                be.reindex()
+                if backend == "hybrid":
+                    try:
+                        from lib.search_chromadb import ChromaDBSearchBackend
+    
+                        ChromaDBSearchBackend(bench_root, cfg_idx).reindex()
+                    except Exception:
+                        pass
+    
+            bcfg = (cfg_idx.get("benchmark") or {}).get("search") or {}
+            n_fetch = max(
+                int(bcfg.get("rerank_top_n", 50)),
+                top_k * 4,
+                20,
+                len(corpus_sids),
+            )
+            if backend == "fts5" and bcfg.get("prf_rrf", True):
+                from benchmarks.bench_harness import _bench_doc_tokens, prf_or_rrf_paths_with_and
+    
+                max_tok = int(bcfg.get("tfidf_max_chars", 80000))
+                ht = bool(bcfg.get("tfidf_head_tail", True))
+                docs_tokens = {
+                    rel: _bench_doc_tokens(bench_root, rel, max_tok, head_tail=ht)
+                    for rel in path_to_sid
+                }
+                paths = prf_or_rrf_paths_with_and(
+                    bench_root,
+                    cfg_idx,
+                    question,
+                    limit=n_fetch,
+                    rrf_k=int(bcfg.get("hybrid_k", 60)),
+                    path_to_sid=path_to_sid,
+                    tfidf_rrf=bool(bcfg.get("tfidf_rrf", True)),
+                    docs_tokens=docs_tokens,
+                    rrf_boost_or=int(bcfg.get("rrf_boost_or", 2)),
+                    tfidf_rrf_weight=float(bcfg.get("tfidf_rrf_weight", 1.0)),
+                    and_rrf=bool(bcfg.get("and_rrf", True)),
                 )
-            if bcfg.get("final_borda", False):
-                from benchmarks.bench_harness import borda_merge_ranks, tfidf_corpus_rank_from_tokens
-
-                pt = tfidf_corpus_rank_from_tokens(question, docs_tokens)
-                paths = borda_merge_ranks(paths, pt)
-            if bcfg.get("refine_head_lexical", False):
-                from benchmarks.bench_harness import refine_head_lexical_overlap
-
-                paths = refine_head_lexical_overlap(
+                late_w = float(bcfg.get("or_late_rrf_weight", 0) or 0)
+                if late_w > 0:
+                    from lib.search import FTS5SearchBackend
+    
+                    fts_late = FTS5SearchBackend(bench_root, cfg_idx)
+                    paths_or_late = [r.path for r in fts_late.search(question, limit=n_fetch)]
+                    paths = reciprocal_rank_fusion_weighted(
+                        [(paths, 1.0), (paths_or_late, late_w)],
+                        k=int(bcfg.get("hybrid_k", 60)),
+                    )
+                if bcfg.get("final_borda", False):
+                    from benchmarks.bench_harness import borda_merge_ranks, tfidf_corpus_rank_from_tokens
+    
+                    pt = tfidf_corpus_rank_from_tokens(question, docs_tokens)
+                    paths = borda_merge_ranks(paths, pt)
+                if bcfg.get("refine_head_lexical", False):
+                    from benchmarks.bench_harness import refine_head_lexical_overlap
+    
+                    paths = refine_head_lexical_overlap(
+                        question,
+                        paths,
+                        bench_root,
+                        head=int(bcfg.get("refine_head_n", 40)),
+                    )
+            elif backend == "fts5" and bcfg.get("dual_fts_rrf", False):
+                from benchmarks.bench_harness import dual_fts_retrieve_paths
+    
+                paths = dual_fts_retrieve_paths(
+                    bench_root,
+                    cfg_idx,
+                    question,
+                    limit=n_fetch,
+                    rrf_k=int(bcfg.get("hybrid_k", 60)),
+                )
+            else:
+                paths = search_fn(question, n_fetch)
+    
+            if bcfg.get("lexical_rrf", False):
+                from benchmarks.bench_harness import fuse_paths_rrf_lexical
+    
+                paths = fuse_paths_rrf_lexical(
                     question,
                     paths,
                     bench_root,
-                    head=int(bcfg.get("refine_head_n", 40)),
+                    rrf_k=int(bcfg.get("hybrid_k", 60)),
                 )
-        elif backend == "fts5" and bcfg.get("dual_fts_rrf", False):
-            from benchmarks.bench_harness import dual_fts_retrieve_paths
-
-            paths = dual_fts_retrieve_paths(
-                bench_root,
-                cfg_idx,
-                question,
-                limit=n_fetch,
-                rrf_k=int(bcfg.get("hybrid_k", 60)),
+    
+            if bcfg.get("rerank_enabled", False):
+                from benchmarks.bench_harness import rerank_paths_lexical
+    
+                paths = rerank_paths_lexical(question, paths, bench_root, max_paths=n_fetch)
+    
+            paths_before_llm = list(paths)
+    
+            rl = bcfg.get("rerank_llm") or {}
+            key_env = str(rl.get("api_key_env", "ANTHROPIC_API_KEY"))
+            api_key = os.environ.get(key_env, "")
+            invoke = str(rl.get("invoke", "auto")).strip().lower()
+            if invoke == "auto":
+                resolved = _resolve_auto_invoke(api_key)
+                if resolved:
+                    invoke = resolved
+            cli_mode = invoke in ("claude_cli", "codex_cli", "custom_cli")
+            cross_encoder_mode = invoke == "cross_encoder"
+            env_on = str(os.environ.get("LLM_WIKI_BENCHMARK_LLM", "")).lower() in (
+                "1",
+                "true",
+                "yes",
             )
-        else:
-            paths = search_fn(question, n_fetch)
-
-        if bcfg.get("lexical_rrf", False):
-            from benchmarks.bench_harness import fuse_paths_rrf_lexical
-
-            paths = fuse_paths_rrf_lexical(
-                question,
-                paths,
-                bench_root,
-                rrf_k=int(bcfg.get("hybrid_k", 60)),
-            )
-
-        if bcfg.get("rerank_enabled", False):
-            from benchmarks.bench_harness import rerank_paths_lexical
-
-            paths = rerank_paths_lexical(question, paths, bench_root, max_paths=n_fetch)
-
-        paths_before_llm = list(paths)
-
-        rl = bcfg.get("rerank_llm") or {}
-        key_env = str(rl.get("api_key_env", "ANTHROPIC_API_KEY"))
-        api_key = os.environ.get(key_env, "")
-        invoke = str(rl.get("invoke", "auto")).strip().lower()
-        if invoke == "auto":
-            resolved = _resolve_auto_invoke(api_key)
-            if resolved:
-                invoke = resolved
-        cli_mode = invoke in ("claude_cli", "codex_cli", "custom_cli")
-        cross_encoder_mode = invoke == "cross_encoder"
-        env_on = str(os.environ.get("LLM_WIKI_BENCHMARK_LLM", "")).lower() in (
-            "1",
-            "true",
-            "yes",
-        )
-        if cross_encoder_mode:
-            try:
-                import sentence_transformers  # noqa: F401
-                can_run = True
-            except ImportError:
-                can_run = False
-        elif invoke == "anthropic_api":
-            can_run = bool(api_key)
-        elif invoke == "openai_api":
-            can_run = bool(api_key)
-        elif invoke == "custom_cli":
-            ca = rl.get("cli_argv")
-            can_run = isinstance(ca, list) and len(ca) > 0
-        else:
-            can_run = cli_mode
-        want_llm = bool(rl.get("enabled")) or (
-            bool(rl.get("benchmark_auto", False)) and can_run
-        ) or (env_on and can_run)
-        run_llm = bool(want_llm and can_run)
-        adaptive_skip = False
-        confidence_score: float | None = None
-        if run_llm and str(rl.get("invoke_when", "always")).strip().lower() == "adaptive":
-            confidence_score = compute_rerank_confidence(
-                question,
-                paths_before_llm,
-                bench_root,
-                head=int(rl.get("adaptive_head", 5)),
-                lookback=int(rl.get("adaptive_lookback", 24)),
-                tail_margin=float(rl.get("adaptive_tail_margin", 0.12)),
-                min_head_lex=float(rl.get("adaptive_min_head_lex", 3.5)),
-                max_chars=int(rl.get("adaptive_max_chars", 12000)),
-            )
-            adaptive_confidence_scores.append(float(confidence_score))
-            thr = float(rl.get("adaptive_confidence_threshold", 0.5))
-            if confidence_score >= thr:
-                run_llm = False
-                adaptive_skip = True
-                llm_adaptive_skips += 1
-        llm_invoked = run_llm
-        cap = int(rl.get("max_candidates", 80))
-        max_candidates_used = min(cap, max(len(paths_before_llm), 5)) if llm_invoked else 0
-        deferred_parallel_rerank = False
-        if llm_invoked and cross_encoder_mode:
-            paths = rerank_paths_cross_encoder(
-                question,
-                paths,
-                bench_root,
-                model_name=str(rl.get("cross_encoder_model", "mixedbread-ai/mxbai-rerank-large-v1")),
-                max_candidates=max_candidates_used,
-                max_chars=int(rl.get("max_chars", 10000)),
-                top_k=int(rl.get("max_picks", 10)),
-            )
-        elif llm_invoked and parallel_workers > 1:
-            deferred_parallel_rerank = True
-            paths = list(paths_before_llm)
-            model = rl.get("model", "claude-sonnet-4-6")
-            cli_argv = rl.get("cli_argv")
-            if isinstance(cli_argv, list):
-                cli_list = [str(x) for x in cli_argv]
+            if cross_encoder_mode:
+                try:
+                    import sentence_transformers  # noqa: F401
+                    can_run = True
+                except ImportError:
+                    can_run = False
+            elif invoke == "anthropic_api":
+                can_run = bool(api_key)
+            elif invoke == "openai_api":
+                can_run = bool(api_key)
+            elif invoke == "custom_cli":
+                ca = rl.get("cli_argv")
+                can_run = isinstance(ca, list) and len(ca) > 0
             else:
-                cli_list = None
-            dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
-                os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
-            ).lower() in ("1", "true", "yes")
-            if dbg:
-                print(
-                    f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
-                    f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
-                    f"max_cand={max_candidates_used} deferred_parallel=1",
-                    file=sys.stderr,
+                can_run = cli_mode
+            want_llm = bool(rl.get("enabled")) or (
+                bool(rl.get("benchmark_auto", False)) and can_run
+            ) or (env_on and can_run)
+            run_llm = bool(want_llm and can_run)
+            adaptive_skip = False
+            confidence_score: float | None = None
+            if run_llm and str(rl.get("invoke_when", "always")).strip().lower() == "adaptive":
+                confidence_score = compute_rerank_confidence(
+                    question,
+                    paths_before_llm,
+                    bench_root,
+                    head=int(rl.get("adaptive_head", 5)),
+                    lookback=int(rl.get("adaptive_lookback", 24)),
+                    tail_margin=float(rl.get("adaptive_tail_margin", 0.12)),
+                    min_head_lex=float(rl.get("adaptive_min_head_lex", 3.5)),
+                    max_chars=int(rl.get("adaptive_max_chars", 12000)),
                 )
-        elif llm_invoked:
-            model = rl.get("model", "claude-sonnet-4-6")
-            cli_argv = rl.get("cli_argv")
-            if isinstance(cli_argv, list):
-                cli_list = [str(x) for x in cli_argv]
-            else:
-                cli_list = None
-            dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
-                os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
-            ).lower() in ("1", "true", "yes")
-            if dbg:
-                print(
-                    f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
-                    f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
-                    f"max_cand={max_candidates_used}",
-                    file=sys.stderr,
+                adaptive_confidence_scores.append(float(confidence_score))
+                thr = float(rl.get("adaptive_confidence_threshold", 0.5))
+                if confidence_score >= thr:
+                    run_llm = False
+                    adaptive_skip = True
+                    llm_adaptive_skips += 1
+            llm_invoked = run_llm
+            cap = int(rl.get("max_candidates", 80))
+            max_candidates_used = min(cap, max(len(paths_before_llm), 5)) if llm_invoked else 0
+            deferred_parallel_rerank = False
+            if llm_invoked and cross_encoder_mode:
+                paths = rerank_paths_cross_encoder(
+                    question,
+                    paths,
+                    bench_root,
+                    model_name=str(rl.get("cross_encoder_model", "mixedbread-ai/mxbai-rerank-large-v1")),
+                    max_candidates=max_candidates_used,
+                    max_chars=int(rl.get("max_chars", 10000)),
+                    top_k=int(rl.get("max_picks", 10)),
                 )
-            paths = rerank_paths_llm(
-                question,
-                paths,
-                bench_root,
-                api_key=api_key,
-                invoke=invoke,
-                model=model,
-                max_chars=int(rl.get("max_chars", 3600)),
-                max_candidates=max_candidates_used,
-                max_picks=int(rl.get("max_picks", 5)),
-                excerpt_mode=str(rl.get("excerpt_mode", "head_tail")),
+            elif llm_invoked and parallel_workers > 1:
+                deferred_parallel_rerank = True
+                paths = list(paths_before_llm)
+                model = rl.get("model", "claude-sonnet-4-6")
+                cli_argv = rl.get("cli_argv")
+                if isinstance(cli_argv, list):
+                    cli_list = [str(x) for x in cli_argv]
+                else:
+                    cli_list = None
+                dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
+                    os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
+                ).lower() in ("1", "true", "yes")
+                if dbg:
+                    print(
+                        f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
+                        f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
+                        f"max_cand={max_candidates_used} deferred_parallel=1",
+                        file=sys.stderr,
+                    )
+            elif llm_invoked:
+                model = rl.get("model", "claude-sonnet-4-6")
+                cli_argv = rl.get("cli_argv")
+                if isinstance(cli_argv, list):
+                    cli_list = [str(x) for x in cli_argv]
+                else:
+                    cli_list = None
+                dbg = bool((cfg_run.get("benchmark") or {}).get("debug_rerank")) or str(
+                    os.environ.get("LLM_WIKI_BENCHMARK_DEBUG_RERANK", "")
+                ).lower() in ("1", "true", "yes")
+                if dbg:
+                    print(
+                        f"[benchmark.debug_rerank] qid={qid} invoke={invoke} "
+                        f"want_llm={want_llm} can_run={can_run} paths_pre={len(paths_before_llm)} "
+                        f"max_cand={max_candidates_used}",
+                        file=sys.stderr,
+                    )
+                paths = rerank_paths_llm(
+                    question,
+                    paths,
+                    bench_root,
+                    api_key=api_key,
+                    invoke=invoke,
+                    model=model,
+                    max_chars=int(rl.get("max_chars", 3600)),
+                    max_candidates=max_candidates_used,
+                    max_picks=int(rl.get("max_picks", 5)),
+                    excerpt_mode=str(rl.get("excerpt_mode", "head_tail")),
+                    cli_argv=cli_list,
+                    cli_timeout_s=int(rl.get("cli_timeout_s", 180)),
+                    fuse_original_rrf=bool(rl.get("fuse_original_rrf", True)),
+                    fuse_original_weight=float(rl.get("fuse_original_weight", 0.35)),
+                    fuse_rrf_k=int(rl.get("fuse_rrf_k", 60)),
+                    session_dedup=bool(rl.get("session_dedup", False)),
+                    path_to_sid=path_to_sid,
+                    persistent_cli_pool=_serial_cli_pool(invoke, cli_list),
+                )
+    
+            rows.append(
+                {
+                    "idx": idx,
+                    "entry": entry,
+                    "bench_root": bench_root,
+                    "path_to_sid": path_to_sid,
+                    "corpus_sids": corpus_sids,
+                    "paths_before_llm": list(paths_before_llm),
+                    "paths": list(paths),
+                    "n_fetch": n_fetch,
+                    "gold": gold,
+                    "question": question,
+                    "qid": qid,
+                    "sessions": sessions,
+                    "want_llm": want_llm,
+                    "can_run": can_run,
+                    "llm_invoked": llm_invoked,
+                    "adaptive_skip": adaptive_skip,
+                    "confidence_score": confidence_score,
+                    "max_candidates_used": max_candidates_used,
+                    "env_on": env_on,
+                    "deferred_parallel_rerank": deferred_parallel_rerank,
+                    "rl": rl,
+                    "invoke": invoke,
+                    "api_key": api_key,
+                }
+            )
+    
+    finally:
+        if cli_pool_serial is not None:
+            cli_pool_serial.close()
+
+    try:
+        pending_parallel = [r for r in rows if r.get("deferred_parallel_rerank")]
+        if pending_parallel and bool(rl0.get("persistent_cli_pool", False)):
+            p0 = pending_parallel[0]
+            if str(p0.get("invoke", "")).strip().lower() == "claude_cli":
+                parallel_pool = PersistentCLIPool(
+                    int(rl0.get("persistent_pool_size", 4)),
+                    invoke="claude_cli",
+                    cli_argv=p0["rl"].get("cli_argv")
+                    if isinstance(p0["rl"].get("cli_argv"), list)
+                    else None,
+                )
+    
+        def _parallel_rerank_one(p: dict[str, Any]) -> list[str]:
+            rll = p["rl"]
+            cli_argv = rll.get("cli_argv")
+            cli_list = [str(x) for x in cli_argv] if isinstance(cli_argv, list) else None
+            return rerank_paths_llm(
+                p["question"],
+                p["paths_before_llm"],
+                p["bench_root"],
+                api_key=p["api_key"],
+                invoke=p["invoke"],
+                model=rll.get("model", "claude-sonnet-4-6"),
+                max_chars=int(rll.get("max_chars", 3600)),
+                max_candidates=p["max_candidates_used"],
+                max_picks=int(rll.get("max_picks", 5)),
+                excerpt_mode=str(rll.get("excerpt_mode", "head_tail")),
                 cli_argv=cli_list,
-                cli_timeout_s=int(rl.get("cli_timeout_s", 180)),
-                fuse_original_rrf=bool(rl.get("fuse_original_rrf", True)),
-                fuse_original_weight=float(rl.get("fuse_original_weight", 0.35)),
-                fuse_rrf_k=int(rl.get("fuse_rrf_k", 60)),
-                session_dedup=bool(rl.get("session_dedup", False)),
-                path_to_sid=path_to_sid,
-                persistent_cli_pool=_serial_cli_pool(invoke, cli_list),
+                cli_timeout_s=int(rll.get("cli_timeout_s", 180)),
+                fuse_original_rrf=bool(rll.get("fuse_original_rrf", True)),
+                fuse_original_weight=float(rll.get("fuse_original_weight", 0.35)),
+                fuse_rrf_k=int(rll.get("fuse_rrf_k", 60)),
+                session_dedup=bool(rll.get("session_dedup", False)),
+                path_to_sid=p["path_to_sid"],
+                persistent_cli_pool=parallel_pool,
             )
-
-        rows.append(
-            {
-                "idx": idx,
-                "entry": entry,
-                "bench_root": bench_root,
-                "path_to_sid": path_to_sid,
-                "corpus_sids": corpus_sids,
-                "paths_before_llm": list(paths_before_llm),
-                "paths": list(paths),
-                "n_fetch": n_fetch,
-                "gold": gold,
-                "question": question,
-                "qid": qid,
-                "sessions": sessions,
-                "want_llm": want_llm,
-                "can_run": can_run,
-                "llm_invoked": llm_invoked,
-                "adaptive_skip": adaptive_skip,
-                "confidence_score": confidence_score,
-                "max_candidates_used": max_candidates_used,
-                "env_on": env_on,
-                "deferred_parallel_rerank": deferred_parallel_rerank,
-                "rl": rl,
-                "invoke": invoke,
-                "api_key": api_key,
-            }
-        )
-
-    pending_parallel = [r for r in rows if r.get("deferred_parallel_rerank")]
-    parallel_pool: PersistentCLIPool | None = None
-    if pending_parallel and bool(rl0.get("persistent_cli_pool", False)):
-        p0 = pending_parallel[0]
-        if str(p0.get("invoke", "")).strip().lower() == "claude_cli":
-            parallel_pool = PersistentCLIPool(
-                int(rl0.get("persistent_pool_size", 4)),
-                invoke="claude_cli",
-                cli_argv=p0["rl"].get("cli_argv")
-                if isinstance(p0["rl"].get("cli_argv"), list)
-                else None,
-            )
-
-    def _parallel_rerank_one(p: dict[str, Any]) -> list[str]:
-        rll = p["rl"]
-        cli_argv = rll.get("cli_argv")
-        cli_list = [str(x) for x in cli_argv] if isinstance(cli_argv, list) else None
-        return rerank_paths_llm(
-            p["question"],
-            p["paths_before_llm"],
-            p["bench_root"],
-            api_key=p["api_key"],
-            invoke=p["invoke"],
-            model=rll.get("model", "claude-sonnet-4-6"),
-            max_chars=int(rll.get("max_chars", 3600)),
-            max_candidates=p["max_candidates_used"],
-            max_picks=int(rll.get("max_picks", 5)),
-            excerpt_mode=str(rll.get("excerpt_mode", "head_tail")),
-            cli_argv=cli_list,
-            cli_timeout_s=int(rll.get("cli_timeout_s", 180)),
-            fuse_original_rrf=bool(rll.get("fuse_original_rrf", True)),
-            fuse_original_weight=float(rll.get("fuse_original_weight", 0.35)),
-            fuse_rrf_k=int(rll.get("fuse_rrf_k", 60)),
-            session_dedup=bool(rll.get("session_dedup", False)),
-            path_to_sid=p["path_to_sid"],
-            persistent_cli_pool=parallel_pool,
-        )
-
-    if pending_parallel:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_workers) as ex:
-            new_paths_list = list(ex.map(_parallel_rerank_one, pending_parallel))
-        for row, np in zip(pending_parallel, new_paths_list):
-            rows[row["idx"]]["paths"] = np
-    if parallel_pool is not None:
-        parallel_pool.close()
+    
+        if pending_parallel:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_workers) as ex:
+                new_paths_list = list(ex.map(_parallel_rerank_one, pending_parallel))
+            for row, np in zip(pending_parallel, new_paths_list):
+                rows[row["idx"]]["paths"] = np
+        if parallel_pool is not None:
+            parallel_pool.close()
+    finally:
+        if parallel_pool is not None:
+            parallel_pool.close()
 
     for row in rows:
         idx = row["idx"]
@@ -593,9 +602,6 @@ def run_lme(
         cbody = comp.compress(raw_body, metadata={})
         st = comp.stats(raw_body, cbody)
         all_ratios.append(float(st.get("ratio", 1.0)))
-
-    if cli_pool_serial is not None:
-        cli_pool_serial.close()
 
     elapsed = time.monotonic() - t0
 

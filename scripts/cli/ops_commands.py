@@ -431,6 +431,32 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             cache = Path(os.path.expanduser(bcfg.get("data_cache_dir", "~/.cache/llm-wiki-benchmarks")))
             data_path = Path(data_arg).resolve() if data_arg else download_dataset(cache)
 
+            peer_list = getattr(args, "benchmark_peer", None) or []
+            strict_peers = bool(getattr(args, "benchmark_strict_peers", False)) or bool(
+                (bcfg.get("peers") or {}).get("strict", False)
+            )
+            if peer_list:
+                from benchmarks.peer_lme import run_lme_peers
+
+                cfg_run = load_config(vault)
+                if no_metrics:
+                    cfg_run.setdefault("benchmark", {})["auto_record_metrics"] = False
+                try:
+                    out = run_lme_peers(
+                        data_path,
+                        vault,
+                        cfg_run,
+                        peer_ids=list(peer_list),
+                        limit=limit,
+                        top_k=top_k,
+                        strict_peers=strict_peers,
+                    )
+                except RuntimeError as e:
+                    print(str(e), file=sys.stderr)
+                    return 1
+                print(json.dumps(out, indent=2, default=str))
+                return 0
+
             last_fail: Path | None = None
             for be in backends:
                 for comp in compressors:

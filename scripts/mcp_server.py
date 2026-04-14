@@ -823,6 +823,8 @@ def tool_wiki_benchmark_run(
     top_k: int = 5,
     data_path: str = "",
     no_metrics: bool = False,
+    peers: list[str] | None = None,
+    strict_peers: bool = False,
 ) -> dict[str, Any]:
     """
     Run a retrieval benchmark (LME, LoCoMo, ConvoMem) using the vault's config.
@@ -864,6 +866,24 @@ def tool_wiki_benchmark_run(
                 lme_data = download_dataset(cache)
             else:
                 lme_data = data_resolved
+            peer_ids = [str(x) for x in (peers or []) if str(x).strip()]
+            if peer_ids:
+                from benchmarks.peer_lme import run_lme_peers
+
+                sp = bool(strict_peers) or bool((bcfg.get("peers") or {}).get("strict", False))
+                try:
+                    out = run_lme_peers(
+                        lme_data,
+                        _vault,
+                        cfg_run,
+                        peer_ids=peer_ids,
+                        limit=lim,
+                        top_k=tk,
+                        strict_peers=sp,
+                    )
+                except RuntimeError as e:
+                    return {"error": str(e)}
+                return out
             result = run_lme(
                 lme_data,
                 _vault,
@@ -1315,6 +1335,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "no_metrics": {
                     "type": "boolean",
                     "description": "If true, disable auto_record_metrics for this run (CLI --no-metrics)",
+                },
+                "peers": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional peer ids (mem0, mempalace, claude-mem, supermemory) for LME; same LongMemEval JSON as vault LME",
+                },
+                "strict_peers": {
+                    "type": "boolean",
+                    "description": "Fail if any peer cannot run (CLI --strict-peers / benchmark.peers.strict)",
                 },
             },
         },

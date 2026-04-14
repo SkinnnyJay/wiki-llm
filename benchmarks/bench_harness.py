@@ -8,6 +8,7 @@ import math
 import os
 import re
 import select
+import signal
 import subprocess
 import threading
 from datetime import datetime, timezone
@@ -1019,11 +1020,24 @@ class _ClaudeStreamWorker:
     def close(self) -> None:
         if self._proc is not None and self._proc.poll() is None:
             try:
-                self._proc.terminate()
+                if sys.platform != "win32":
+                    # Claude/Codex CLIs often spawn Node children; kill the whole group.
+                    try:
+                        os.killpg(os.getpgid(self._proc.pid), signal.SIGTERM)
+                    except (OSError, ProcessLookupError):
+                        self._proc.terminate()
+                else:
+                    self._proc.terminate()
                 self._proc.wait(timeout=5)
             except (OSError, subprocess.TimeoutExpired):
                 try:
-                    self._proc.kill()
+                    if sys.platform != "win32" and self._proc.poll() is None:
+                        try:
+                            os.killpg(os.getpgid(self._proc.pid), signal.SIGKILL)
+                        except (OSError, ProcessLookupError):
+                            self._proc.kill()
+                    else:
+                        self._proc.kill()
                 except OSError:
                     pass
         self._proc = None
@@ -1075,15 +1089,18 @@ class _ClaudeStreamWorker:
     def _spawn_stream(self) -> None:
         self.close()
         try:
-            self._proc = subprocess.Popen(
-                self._stream_argv,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                env=os.environ.copy(),
-            )
+            popen_kw: dict = {
+                "args": self._stream_argv,
+                "stdin": subprocess.PIPE,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "text": True,
+                "bufsize": 1,
+                "env": os.environ.copy(),
+            }
+            if sys.platform != "win32":
+                popen_kw["start_new_session"] = True
+            self._proc = subprocess.Popen(**popen_kw)
         except OSError:
             self._proc = None
 

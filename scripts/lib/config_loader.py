@@ -224,6 +224,10 @@ DEFAULTS: dict[str, Any] = {
         "prune": {"removal_percentile": 30},
         "extract": {"max_entities": 5, "max_topics": 3},
         "compact": {"keep_percentile": 60, "min_sentence_score": 0.3},
+        "peers": {
+            "cache_dir": "~/.cache/llm-wiki-benchmarks/peers",
+            "strict": False,
+        },
     },
 }
 

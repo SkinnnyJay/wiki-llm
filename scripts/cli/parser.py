@@ -563,6 +563,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not append metrics to .metrics.jsonl",
     )
+    pbench_run.add_argument(
+        "--peer",
+        dest="benchmark_peer",
+        action="append",
+        default=None,
+        help=(
+            "Optional peer memory backend (mem0, mempalace, claude-mem, supermemory); "
+            "repeat for multiple. Uses the same LongMemEval JSON as vault LME; "
+            "installs/cache under benchmark.peers.cache_dir (not tracked in git)."
+        ),
+    )
+    pbench_run.add_argument(
+        "--strict-peers",
+        dest="benchmark_strict_peers",
+        action="store_true",
+        help="Fail if any selected peer cannot run or throws during LME (also benchmark.peers.strict).",
+    )
 
     pbench_report = pbench_sub.add_parser("report", help="Print benchmark metric records")
     pbench_report.add_argument(

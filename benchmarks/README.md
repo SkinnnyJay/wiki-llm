@@ -118,6 +118,27 @@ python3 scripts/llm_wiki.py benchmark analyze --json
 
 Aliases: `lme` and `longmemeval` are the same suite.
 
+### Peer LME (optional external memory stacks)
+
+Run the **same** LongMemEval JSON through pluggable peers (for apples-to-apples retrieval comparisons). Peer vector stores and scripts live under **`benchmark.peers.cache_dir`** (default `~/.cache/llm-wiki-benchmarks/peers`) — **not** committed to the plugin repo.
+
+```bash
+python3 scripts/llm_wiki.py benchmark run lme --peer mem0 --limit 10
+python3 scripts/llm_wiki.py benchmark run lme --peer mem0 --peer supermemory --limit 5
+python3 scripts/llm_wiki.py benchmark run lme --peer mem0 --strict-peers --limit 50
+```
+
+| Peer | How to run | Notes |
+|------|------------|--------|
+| **mem0** | `pip install mem0ai` (see `requirements-optional.txt`) | Usually needs **`OPENAI_API_KEY`** for default embeddings. |
+| **mempalace** | Set **`MEMPALACE_BENCH_CMD`** to a shell one-liner | stdin: JSON with `sessions`, `session_ids`, `dates`, `question`, `n_fetch`, `run_idx`. stdout: `{"ranked_session_ids":["S1",...]}`. |
+| **claude-mem** | Set **`CLAUDE_MEM_BENCH_CMD`** | Same JSON protocol as mempalace (headless bridge for Claude Code–oriented tools). |
+| **supermemory** | Stub until a headless client is integrated | Fails health check; use **`benchmarks/peers/rubric_overrides.json`** for editorial **Data Integrity / Simplicity / Integration / Arch Maturity** scores, or rely on printed **proxy** dimensions for other peers. |
+
+**Metrics:** `benchmark.peer.<id>.recall_at_5`, `benchmark.peer.<id>.dimensions.<name>`, etc., in `.metrics.jsonl` when metrics are enabled. **Failures:** `<vault>/.benchmarks/peer_<id>_failures.jsonl`.
+
+**Methodology:** Different peers may chunk or embed differently; headline R@5 is comparable only when the same preprocessing and gold mapping apply. Treat third-party published percentages as reference unless reproduced with this harness.
+
 ### Backends
 
 | Name       | Notes                                      |

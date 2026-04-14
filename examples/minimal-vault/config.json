@@ -204,7 +204,11 @@
         "_comment": "invoke: anthropic_api | claude_cli | codex_cli | custom_cli (set cli_argv). LLM_WIKI_BENCHMARK_LLM=1 + key or CLI. ~500 calls / full LME run."
       }
     },
-    "_comment": "Retrieval benchmarks (llm-wiki benchmark run lme). See benchmarks/README.md."
+    "peers": {
+      "cache_dir": "~/.cache/llm-wiki-benchmarks/peers",
+      "strict": false
+    },
+    "_comment": "Retrieval benchmarks (llm-wiki benchmark run lme). Peer LME: --peer mem0. See benchmarks/README.md."
   },
   "metrics": {
     "enabled": false,

@@ -9,6 +9,9 @@ playwright>=1.40
 # PEP 668: on many Linux distros the system Python is "externally managed" — do not
 # pip install into it; use a venv (above) or pipx.
 
+# Peer LME (benchmark run lme --peer mem0): vector memory SDK; needs OPENAI_API_KEY for default embeddings
+# mem0ai>=0.1
+
 # Semantic search (mcp.search_backend chromadb or hybrid)
 # Upper bound avoids surprise API/on-disk breaks on the next chromadb major; bump after testing.
 chromadb>=0.4.24,<2

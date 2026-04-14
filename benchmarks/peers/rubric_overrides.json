@@ -1,0 +1,46 @@
+{
+  "peers": {
+    "mempalace": {
+      "skip_lme_note": "No bundled adapter; set MEMPALACE_BENCH_CMD or add a peer module when upstream exposes a headless API.",
+      "overrides": {
+        "data_integrity": 10,
+        "data_integrity_source": "editorial",
+        "simplicity": 9,
+        "simplicity_source": "editorial",
+        "integration": 8,
+        "integration_source": "editorial",
+        "arch_maturity": 6,
+        "arch_maturity_source": "editorial"
+      }
+    },
+    "claude-mem": {
+      "skip_lme_note": "Claude Code–oriented; set CLAUDE_MEM_BENCH_CMD to a script that reads JSON on stdin and prints ranked session ids, or run wiki-llm FTS baseline for comparison.",
+      "overrides": {
+        "data_integrity": 7,
+        "data_integrity_source": "editorial",
+        "simplicity": 6,
+        "simplicity_source": "editorial",
+        "integration": 9,
+        "integration_source": "editorial",
+        "arch_maturity": 8,
+        "arch_maturity_source": "editorial"
+      }
+    },
+    "mem0": {
+      "overrides": {}
+    },
+    "supermemory": {
+      "skip_lme_note": "Managed API; set SUPERMEMORY_API_KEY and install the official client when available for automated LME.",
+      "overrides": {
+        "data_integrity": 8,
+        "data_integrity_source": "editorial",
+        "simplicity": 4,
+        "simplicity_source": "editorial",
+        "integration": 6,
+        "integration_source": "editorial",
+        "arch_maturity": 8,
+        "arch_maturity_source": "editorial"
+      }
+    }
+  }
+}
