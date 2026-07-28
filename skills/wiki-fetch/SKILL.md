@@ -1,6 +1,7 @@
 ---
 name: wiki-fetch
 description: Orchestrate fetching a URL or research query into the vault using the best available adapter.
+when_to_use: Use when a user supplies a URL, source, or narrow query to acquire into raw/; use wiki-research for broader multi-source investigation.
 argument-hint: "<URL or search query>"
 ---
 

@@ -4,7 +4,8 @@ description: End-to-end vault workflow — status, research/fetch, raw prepare, 
 disable-model-invocation: true
 argument-hint: "[full | from raw | from wiki | status only]"
 context: fork
-agent: general-purpose
+agent: wiki-librarian
+background: false
 effort: high
 ---
 

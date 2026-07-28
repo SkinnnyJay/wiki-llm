@@ -10,6 +10,10 @@ The MCP server is **`scripts/mcp_server.py`**: **line-delimited JSON-RPC over st
 
 The official **[Model Context Protocol Python SDK](https://github.com/modelcontextprotocol/python-sdk)** (`mcp` on PyPI) is the conventional choice for **new** MCP servers that already depend on packaging. This project keeps a **custom server** deliberately so the plugin does not add a hard MCP dependency; protocol updates are maintained in-tree. Revisit an SDK migration only if maintenance cost or host compatibility clearly outweighs zero-dependency installs.
 
+### Protocol compatibility
+
+The server advertises MCP **`2025-11-25`** for current clients. During `initialize`, a client that explicitly requests **`2024-11-05`** receives that legacy revision instead. This is intentional dual support while editor and SDK hosts migrate; it does **not** advertise a future date such as `2026-07-28`. Revisit the compatibility branch after supported hosts have adopted the current revision.
+
 ### Limits and notifications (stdio + HTTP)
 
 | Transport | Limit |
@@ -195,7 +199,8 @@ MCP equivalents: `memory_save`, `memory_list`, `memory_show`, `memory_recall`, `
 llm-wiki mcp                           # stdio JSON-RPC (default; editor MCP)
 llm-wiki mcp --transport sse --port 8891   # HTTP: POST / or /mcp with JSON-RPC body
 llm-wiki mcp start                     # ensure HTTP listener is up (background if needed)
-llm-wiki mcp install                   # Register stdio server in ~/.claude/… and ./mcp.json
+llm-wiki mcp install                   # Register in ~/.claude/… and plugin-root/.cursor/mcp.json
+llm-wiki mcp install --project . --force  # Register in an explicit Cursor project
 ```
 
 `--transport sse` uses **`mcp.host`** and **`mcp.port`** from config when `--port` / `--host` are omitted. **`mcp start`** probes that address and spawns **`mcp --transport sse`** in the background when nothing is listening (logs under **`llm-wiki/.mcp-sse.log`**).

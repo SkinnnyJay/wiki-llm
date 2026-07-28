@@ -9,15 +9,17 @@ import shutil
 import signal
 import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from lib.config_loader import load_config, save_config
+from lib.config_loader import load_config, resolve_storage_path, save_config
 from lib.paths import plugin_root, resolve_vault
 from lib import git as vgit
+from lib.search import get_search_backend
 from lib.sitegen import build_site, collect_wiki, site_is_stale
 from lib.graphgen import build_graph_bundle
 from lib.ingest_finish import post_ingest
@@ -327,6 +329,46 @@ def cmd_teardown(args: argparse.Namespace) -> int:
         shutil.rmtree(vault, ignore_errors=True)
         print("Removed vault directory.")
         return 0
+    if getattr(args, "artifacts", False):
+        if not args.yes:
+            print("Refusing --artifacts without --yes", file=sys.stderr)
+            return 1
+        cfg = load_config(vault)
+        vault_root = vault.resolve()
+        candidates = [
+            vault / ".kg.json",
+            vault / ".kg.sqlite3",
+            vault / "raw" / ".hashes.json",
+            vault / "raw" / ".tags.json",
+            resolve_storage_path(vault, cfg, "search_db"),
+            resolve_storage_path(vault, cfg, "kg_db"),
+            resolve_storage_path(vault, cfg, "kg_sqlite_db"),
+            resolve_storage_path(vault, cfg, "chromadb_dir"),
+            resolve_storage_path(vault, cfg, "metrics_db"),
+        ]
+        paths: list[Path] = []
+        for path in candidates:
+            try:
+                path.resolve().relative_to(vault_root)
+            except ValueError:
+                print(f"Skipping index outside vault: {path}", file=sys.stderr)
+                continue
+            if path not in paths:
+                paths.append(path)
+            if path.suffix in {".sqlite3", ".db"}:
+                paths.extend([Path(f"{path}-wal"), Path(f"{path}-shm")])
+        for path in paths:
+            if not path.exists():
+                continue
+            if args.dry_run:
+                print(f"Would remove {path}")
+            elif path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+                print(f"Removed {path}")
+            else:
+                path.unlink(missing_ok=True)
+                print(f"Removed {path}")
+        return 0
     if og.is_dir():
         if args.dry_run:
             print(f"Would remove {og}")
@@ -336,10 +378,33 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_search(args: argparse.Namespace) -> int:
+    """Search vault content through the configured search backend."""
+    vault = resolve_vault(override=args.vault)
+    backend = get_search_backend(vault, load_config(vault))
+    results = backend.search(
+        args.query,
+        limit=args.limit,
+        tag=args.tag or None,
+        scope=args.scope,
+    )
+    print(
+        json.dumps(
+            {
+                "results": [result.to_dict() for result in results],
+                "count": len(results),
+                "backend": backend.index_status().get("backend", "unknown"),
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
 def cmd_graph(args: argparse.Namespace) -> int:
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
-    out = Path(args.out).resolve() if getattr(args, "out", None) else (Path.cwd() / ".tmp" / "llm-wiki-graph").resolve()
+    out = Path(args.out).resolve() if getattr(args, "out", None) else (vault / ".tmp" / "llm-wiki-graph").resolve()
     mode = getattr(args, "mode", "links")
     try:
         path = build_graph_bundle(vault, cfg, out, mode)
@@ -347,7 +412,8 @@ def cmd_graph(args: argparse.Namespace) -> int:
         print(e, file=sys.stderr)
         return 1
     print(f"Graph bundle → {path}")
-    print(f"  cd {path} && python3 -m http.server 8890")
+    port = int((cfg.get("graph") or {}).get("port") or 8890)
+    print(f"  python3 -m http.server {port} --directory {path}")
     return 0
 
 
@@ -356,7 +422,7 @@ def cmd_graph_knowledge(args: argparse.Namespace) -> int:
     return cmd_graph(args)
 
 
-def _serve_viewer_http(og_dir: Path, port: int, *, background: bool) -> int:
+def _serve_viewer_http(og_dir: Path, port: int, *, background: bool, open_browser: bool) -> int:
     """Serve ``og_dir`` with ``python -m http.server`` (foreground or detached)."""
     if not og_dir.is_dir():
         print(f"Viewer directory missing: {og_dir}", file=sys.stderr)
@@ -401,8 +467,22 @@ def _serve_viewer_http(og_dir: Path, port: int, *, background: bool) -> int:
         print(
             f"Serving viewer → {url} (PID {proc.pid}; stop: llm-wiki build-og --stop-serving)",
         )
+        if open_browser and not webbrowser.open(url):
+            print(f"Could not open browser automatically; visit {url}", file=sys.stderr)
         return 0
     print(f"Serving viewer → {url} (Ctrl+C to stop)")
+    if open_browser:
+        # Start the server first so browser requests do not race the listener.
+        proc = subprocess.Popen([sys.executable, "-m", "http.server", str(port)], cwd=str(og_dir))
+        if not webbrowser.open(url):
+            print(f"Could not open browser automatically; visit {url}", file=sys.stderr)
+        try:
+            return proc.wait()
+        except KeyboardInterrupt:
+            proc.terminate()
+            proc.wait()
+            print("", file=sys.stderr)
+            return 0
     try:
         return subprocess.run(
             [sys.executable, "-m", "http.server", str(port)],
@@ -418,14 +498,18 @@ def cmd_build_site(args: argparse.Namespace) -> int:
     stop_serving = getattr(args, "stop_serving", False)
     serve = getattr(args, "serve", False)
     serve_bg = getattr(args, "serve_background", False)
+    open_browser = getattr(args, "open", False)
     if stop_serving:
-        if serve or serve_bg:
+        if serve or serve_bg or open_browser:
             print(
-                "Cannot combine --stop-serving with --serve or --serve-background.",
+                "Cannot combine --stop-serving with --serve, --serve-background, or --open.",
                 file=sys.stderr,
             )
             return 2
         return cmd_stop_viewer_http(vault)
+    if open_browser and not (serve or serve_bg):
+        print("--open requires --serve or --serve-background.", file=sys.stderr)
+        return 2
     cfg = load_config(vault)
     if serve and serve_bg:
         print("Note: --serve-background wins over --serve.", file=sys.stderr)
@@ -456,7 +540,7 @@ def cmd_build_site(args: argparse.Namespace) -> int:
                 print("git snapshot (after build):", e, file=sys.stderr)
     if serve or serve_bg:
         port = port_arg if port_arg is not None else int(viewer.get("port", 8765))
-        return _serve_viewer_http(out, port, background=serve_bg)
+        return _serve_viewer_http(out, port, background=serve_bg, open_browser=open_browser)
     return 0
 
 
@@ -878,7 +962,7 @@ def cmd_list_topics(args: argparse.Namespace) -> int:
     rows = sorted(index.items(), key=lambda kv: -len(kv[1]))
     for tag, files in rows:
         wp = _wiki_page_for_tag(vault, tag)
-        coverage = f"→ {wp} ✓" if wp else "⚠ no wiki page"
+        coverage = f"-> {wp} [covered]" if wp else "no wiki page"
         print(f"  {tag:<20} {len(files):>4} raw files   {coverage}")
     return 0
 

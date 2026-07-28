@@ -13,12 +13,13 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from lib.env_loader import load_plugin_dotenv
 from lib.paths import plugin_root
+from lib.version import __version__
 
 # Stable entrypoints for tests and tools (see tests/plugin_contracts.test.py, test_session_memory.py).
 from cli.core_commands import cmd_raw_validate
 from cli.parser import build_parser
 
-__all__ = ["build_parser", "cmd_raw_validate", "main"]
+__all__ = ["__version__", "build_parser", "cmd_raw_validate", "main"]
 
 
 def main() -> int:

@@ -1,6 +1,7 @@
 ---
 name: wiki-research
 description: Ad-hoc research orchestrator — classifies request, picks sub-skill, ingests, and merges into wiki/. Not wiki-research-loop (batch tasks).
+when_to_use: Use for ad-hoc research questions, topics, or URLs that need source selection, acquisition into raw/, and a curated wiki merge; use wiki-research-loop for recurring task files.
 argument-hint: "<topic, URL, or question>"
 ---
 

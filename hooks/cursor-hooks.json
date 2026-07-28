@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "preCompact": [
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/hooks/llm_wiki_precompact.sh",
+        "statusMessage": "llm-wiki: saving vault state before compaction…"
+      }
+    ],
+    "stop": [
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/hooks/llm_wiki_stop.sh"
+      },
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/hooks/llm_wiki_memory.sh"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/hooks/llm_wiki_memory.sh"
+      },
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/hooks/llm_wiki_session_cleanup.sh"
+      }
+    ]
+  }
+}

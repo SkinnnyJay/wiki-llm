@@ -6,10 +6,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, ClassVar
 from urllib.error import URLError
-from urllib.request import Request, urlopen
 
 from lib.paths import raw_destination
-from lib.url_safety import validate_public_http_url
+from lib.url_safety import DEFAULT_MAX_BYTES, safe_fetch
 from ingest.base import Adapter, IngestResult
 
 
@@ -33,26 +32,28 @@ class UrlAdapter(Adapter):
         p.add_argument("url")
         p.add_argument("--out", type=Path, help="Relative path under raw/ e.g. clips/page.md")
         ns = p.parse_args(argv)
-        validate_public_http_url(ns.url, context="ingest url")
-        req = Request(ns.url, headers={"User-Agent": "llm-wiki/0.1 (+https://github.com/SkinnnyJay/wiki-llm)"})
         try:
-            with urlopen(req, timeout=60) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-                ct = resp.headers.get("Content-Type", "")
+            max_bytes = (cfg.get("ingestion") or {}).get("max_download_bytes")
+            raw_body, final_url, ct = safe_fetch(
+                ns.url,
+                context="ingest url",
+                max_bytes=max_bytes if isinstance(max_bytes, int) and max_bytes > 0 else DEFAULT_MAX_BYTES,
+            )
         except URLError as e:
             raise SystemExit(f"Fetch failed: {e}") from e
+        body = raw_body.decode("utf-8", errors="replace")
         if ns.out:
             dest = raw_destination(vault, ns.out)
         else:
             from urllib.parse import urlparse
 
-            slug = urlparse(ns.url).netloc.replace(":", "_") + ".md"
+            slug = urlparse(final_url).netloc.replace(":", "_") + ".md"
             dest = raw_destination(vault, Path("url") / slug)
         dest.parent.mkdir(parents=True, exist_ok=True)
         if "html" in ct.lower():
             text = _strip_html(body)
-            md = f"# Source\n\nURL: {ns.url}\n\n---\n\n{text}\n"
+            md = f"# Source\n\nURL: {final_url}\n\n---\n\n{text}\n"
         else:
-            md = f"# Source\n\nURL: {ns.url}\n\n---\n\n{body}\n"
+            md = f"# Source\n\nURL: {final_url}\n\n---\n\n{body}\n"
         dest.write_text(md, encoding="utf-8")
         return IngestResult(dest, f"Wrote {dest.relative_to(vault)}")

@@ -2,7 +2,7 @@
 #
 # Playwright (viewer browser smoke: tests/test_viewer_playwright.py, RUN_BROWSER_TESTS=1):
 #   pip install playwright && playwright install chromium
-playwright>=1.40
+playwright>=1.49,<2
 # Format-specific deps are lazy — only install what you need.
 # Each format has a reference file under skills/references/ingest-<format>.md
 #
@@ -14,7 +14,7 @@ playwright>=1.40
 
 # Semantic search (mcp.search_backend chromadb or hybrid)
 # Upper bound avoids surprise API/on-disk breaks on the next chromadb major; bump after testing.
-chromadb>=0.4.24,<2
+chromadb>=1.5.9,<2
 
 # Cross-encoder reranking (benchmark.search.rerank_llm.invoke cross_encoder)
 # Runs locally on CPU — no API key needed. ~650ms per query with 80 candidates.
@@ -24,4 +24,4 @@ sentence-transformers>=2.2
 # Also requires poppler on PATH (macOS: brew install poppler)
 # API key: ANTHROPIC_API_KEY in env or .claude/settings.local.json
 pdf2image
-anthropic
+anthropic>=0.52,<1

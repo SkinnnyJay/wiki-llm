@@ -7,6 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from lib.config_types import StorageKey, storage_paths
+
 DEFAULTS: dict[str, Any] = {
     "version": 1,
     "wiki_root": "llm-wiki",
@@ -15,6 +17,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "viewer": {
         "enabled": True,
+        "port": 8765,
         "og_base_url": "",
         "open_file_scheme": "file",
     },
@@ -60,11 +63,16 @@ DEFAULTS: dict[str, Any] = {
         "enabled": True,
         "block_on_duplicate": False,
     },
+    "ingestion": {
+        # Maximum response body accepted by the built-in URL ingest adapter.
+        "max_download_bytes": 32 * 1024 * 1024,
+    },
     "layers": {
         "wake_max_tokens": 200,
         "l1_topic_bullets": 8,
     },
     "graph": {
+        "port": 8890,
         "tag_edges": True,
         "include_raw_nodes": True,
         "curated_by_edges": True,
@@ -100,14 +108,18 @@ DEFAULTS: dict[str, Any] = {
         "max_response_chars": 500000,
         # 0 = no truncation of wiki_read_page body (still subject to max_response_chars on output)
         "read_page_max_chars": 0,
-        # Empty = any key allowed for wiki_configure; entries are exact keys or prefix rules ending with "."
+        # Empty allowlist: deny mcp.*/security.*/ingestion_security.* for wiki_configure
         "configure_allowlist": [],
         "benchmark_tool_enabled": True,
         "ingest_enabled": True,
+        # Allow wiki_ingest force_security=true (default off)
+        "allow_force_security": False,
         # HTTP MCP: refuse non-loopback bind when true; set false only with firewall/TLS/proxy
         "sse_require_loopback": True,
         # If non-empty, HTTP MCP requires Authorization: Bearer <token> or X-LLM-Wiki-Token
         "sse_token": "",
+        # Allow empty sse_token on non-loopback (insecure; default false)
+        "sse_allow_empty_token": False,
         # Cache TTL for raw/wiki *.md counts in wiki_status (seconds)
         "status_file_count_ttl_seconds": 45,
     },
@@ -242,6 +254,35 @@ def deep_merge(base: dict, extra: dict) -> dict:
     return out
 
 
+def merge_missing_defaults(config: dict[str, Any]) -> list[str]:
+    """Add missing DEFAULTS keys in place without changing configured values.
+
+    Returns leaf dotted paths for newly inserted values (nested dict defaults
+    expand to their leaf keys).
+    """
+    added: list[str] = []
+
+    def _leaf_paths(default: Any, prefix: str) -> list[str]:
+        if isinstance(default, dict):
+            out: list[str] = []
+            for key, value in default.items():
+                out.extend(_leaf_paths(value, f"{prefix}.{key}"))
+            return out or [prefix]
+        return [prefix]
+
+    def visit(current: dict[str, Any], defaults: dict[str, Any], prefix: str = "") -> None:
+        for key, default in defaults.items():
+            path = f"{prefix}.{key}" if prefix else key
+            if key not in current:
+                current[key] = deepcopy(default)
+                added.extend(_leaf_paths(default, path))
+            elif isinstance(default, dict) and isinstance(current[key], dict):
+                visit(current[key], default, path)
+
+    visit(config, DEFAULTS)
+    return added
+
+
 def load_config(vault: Path) -> dict[str, Any]:
     path = vault / "config.json"
     if not path.is_file():
@@ -253,10 +294,11 @@ def load_config(vault: Path) -> dict[str, Any]:
     return deep_merge(DEFAULTS, data)
 
 
-def resolve_storage_path(vault: Path, cfg: dict[str, Any], key: str) -> Path:
+def resolve_storage_path(vault: Path, cfg: dict[str, Any], key: StorageKey) -> Path:
     """Resolve a storage path from config. Relative paths anchor to vault root."""
-    storage = cfg.get("storage") or {}
-    raw = storage.get(key, DEFAULTS["storage"][key])
+    storage = storage_paths(cfg)
+    default_storage = storage_paths(DEFAULTS)
+    raw = storage.get(key, default_storage[key])
     p = Path(raw)
     return p if p.is_absolute() else vault / p
 

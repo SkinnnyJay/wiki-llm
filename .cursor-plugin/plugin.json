@@ -33,14 +33,14 @@
     "research"
   ],
   "rules": "rules",
-  "skills": "skills",
+  "skills": "./skills/",
   "commands": "commands",
   "agents": "agents",
-  "hooks": "hooks/hooks.json",
+  "hooks": "./hooks/cursor-hooks.json",
   "mcpServers": {
     "llm-wiki": {
       "command": "python3",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"]
+      "args": ["${CURSOR_PLUGIN_ROOT}/scripts/mcp_server.py"]
     }
   },
   "userConfig": {

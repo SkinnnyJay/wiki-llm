@@ -9,25 +9,38 @@ VAULT="${LLM_WIKI_VAULT:-llm-wiki}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --vault) VAULT="$2"; shift 2 ;;
+    --vault)
+      [[ $# -ge 2 ]] || { echo "--vault requires a path" >&2; exit 2; }
+      VAULT="$2"
+      shift 2
+      ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
 
-PORT=$(python3 -c "
-import json, sys
+if [[ ! -d "$VAULT" ]]; then
+  echo "Vault not found: $VAULT" >&2
+  exit 1
+fi
+VAULT="$(cd "$VAULT" && pwd)"
+
+PORT=$(python3 - "$VAULT" <<'PY'
+import json
+import sys
+
 try:
-    print(json.load(open('$VAULT/config.json')).get('graph', {}).get('port', 8890))
+    with open(f"{sys.argv[1]}/config.json", encoding="utf-8") as config:
+        print(json.load(config).get("graph", {}).get("port", 8890))
 except Exception:
     print(8890)
-")
+PY
+)
 
-DIR=".tmp/llm-wiki-graph"
+DIR="$VAULT/.tmp/llm-wiki-graph"
 if [[ ! -d "$DIR" ]]; then
   echo "Graph bundle not found at $DIR — run 'llm-wiki graph' first." >&2
   exit 1
 fi
 
 echo "→ http://127.0.0.1:$PORT/"
-cd "$DIR"
-exec python3 -m http.server "$PORT"
+exec python3 -m http.server "$PORT" --directory "$DIR"

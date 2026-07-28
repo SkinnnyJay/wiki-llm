@@ -33,6 +33,7 @@ SKILL_EVAL_EXCLUDE: frozenset[str] = frozenset(
     {
         # Router index only (no standalone smoke test)
         "wiki-extract",
+        "wiki-onboard",
         # Extraction (live sources / paywalls / APIs)
         "wiki-extract-annas",
         "wiki-extract-crunchbase",

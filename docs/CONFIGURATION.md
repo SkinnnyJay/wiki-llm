@@ -38,3 +38,39 @@ Toggles live in **`llm-wiki/config.json`**: viewer, integrations, git, research 
 - **Ingest paths** — `--out` must stay under `raw/`.
 - **Wikilinks** — `[[Page]]` / `[[page.md|label]]`; general Markdown: [Markdown Guide](https://www.markdownguide.org/basic-syntax/).
 - **Vault git** — With `git.enabled`, **`llm-wiki git lifecycle`** audits commits by phase; see [`commands/git-lifecycle.md`](../commands/git-lifecycle.md).
+
+### Performance and large vaults
+
+The defaults favor responsive local use. Tune them only after observing a
+specific bottleneck:
+
+- **`mcp.search_backend`** — `fts5` is the default local full-text index.
+  `grep` avoids an index but scans files for every request. `chromadb` and
+  `hybrid` add semantic retrieval and require the optional Chroma dependency.
+- **`performance.sqlite`** — SQLite index settings: `journal_mode`,
+  `synchronous`, `cache_size`, `mmap_size`, and `busy_timeout`. The default
+  WAL + normal durability profile is suitable for most single-machine vaults.
+- **`mcp.status_file_count_ttl_seconds`** — caches raw/wiki markdown counts
+  returned by `wiki_status` (default: `45`). Increase it when a very large
+  vault makes repeated status calls expensive; set it lower only when
+  near-immediate count changes matter.
+- **`mcp.max_response_chars`** — caps each MCP JSON response (default:
+  `500000`; `0` is unlimited). Lower this to bound editor context and
+  transport cost; use `mcp.read_page_max_chars` as an additional page-body
+  limit.
+- **`ingestion.max_download_bytes`** — maximum response body accepted by the
+  built-in URL ingest adapter (default: `33554432`, or 32 MiB). Raise it only
+  for trusted, legitimately large sources.
+
+For large vaults, budget time for the first index build and for a full
+reindex after broad raw/wiki changes. Keep generated index files on local
+fast storage with `storage.search_db` (and, if used, `storage.chromadb_dir`);
+run `llm-wiki search "<query>"` before changing backends to confirm the
+current index is healthy. No automatic reindex SLA is assumed because it
+depends on page count, disk speed, and the selected backend.
+
+To build and open the static viewer in one command:
+
+```bash
+llm-wiki build-site --serve-background --open
+```

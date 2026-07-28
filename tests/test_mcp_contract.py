@@ -87,6 +87,7 @@ def test_mcp_stdio_tools_list_and_call(mcp_proc) -> None:
     names = {t["name"] for t in tools}
     assert "wiki_search" in names
     assert "wiki_status" in names
+    assert "wiki_doctor" in names
     assert "wiki_validate" in names
 
     _send(
@@ -112,3 +113,44 @@ def test_mcp_stdio_tools_list_and_call(mcp_proc) -> None:
     t3 = json.loads(resp3["result"]["content"][0]["text"])
     assert t3.get("vault_path") == str(vault)
     assert "wiki_pages" in t3
+
+    _send(
+        proc.stdin,
+        {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "id": 4,
+            "params": {"name": "wiki_doctor", "arguments": {}},
+        },
+    )
+    resp4 = _readline(proc.stdout)
+    doctor = json.loads(resp4["result"]["content"][0]["text"])
+    assert doctor["vault_path"] == str(vault)
+    assert "checks" in doctor
+
+
+@pytest.mark.parametrize(
+    ("client_version", "expected_version"),
+    [
+        ("2024-11-05", "2024-11-05"),
+        ("2025-11-25", "2025-11-25"),
+        ("2026-07-28", "2025-11-25"),
+    ],
+)
+def test_mcp_initialize_negotiates_supported_protocol_version(
+    mcp_proc, client_version: str, expected_version: str
+) -> None:
+    proc, _vault = mcp_proc
+    assert proc.stdin and proc.stdout
+
+    _send(
+        proc.stdin,
+        {
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "id": 1,
+            "params": {"protocolVersion": client_version},
+        },
+    )
+
+    assert _readline(proc.stdout)["result"]["protocolVersion"] == expected_version

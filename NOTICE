@@ -1,0 +1,4 @@
+llm-wiki is distributed under the MIT License. See LICENSE.
+
+The optional static viewer loads D3, marked, and DOMPurify from jsDelivr at runtime.
+Those third-party projects remain subject to their own licenses and notices.

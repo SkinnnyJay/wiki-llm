@@ -113,7 +113,15 @@
             .replace(/\bLlm\b/g, "LLM").replace(/\bApi\b/g, "API").replace(/\bNlp\b/g, "NLP");
           var folderSvg = svgEl("svg", { class: "tree-folder-icon", viewBox: "0 0 16 16", fill: "currentColor" });
           folderSvg.appendChild(svgEl("path", { d: "M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V5.5A1.5 1.5 0 0 0 14.5 4H7.414a1 1 0 0 1-.707-.293L5.854 2.854A2 2 0 0 0 4.44 2.1z" }));
-          var lbl = el("div", { cls: "tree-group-label", onclick: function () { g.classList.toggle("collapsed"); } }, [
+          var lbl = el("button", {
+            cls: "tree-group-label",
+            type: "button",
+            "aria-expanded": "true",
+            onclick: function () {
+              var collapsed = g.classList.toggle("collapsed");
+              lbl.setAttribute("aria-expanded", String(!collapsed));
+            }
+          }, [
             chevronSvg,
             folderSvg,
             el("span", { text: friendlyName })
@@ -127,7 +135,12 @@
           .forEach(function (n) {
             var dot = el("span", { cls: "tree-dot", style: "background:" + colorOf(n) });
             var txt = el("span", { cls: "tree-item-text", text: n.title });
-            var item = el("div", { cls: "tree-item", "data-id": n.id, onclick: function () { selectNode(n); } }, [dot, txt]);
+            var item = el("button", {
+              cls: "tree-item",
+              type: "button",
+              "data-id": n.id,
+              onclick: function () { selectNode(n); }
+            }, [dot, txt]);
             items.appendChild(item);
           });
         g.appendChild(items);
@@ -358,6 +371,8 @@
 
   /* ── Sidebar toggle ──────────────────────────────────────────────── */
   document.getElementById("toggle-sidebar").addEventListener("click", function () {
-    document.getElementById("sidebar").classList.toggle("collapsed");
+    var sidebar = document.getElementById("sidebar");
+    var collapsed = sidebar.classList.toggle("collapsed");
+    this.setAttribute("aria-expanded", String(!collapsed));
   });
 })();

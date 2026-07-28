@@ -20,12 +20,23 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Vault paths** — reject path-escape attempts so file operations remain within the configured vault.
+- **URL ingest** — `safe_fetch` validates destination addresses and redirect hops to mitigate SSRF.
+- **MCP** — harden HTTP exposure with loopback and token controls, and restrict configuration and write-capable tools appropriately.
+- **Indexes** — quarantine corrupt knowledge-graph and raw indexes rather than treating them as empty and overwriting them.
+
+### Documentation
+- **Threat model** — document trust boundaries, security invariants, residual risks, and Phase 1 exclusions in `docs/THREAT-MODEL.md`.
+
 ### Added
 - **CLI** — **`build-site`** / **`build-og`**: **`--serve`**, **`--serve-background`** (records PID in **`wiki/.og/.viewer-http.pid`**), **`--stop-serving`**, **`--port`**; preview the static viewer over HTTP without a separate **`cd`** + **`http.server`** step.
 - **`playwright` ingest adapter** — Headless Chromium fetch to **`raw/`** (same markdown shape as **`url`** / Firecrawl); **`setup_checks`** + wizard hint when the Python package or browsers are missing; **`integrations wizard`** prints install hints for adapters with no API key (**`scripts/ingest/adapters/web_playwright.py`**, **`scripts/cli/core_commands.py`**).
 - **Docs** — **`commands/ingest.md`**, **`commands/integrations.md`**, **`skills/wiki-fetch`**, **`wiki-ingest`**, **`wiki-setup`** (Section 4 + Section 8), **`wiki-status`**, **`commands/setup.md`**, **`docs/ENV.md`**: **`llm-wiki ingest playwright`** vs optional **Playwright MCP** (editor) vs vault **`llm-wiki` MCP**.
 
 ### Changed
+- **MCP protocol** — advertise `2025-11-25`; retain `2024-11-05` for clients that explicitly negotiate that legacy revision. No unreleased protocol date is advertised.
+- **Packaging** — `pip install .` now includes the CLI, ingest, library, and MCP Python modules.
 - **`commands/ingest.md`** — Claude-facing **playbook** (slash table, phased checklist, **show steps**, **`2>&1`** for stderr); plus **adapter-agnostic** whole-web principles (APIs vs pages, limits, provenance, security, **improve each run**); example table (**`url`**, **`hackernews`**, **`file`**, **`ingest --list`**); playbook step 1 names **source type** and generic risks.
 - **`skills/wiki-ingest/SKILL.md`** — **Learn from each merge**: log adapter/flags lessons, generalize patterns to **`wiki/log.md`** / vault **`CLAUDE.md`**; description notes any web/local source.
 - **Claude Code dev docs** — document **`claude --plugin-dir`** as the usual one-off dev load again (current CLI); marketplace install remains the persistent option. **`tests/conftest.py`** and **`scripts/qa_record.py`** always pass **`--plugin-dir`** (removed the **`claude --help`** probe).

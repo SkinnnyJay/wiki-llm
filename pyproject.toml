@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-wiki"
-version = "0.1.0"
+version = "0.2.0"
 description = "llm-wiki vault CLI, MCP server, and plugin assets"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,4 +14,16 @@ dependencies = []
 llm-wiki = "llm_wiki_cli:main"
 
 [tool.setuptools]
-py-modules = ["llm_wiki_cli"]
+package-dir = {"" = "scripts"}
+py-modules = ["llm_wiki", "llm_wiki_cli", "mcp_server", "mcp_sse"]
+
+[tool.setuptools.packages.find]
+where = ["scripts"]
+include = ["cli*", "ingest*", "lib*", "mcp*"]
+
+[tool.basedpyright]
+include = ["scripts"]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+reportAny = "warning"
+reportExplicitAny = "none"

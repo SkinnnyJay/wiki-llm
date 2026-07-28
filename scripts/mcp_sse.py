@@ -6,7 +6,7 @@ The --transport sse flag name is a legacy convention; the actual protocol is
 synchronous HTTP POST with JSON-RPC request/response (not Server-Sent Events).
 
 Uses stdlib only. Clients POST a single JSON-RPC object; the response is returned
-as application/json. Set LLM_WIKI_VAULT before importing mcp_server (done by run_sse_server).
+as application/json.
 """
 from __future__ import annotations
 
@@ -28,9 +28,6 @@ def run_sse_server(
 ) -> None:
     """Listen for POST / and POST /mcp with JSON-RPC bodies; print URL on stderr."""
     os.environ["LLM_WIKI_VAULT"] = str(vault.resolve())
-    script_dir = Path(__file__).resolve().parent
-    if str(script_dir) not in sys.path:
-        sys.path.insert(0, str(script_dir))
 
     from lib.config_loader import load_config
 
@@ -56,8 +53,41 @@ def run_sse_server(
             sys.exit(1)
 
     auth_token = str(mcp_cfg.get("sse_token") or "").strip()
+    allow_empty = bool(mcp_cfg.get("sse_allow_empty_token", False))
+    host_is_loopback = False
+    hl = host.strip().lower()
+    if hl in ("localhost", "::1", "127.0.0.1"):
+        host_is_loopback = True
+    else:
+        try:
+            host_is_loopback = ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            host_is_loopback = False
+    if not auth_token and not allow_empty and not host_is_loopback:
+        print(
+            "mcp.sse_token is empty but host is not loopback. "
+            "Set mcp.sse_token, bind to 127.0.0.1, or set mcp.sse_allow_empty_token=true "
+            "(insecure).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if not auth_token and host_is_loopback and not allow_empty:
+        print(
+            "warning: mcp.sse_token is empty; HTTP MCP on loopback has no auth. "
+            "Set mcp.sse_token for defense in depth.",
+            file=sys.stderr,
+        )
 
-    from mcp_server import _mcp_log_extra, _mcp_log_line, handle_request, logger
+    from mcp import server as mcp_server
+    import hmac
+
+    if not mcp_server.initialize(vault, require_enabled=True):
+        print("MCP is disabled in config.json.", file=sys.stderr)
+        raise SystemExit(1)
+    _mcp_log_extra = mcp_server._mcp_log_extra
+    _mcp_log_line = mcp_server._mcp_log_line
+    handle_request = mcp_server.handle_request
+    logger = mcp_server.logger
 
     class MCPHTTPHandler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
@@ -70,8 +100,13 @@ def run_sse_server(
                 if auth.lower().startswith("bearer "):
                     got = auth[7:].strip()
                 if not got:
-                    got = self.headers.get("X-LLM-Wiki-Token", "")
-                if got != auth_token:
+                    got = self.headers.get("X-LLM-Wiki-Token", "") or ""
+                # Constant-time compare; pad lengths via hmac.compare_digest on equal-length utf-8
+                try:
+                    ok = hmac.compare_digest(got.encode("utf-8"), auth_token.encode("utf-8"))
+                except (TypeError, ValueError):
+                    ok = False
+                if not ok:
                     body = json.dumps(
                         {
                             "jsonrpc": "2.0",

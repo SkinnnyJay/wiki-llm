@@ -1,6 +1,7 @@
 ---
 name: wiki-ingest
 description: Merges new raw sources into llm-wiki/wiki/ with index and log updates. Use after llm-wiki ingest or when user drops files into raw/. Works for any source on the public web or local files.
+when_to_use: Use after sources exist in raw/ and need evidence-backed merging into curated wiki pages; use wiki-fetch or wiki-research to acquire sources first.
 ---
 
 # Wiki ingest — Merger

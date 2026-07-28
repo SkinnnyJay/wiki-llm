@@ -72,7 +72,12 @@ def cmd_kg(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "rebuild":
-        result = kg.rebuild(vault)
+        from lib.knowledge_graph import rebuild_knowledge_graph
+
+        result = rebuild_knowledge_graph(vault, cfg, backend=kg)
+        if result.get("disabled"):
+            print("Knowledge graph is disabled in config.json.", file=sys.stderr)
+            return 1
         print(f"Rebuilt: {result.get('added', 0)} triples added, {result.get('total_triples', 0)} total, {result.get('entities', 0)} entities")
         return 0
 

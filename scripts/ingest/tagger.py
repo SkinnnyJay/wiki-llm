@@ -87,21 +87,16 @@ def _index_path(vault: Path) -> Path:
 
 
 def _load_index(vault: Path) -> dict[str, list[str]]:
+    from lib.json_index import load_json_object
+
     p = _index_path(vault)
-    if not p.exists():
-        return {}
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    return load_json_object(p, default_if_missing={})  # type: ignore[return-value]
 
 
 def _save_index(vault: Path, index: dict[str, list[str]]) -> None:
-    p = _index_path(vault)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(index, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, p)
+    from lib.json_index import atomic_write_json
+
+    atomic_write_json(_index_path(vault), index)
 
 
 def register_tags(vault: Path, tags: list[str], path: Path) -> None:

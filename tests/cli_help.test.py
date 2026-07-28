@@ -35,6 +35,17 @@ def test_top_level_help():
     assert _run_help([]) == 0
 
 
+def test_version():
+    r = subprocess.run(
+        [str(REPO / "bin" / "llm-wiki"), "--version"],
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "0.2.0"
+
+
 def test_setup_accepts_vault_after_subcommand():
     """`--vault` on the parent must come before setup; setup also accepts --vault after setup."""
     env = os.environ.copy()
@@ -76,6 +87,8 @@ def test_no_subcommand_prints_help_exit_zero():
         "build-site",
         "build-og",
         "validate",
+        "doctor",
+        "search",
         "ingest",
         "deps",
         "integrations",

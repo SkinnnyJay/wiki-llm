@@ -12,6 +12,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from lib.self_check import cmd_check, cmd_smoke_test
 from lib.test_report import cmd_test_report
+from lib.version import __version__
 
 from cli.core_commands import (
     cmd_build_site,
@@ -29,6 +30,7 @@ from cli.core_commands import (
     cmd_raw_validate,
     cmd_research_loop_cli,
     cmd_security,
+    cmd_search,
     cmd_setup,
     cmd_sync_agent_docs,
     cmd_teardown,
@@ -36,6 +38,7 @@ from cli.core_commands import (
     cmd_wakeup,
 )
 from cli.mcp_commands import cmd_mcp
+from cli.doctor_commands import cmd_doctor
 from cli.ops_commands import (
     cmd_benchmark,
     cmd_interactive_configure,
@@ -62,6 +65,11 @@ def _add_build_site_args(ap: argparse.ArgumentParser) -> None:
         help="After build, start HTTP server in background (prints URL and PID)",
     )
     ap.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the viewer URL after starting --serve or --serve-background",
+    )
+    ap.add_argument(
         "--port",
         type=int,
         default=None,
@@ -77,6 +85,7 @@ def _add_build_site_args(ap: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="llm-wiki")
+    p.add_argument("--version", action="version", version=__version__)
     p.add_argument("--vault", help="Path to vault directory (default: ./llm-wiki or LLM_WIKI_VAULT)")
 
     sub = p.add_subparsers(dest="cmd", required=False)
@@ -110,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     pt = sub.add_parser("teardown", help="Remove generated artifacts (or --purge vault)")
     pt.add_argument("--dry-run", action="store_true")
     pt.add_argument("--purge", action="store_true")
+    pt.add_argument("--artifacts", action="store_true", help="Remove generated indexes without deleting raw/ or wiki/")
     pt.add_argument("--yes", action="store_true")
     pt.set_defaults(func=cmd_teardown)
 
@@ -124,6 +134,26 @@ def build_parser() -> argparse.ArgumentParser:
     pv = sub.add_parser("validate", help="Check vault layout")
     pv.add_argument("--wikilinks", action="store_true", help="Fail if wikilinks point to missing wiki pages")
     pv.set_defaults(func=cmd_validate)
+
+    pdoctor = sub.add_parser("doctor", help="Diagnose vault health; --fix applies safe repairs only")
+    pdoctor.add_argument(
+        "--fix",
+        action="store_true",
+        help="Create missing vault/raw/wiki directories, add missing config defaults, and repair safe blank values",
+    )
+    pdoctor.set_defaults(func=cmd_doctor)
+
+    psearch = sub.add_parser("search", help="Search vault content")
+    psearch.add_argument("query")
+    psearch.add_argument("--limit", type=int, default=5, help="Maximum results (default: 5)")
+    psearch.add_argument("--tag", default="", help="Filter by tag")
+    psearch.add_argument(
+        "--scope",
+        default="all",
+        choices=["all", "wiki", "raw", "memory"],
+        help="Content scope (default: all)",
+    )
+    psearch.set_defaults(func=cmd_search)
 
     pi = sub.add_parser("ingest", help="Ingest via adapter")
     pi.add_argument("--list", action="store_true")
@@ -404,6 +434,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pmcp_sub = pmcp.add_subparsers(dest="mcp_sub")
     pmcp_install = pmcp_sub.add_parser("install", help="Write MCP config for Claude Code / Cursor discovery")
+    pmcp_install.add_argument(
+        "--project",
+        type=Path,
+        help="Write Cursor config under this project instead of the plugin root (requires --force)",
+    )
+    pmcp_install.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow replacing an existing llm-wiki Cursor MCP entry",
+    )
     pmcp_start = pmcp_sub.add_parser(
         "start",
         help="Ensure HTTP MCP (--transport sse) is listening; start in background if needed",

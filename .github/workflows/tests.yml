@@ -7,6 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  pypi-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel and install in an empty virtual environment
+        run: |
+          python -m venv /tmp/llm-wiki-build
+          /tmp/llm-wiki-build/bin/python -m pip install -U pip build
+          /tmp/llm-wiki-build/bin/python -m build -o /tmp/llm-wiki-dist
+          python -m venv /tmp/llm-wiki-install
+          /tmp/llm-wiki-install/bin/python -m pip install /tmp/llm-wiki-dist/*.whl
+          /tmp/llm-wiki-install/bin/llm-wiki --version
+
   pytest:
     runs-on: ubuntu-latest
     strategy:
@@ -24,7 +40,24 @@ jobs:
       - name: Run pytest
         run: python -m pytest tests/
         env:
-          PYTHONPATH: scripts
+          PYTHONPATH: ${{ github.workspace }}/scripts
+
+  web-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install web deps
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
 
   browser:
     if: github.event_name == 'workflow_dispatch'
@@ -42,5 +75,5 @@ jobs:
       - name: Run browser-marked tests
         run: python -m pytest tests/test_viewer_playwright.py -v
         env:
-          PYTHONPATH: scripts
+          PYTHONPATH: ${{ github.workspace }}/scripts
           RUN_BROWSER_TESTS: "1"

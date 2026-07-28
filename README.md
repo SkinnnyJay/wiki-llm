@@ -18,6 +18,12 @@ It turns scattered source material into a **maintained wiki** your agent can kee
 
 This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
 
+<a id="install-claude-code"></a>
+
+## Start here
+
+**New to llm-wiki? Follow the [five-minute path in `docs/QUICKSTART.md`](docs/QUICKSTART.md).** It distinguishes the plugin repo from your vault and gives the first Claude Code and CLI commands. For installation variants only, see [`docs/INSTALL.md`](docs/INSTALL.md).
+
 ## Inspiration
 
 > If I have seen further it is by standing on the shoulders of Giants.
@@ -26,7 +32,7 @@ This repository is the **plugin**: commands, skills, templates, and `bin/llm-wik
 
 The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** and **[Karpathy on X](https://x.com/karpathy/status/2039805659525644595)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work (**[Milla & Ben on X](https://t.co/tQaFQWWn4y)**; [more context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
 
-**Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**. Alternate install paths and scripted examples: **[`docs/INSTALL.md`](docs/INSTALL.md)**.
+**Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**.
 
 ## The wiki
 
@@ -40,7 +46,7 @@ We treat the vault as **sources first, then curated notes**—not one undifferen
 
 Evidence, trust, and why **`raw/`** and **`wiki/`** differ: **[`ETHOS.md`](ETHOS.md)**.
 
-- **Ingest risk** — Scraping or ingesting URLs copies **arbitrary text** into `raw/` and later into model context. That includes **prompt-injection** patterns and **bad-faith** pages meant to mislead automations or readers—**use at your discretion**. This plugin does not sanitize the web for you. See **[`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md)** and **[`ETHOS.md` — Ingestion and security](ETHOS.md#ingestion-and-security)**.
+- **Ingest risk** — Scraping or ingesting URLs copies **arbitrary text** into `raw/` and later into model context. That includes **prompt-injection** patterns and **bad-faith** pages meant to mislead automations or readers—**use at your discretion**. This plugin does not sanitize the web for you. See **[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md)**, **[`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md)**, and **[`ETHOS.md` — Ingestion and security](ETHOS.md#ingestion-and-security)**.
 
 ## Memory
 
@@ -55,40 +61,9 @@ More detail: **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)** (full feature surv
 
 ---
 
-## Setup (short path)
+## Setup
 
-**1. Install the plugin in Claude Code** (no clone required):
-
-```text
-/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
-/plugin install llm-wiki@llm-wiki-local
-```
-
-**2. Reload and set up in chat** (vault wizard matches [`commands/setup.md`](commands/setup.md)):
-
-```bash
-# Register slash commands and skills after install
-/reload-plugins
-# Interactive vault scaffold (same prompt as commands/setup.md)
-/llm-wiki:setup
-# Vault health, integrations, and MCP status
-/llm-wiki:status
-# Quick tweaks to llm-wiki/config.json
-/llm-wiki:configure
-# Land sources in raw/ (then curate with wiki-ingest / wiki-maintainer)
-/llm-wiki:ingest
-```
-
-In chat, run only the **`/…`** lines (`#` lines are comments for this README). For **raw → wiki** curation, use skills **wiki-ingest**, **wiki-maintainer**, and **wiki-pipeline**. Full index: [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md); prompt files: [`commands/`](commands/).
-
-**3. Or scaffold from a shell** (plugin on `PATH`, or `./bin/llm-wiki` from this repo):
-
-```bash
-llm-wiki setup --root .
-# or: ./bin/llm-wiki setup --root . --defaults
-```
-
-That creates **`llm-wiki/`** with `raw/`, `wiki/`, `config.json`, and vault rules. **Deeper walkthroughs** (basic → advanced tiers, flags, examples): **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**.
+Use the [five-minute quickstart](docs/QUICKSTART.md) for the primary path. It covers plugin installation, `/llm-wiki:setup`, and the equivalent `llm-wiki setup --root . --defaults` flow without duplicating the wizard here.
 
 ---
 
@@ -122,6 +97,7 @@ echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 | Vault vs plugin, data flow | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Day-to-day flows and ops | [`WORKFLOWS.md`](WORKFLOWS.md) |
 | Web ingest, legal access, untrusted content / prompt injection | [`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md) |
+| Security boundaries and hardening | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) |
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
 | Slash commands — index, summaries, CLI hints | [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) |
 | Slash prompt sources (`commands/*.md`) | [`commands/`](commands/) |
@@ -143,50 +119,13 @@ echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 
 Run **`bin/llm-wiki`** from the plugin repo (any cwd if you use the absolute path to the script) or **`python3 scripts/llm_wiki.py`** **from the repository root**. Do **not** rely on `PYTHONPATH=scripts` with a relative path (Python 3.14+ can break); the script adds `scripts/` to `sys.path` itself.
 
-Common subcommands: **`setup`**, **`ingest`**, **`validate`**, **`build-site`**, **`configure`** (`-i` interactive), **`raw validate` / `raw finish`**, **`memory …`** (when enabled), **`mcp`**, **`benchmark …`**, **`check`**, **`sync-agent-docs`**. Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags; **WORKFLOWS** and **QUICKSTART** cover the happy paths.
+Common subcommands: **`setup`**, **`ingest`**, **`validate`**, **`build-site`**, **`configure`** (`-i` interactive), **`raw validate` / `raw finish`**, **`memory …`** (when enabled), **`mcp`**, **`kg …`**, **`benchmark …`**, **`check`**, **`sync-agent-docs`**. Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags; **WORKFLOWS** and **QUICKSTART** cover the happy paths.
 
 ---
 
 ## Configuration (quick)
 
 Toggles live in **`llm-wiki/config.json`**: viewer, integrations, git, research loop, ingestion security, optional hooks, and **`persona.name`** (default **Gennie**). For sound hooks, ingest policy, viewer serving, and git lifecycle, see **[Configuration (full)](#configuration-full)** below and **[`WORKFLOWS.md`](WORKFLOWS.md)**.
-
----
-
-<a id="install-claude-code"></a>
-
-## Install (Claude Code — no clone)
-
-Add this repo as a **plugin marketplace**, then install **llm-wiki** (catalog name in [`marketplace.json`](marketplace.json): `llm-wiki-local`):
-
-```text
-/plugin marketplace add https://github.com/SkinnnyJay/wiki-llm
-/plugin install llm-wiki@llm-wiki-local
-```
-
-After upstream changes: `/plugin marketplace update`. Official docs: [Discover and install plugins](https://docs.anthropic.com/en/discover-plugins), [plugin marketplaces](https://docs.anthropic.com/en/docs/claude-code/plugin-marketplaces).
-
-**Note:** GitHub cannot install the plugin for you—use the steps above or clone for development. VS Code–style `vscode:extension/…` links apply to **published extensions**, not Claude **plugin** marketplaces.
-
-<a id="install-development--clone"></a>
-
-## Install (development — clone)
-
-```bash
-./setup
-```
-
-Load the plugin in Claude Code:
-
-- **One-off session:** `claude --plugin-dir /path/to/wiki-llm` — see [CLI reference](https://code.claude.com/docs/en/cli-reference).
-- **Persistent:** add the repo as a marketplace and **`/plugin install llm-wiki@llm-wiki-local`**, then **`/reload-plugins`**.
-
-Local installs copy the tree into `~/.claude/plugins/cache/` (not `.gitignore`-aware). For a slimmer tree: **`./scripts/plugin_dev_slim.sh`** (dry-run, then `--apply`), or use `claude --plugin-dir` for daily dev.
-
-```bash
-claude plugin validate /path/to/wiki-llm
-# or in chat: /plugin validate
-```
 
 ---
 
@@ -244,7 +183,7 @@ Prefer **`llm-wiki smoke-test`** over ad-hoc `PYTHONPATH`; if you need raw pytes
 
 ## Marketplace
 
-[`marketplace.json`](marketplace.json) lists the local marketplace entry.
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) lists the local marketplace entry.
 
 ---
 

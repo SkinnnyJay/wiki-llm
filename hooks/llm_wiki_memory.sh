@@ -25,7 +25,8 @@ INPUT=$(cat || true)
 VAULT=$(_llm_wiki_find_vault || true)
 if [ -z "$VAULT" ]; then exit 0; fi
 
-LLM_WIKI_BIN="${CLAUDE_PLUGIN_ROOT:-}/bin/llm-wiki"
+LLM_WIKI_PLUGIN_ROOT="${CURSOR_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}"
+LLM_WIKI_BIN="${LLM_WIKI_PLUGIN_ROOT}/bin/llm-wiki"
 if [ ! -x "$LLM_WIKI_BIN" ]; then
   if command -v llm-wiki >/dev/null 2>&1; then
     LLM_WIKI_BIN="llm-wiki"

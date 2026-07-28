@@ -30,10 +30,11 @@ scratchpad/
 .chromadb/
 .metrics.jsonl
 ./playwright-report/*
-# Experimental app(s) — not tracked in the plugin repo yet
-/apps/
+# Web app source is tracked; its local artifacts remain ignored in apps/web/.gitignore.
 node_modules/*
 dist/*
+*.egg-info/
+build/
 ./docs/memory/benchmarks/metrics/*
 ./docs/memory/benchmarks/runs/*
 ./test-results/*

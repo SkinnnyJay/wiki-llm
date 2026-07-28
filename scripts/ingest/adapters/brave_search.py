@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
 from ingest.base import Adapter, IngestResult
 
@@ -25,7 +26,7 @@ def _get(endpoint: str, params: dict, api_key: str) -> Any:
         headers={
             "X-Subscription-Token": api_key,
             "Accept": "application/json",
-            "User-Agent": "llm-wiki/0.1",
+            "User-Agent": USER_AGENT,
         },
     )
     try:
@@ -44,7 +45,7 @@ def _post(endpoint: str, payload: dict, api_key: str) -> Any:
             "X-Subscription-Token": api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "llm-wiki/0.1",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )

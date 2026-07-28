@@ -10,6 +10,7 @@ from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
 from ingest.base import Adapter, IngestResult
 
@@ -38,7 +39,7 @@ def _parse_item_ref(raw: str) -> int | None:
 
 
 def _get_json(url: str) -> Any:
-    req = Request(url, headers={"User-Agent": "llm-wiki/0.1 (+https://github.com/SkinnnyJay/wiki-llm)"})
+    req = Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urlopen(req, timeout=_REQUEST_TIMEOUT_S) as r:
             return json.loads(r.read().decode())

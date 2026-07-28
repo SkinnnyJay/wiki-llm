@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
 from lib.url_safety import validate_https_api_host
 from ingest.base import Adapter, IngestResult
@@ -70,7 +71,7 @@ class PerplexityAdapter(Adapter):
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "llm-wiki/0.1",
+                "User-Agent": USER_AGENT,
             },
             method="POST",
         )

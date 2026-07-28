@@ -697,8 +697,10 @@ class GrepSearchBackend:
         return [d for d in [self._vault / "wiki", self._vault / "raw"] if d.is_dir()]
 
     def find_related(self, page_path: str, *, limit: int = 5) -> list[SearchResult]:
-        full = self._vault / page_path
-        if not full.is_file():
+        from lib.path_safety import resolve_under_vault
+
+        full = resolve_under_vault(self._vault, page_path)
+        if full is None or not full.is_file():
             return []
         text = full.read_text(encoding="utf-8", errors="replace")
         fm, body = _parse_frontmatter(text)

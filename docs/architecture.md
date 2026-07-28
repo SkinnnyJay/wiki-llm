@@ -55,4 +55,5 @@ flowchart TB
 
 - [`docs/QUICKSTART.md`](./QUICKSTART.md) — tiers and first commands.
 - [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) — MCP, search, KG, session memory tools.
+- [`docs/THREAT-MODEL.md`](./THREAT-MODEL.md) — trust boundaries and hardening.
 - [`ETHOS.md`](../ETHOS.md) — evidence layers.

@@ -1,49 +1,33 @@
-<p align="center">
-  <img src="assets/readme-banner.png" alt="llm-wiki" width="100%" />
-</p>
-
-<p align="center">
-  <a href="https://github.com/SkinnnyJay/wiki-llm" title="Repository on GitHub"><img src="https://img.shields.io/badge/GitHub-repo-181717?logo=github&logoColor=white" alt="GitHub repo"/></a>
-  &nbsp;
-  <a href="https://github.com/SkinnnyJay/wiki-llm#install-claude-code" title="Install the plugin in Claude Code"><img src="https://img.shields.io/badge/Claude%20Code-plugin-D4A574?logo=anthropic&logoColor=white" alt="Claude Code plugin"/></a>
-  &nbsp;
-  <a href="https://github.com/SkinnnyJay/wiki-llm/blob/main/AGENTS.md" title="AGENTS.md for Cursor and Codex"><img src="https://img.shields.io/badge/Cursor-rules%20%2B%20plugin-000000?logo=cursor&logoColor=white" alt="Cursor rules"/></a>
-</p>
-
-
 # CLI (`llm-wiki`)
 
-**When to use this doc:** Prefer **Claude Code** (**`/llm-wiki:…`**, skills) when you are in the editor. **Full slash command list** (names, summaries, prompt paths, CLI mapping): **[`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md)**. Prompt sources: [`commands/`](../commands/).
+Use the CLI for terminals, CI, and automation. For the first vault setup, use the [five-minute quickstart](./QUICKSTART.md).
 
-Use the **`llm-wiki`** CLI for **terminals, CI, and automation** — it mirrors the same vault operations without slash commands.
+## Entrypoint
 
----
+Run `bin/llm-wiki` from the plugin repo (or by absolute path from any directory), or run `python3 scripts/llm_wiki.py` from the repository root. Do not use a relative `PYTHONPATH=scripts`; the entrypoint sets its import path itself.
 
-## Claude Code → CLI (quick map)
+Use `llm-wiki --help` and `llm-wiki <command> --help` for flags.
 
-| In Claude Code | CLI (terminal) |
-|----------------|----------------|
-| `/llm-wiki:setup` | `llm-wiki setup …` |
-| `/llm-wiki:ingest` | `llm-wiki ingest …` |
-| `/llm-wiki:configure` | `llm-wiki configure -i` (or edit `config.json`) |
-| `/llm-wiki:status` | `llm-wiki integrations status`, `llm-wiki check`, etc. |
-| `/llm-wiki:memory` | `llm-wiki memory …` (when `memory.enabled`) |
-| `/llm-wiki:mcp` | `llm-wiki mcp …` |
+## Commands
 
-Skills (**wiki-ingest**, **wiki-research**, …) are **chat workflows**; there is not always a one-shot CLI equivalent — see [`WORKFLOWS.md`](../WORKFLOWS.md).
+| Area | Commands |
+|---|---|
+| Vault lifecycle | `setup`, `configure`, `validate`, `check`, `teardown`, `wake-up`, `list-topics` |
+| Content | `ingest`, `raw validate`, `raw record`, `raw finish`, `raw rebuild-index`, `security scan` |
+| Viewer and graphs | `build-site` (`build-og` alias), `graph`, `graph-knowledge` |
+| Agent integration | `mcp` (including `install` and `start`), `memory save\|log\|list\|show\|recall\|prune` |
+| Knowledge and retrieval | `kg add\|query\|invalidate\|timeline\|stats\|rebuild`, `benchmark`, `metrics` |
+| Operations | `git`, `integrations`, `deps`, `research-loop` |
+| Plugin maintenance | `sync-agent-docs`, `smoke-test`, `test-report` |
 
----
+`memory` is available when `memory.enabled` is set in the vault configuration. `mcp` starts stdio JSON-RPC by default and supports HTTP with `--transport sse`; see [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md).
 
-## Entrypoint and subcommands
+## `doctor` and `onboard`
 
-Run **`bin/llm-wiki`** from the plugin repo (any cwd if you use the absolute path) or **`python3 scripts/llm_wiki.py`** **from the repository root**. Do **not** rely on `PYTHONPATH=scripts` with a relative path (Python 3.14+ can break); the script adds `scripts/` to `sys.path` itself.
+The current CLI does not implement `doctor` or `onboard`. Use `check` for fast vault or plugin sanity checks, and `setup` for first-time vault scaffolding.
 
-**Common subcommands:** **`setup`**, **`ingest`**, **`validate`**, **`build-site`**, **`configure`** (`-i` interactive), **`raw validate` / `raw finish`**, **`memory …`** (when enabled), **`mcp`**, **`benchmark …`**, **`check`**, **`sync-agent-docs`**. Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags.
+## Related docs
 
-**Happy paths:** [`QUICKSTART.md`](./QUICKSTART.md), [`WORKFLOWS.md`](../WORKFLOWS.md). **Where commands live in code:** [`WORKFLOWS.md`](../WORKFLOWS.md) “CLI source layout”.
-
----
-
-## Bash / shell
-
-For multi-line scripts and **`./bin/llm-wiki`**, see [`INSTALL.md`](./INSTALL.md) § Bash / shell and [`QUICKSTART.md`](./QUICKSTART.md) § Bash / shell. After **`build-site`** / **`build-og`**, local preview is **`llm-wiki build-og --serve`** or **`--serve-background`**; stop the background server with **`--stop-serving`**. Or use **`./scripts/serve-viewer.sh`** — not plain **`file://`**.
+- [`QUICKSTART.md`](./QUICKSTART.md) — first commands.
+- [`WORKFLOWS.md`](../WORKFLOWS.md) — end-to-end flows and troubleshooting.
+- [`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md) — Claude Code command mapping.

@@ -38,6 +38,15 @@ class KGBackend(Protocol):
     def rebuild(self, vault: Path) -> dict[str, Any]: ...
 
 
+def rebuild_knowledge_graph(
+    vault: Path, cfg: dict[str, Any], *, backend: KGBackend | None = None
+) -> dict[str, Any]:
+    """Rebuild the configured graph, returning a disabled marker when unavailable."""
+    if not (cfg.get("knowledge_graph") or {}).get("enabled", True):
+        return {"disabled": True}
+    return (backend or get_kg_backend(vault, cfg)).rebuild(vault)
+
+
 # ---------------------------------------------------------------------------
 # JSON file KG (default — zero deps)
 # ---------------------------------------------------------------------------
@@ -52,24 +61,30 @@ def _kg_path(vault: Path, cfg: dict[str, Any] | None = None) -> Path:
 
 
 def _load_kg(path: Path) -> dict[str, Any]:
+    from lib.json_index import CorruptIndexError, load_json_object
+
     if not path.exists():
         return {"entities": {}, "triples": []}
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if "entities" not in data:
-            data["entities"] = {}
-        if "triples" not in data:
-            data["triples"] = []
-        return data
-    except Exception:
-        return {"entities": {}, "triples": []}
+        data = load_json_object(path, default_if_missing={"entities": {}, "triples": []})
+    except CorruptIndexError:
+        raise
+    if "entities" not in data:
+        data["entities"] = {}
+    if "triples" not in data:
+        data["triples"] = []
+    if not isinstance(data["entities"], dict) or not isinstance(data["triples"], list):
+        from lib.json_index import quarantine_corrupt, CorruptIndexError as CIE
+
+        quarantine_corrupt(path, ValueError("invalid kg shape"))
+        raise CIE(path, "invalid kg shape")
+    return data
 
 
 def _save_kg(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data, indent=2, sort_keys=False, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    from lib.json_index import atomic_write_json
+
+    atomic_write_json(path, data)
 
 
 def _triple_id(s: str, p: str, o: str) -> str:
@@ -83,42 +98,46 @@ def _today() -> str:
 
 class JSONFileKG:
     def __init__(self, vault: Path, cfg: dict[str, Any] | None = None):
+        import threading
+
         self._vault = vault
         self._cfg = cfg or {}
         self._path = _kg_path(vault, self._cfg)
         self._metrics: Any = None
+        self._lock = threading.RLock()
 
     def add_triple(
         self, subject: str, predicate: str, object_: str,
         *, valid_from: str | None = None, source: str | None = None,
     ) -> str:
-        data = _load_kg(self._path)
-        tid = _triple_id(subject, predicate, object_)
+        with self._lock:
+            data = _load_kg(self._path)
+            tid = _triple_id(subject, predicate, object_)
 
-        for t in data["triples"]:
-            if t.get("id") == tid and not t.get("valid_until"):
-                return tid
+            for t in data["triples"]:
+                if t.get("id") == tid and not t.get("valid_until"):
+                    return tid
 
-        triple: dict[str, Any] = {
-            "id": tid,
-            "s": subject,
-            "p": predicate,
-            "o": object_,
-            "valid_from": valid_from or _today(),
-        }
-        if source:
-            triple["source"] = source
+            triple: dict[str, Any] = {
+                "id": tid,
+                "s": subject,
+                "p": predicate,
+                "o": object_,
+                "valid_from": valid_from or _today(),
+            }
+            if source:
+                triple["source"] = source
 
-        data["triples"].append(triple)
+            data["triples"].append(triple)
 
-        for entity in (subject, object_):
-            if entity not in data["entities"]:
-                data["entities"][entity] = {"first_seen": valid_from or _today()}
+            for entity in (subject, object_):
+                if entity not in data["entities"]:
+                    data["entities"][entity] = {"first_seen": valid_from or _today()}
 
-        _save_kg(self._path, data)
-        if self._metrics:
-            self._metrics.record("kg.add_triple", 1, meta={"subject": subject, "predicate": predicate})
-        return tid
+            _save_kg(self._path, data)
+            if self._metrics:
+                self._metrics.record("kg.add_triple", 1, meta={"subject": subject, "predicate": predicate})
+            return tid
 
     def query_entity(self, entity: str, *, as_of: str | None = None) -> list[dict[str, Any]]:
         t0 = time.monotonic()
@@ -146,16 +165,17 @@ class JSONFileKG:
         self, subject: str, predicate: str, object_: str,
         *, ended: str | None = None,
     ) -> bool:
-        data = _load_kg(self._path)
-        tid = _triple_id(subject, predicate, object_)
-        found = False
-        for t in data["triples"]:
-            if t.get("id") == tid and not t.get("valid_until"):
-                t["valid_until"] = ended or _today()
-                found = True
-        if found:
-            _save_kg(self._path, data)
-        return found
+        with self._lock:
+            data = _load_kg(self._path)
+            tid = _triple_id(subject, predicate, object_)
+            found = False
+            for t in data["triples"]:
+                if t.get("id") == tid and not t.get("valid_until"):
+                    t["valid_until"] = ended or _today()
+                    found = True
+            if found:
+                _save_kg(self._path, data)
+            return found
 
     def timeline(self, entity: str | None = None) -> list[dict[str, Any]]:
         data = _load_kg(self._path)
@@ -185,64 +205,65 @@ class JSONFileKG:
         """Rebuild KG from vault files: extract entities from wikilinks + frontmatter tags."""
         from lib.search import _walk_vault_md, _parse_frontmatter, _tags_for_file
 
-        data = _load_kg(self._path)
-        added = 0
+        with self._lock:
+            data = _load_kg(self._path)
+            added = 0
 
-        existing_ids = {t["id"] for t in data["triples"]}
+            existing_ids = {t["id"] for t in data["triples"]}
 
-        wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
+            wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
-        for rel, text in _walk_vault_md(vault):
-            fm, body = _parse_frontmatter(text)
-            tags = _tags_for_file(fm)
-            page_name = Path(rel).stem
+            for rel, text in _walk_vault_md(vault):
+                fm, body = _parse_frontmatter(text)
+                tags = _tags_for_file(fm)
+                page_name = Path(rel).stem
 
-            for tag in tags:
-                tid = _triple_id(page_name, "tagged", tag)
-                if tid not in existing_ids:
-                    data["triples"].append({
-                        "id": tid, "s": page_name, "p": "tagged", "o": tag,
-                        "valid_from": _today(), "source": rel,
-                    })
-                    existing_ids.add(tid)
-                    added += 1
-                for entity in (page_name, tag):
-                    if entity not in data["entities"]:
-                        data["entities"][entity] = {"first_seen": _today()}
-
-            for m in wikilink_re.finditer(body):
-                target = m.group(1).strip()
-                tid = _triple_id(page_name, "links_to", target)
-                if tid not in existing_ids:
-                    data["triples"].append({
-                        "id": tid, "s": page_name, "p": "links_to", "o": target,
-                        "valid_from": _today(), "source": rel,
-                    })
-                    existing_ids.add(tid)
-                    added += 1
-                for entity in (page_name, target):
-                    if entity not in data["entities"]:
-                        data["entities"][entity] = {"first_seen": _today()}
-
-            kg_cfg = (self._cfg.get("knowledge_graph") or {}) if self._cfg else {}
-            if kg_cfg.get("entity_detection", True):
-                from lib.entity_detector import extract_entities
-
-                for ent in extract_entities(body, cfg=self._cfg or {}):
-                    tid = _triple_id(page_name, "mentions", ent)
+                for tag in tags:
+                    tid = _triple_id(page_name, "tagged", tag)
                     if tid not in existing_ids:
                         data["triples"].append({
-                            "id": tid, "s": page_name, "p": "mentions", "o": ent,
+                            "id": tid, "s": page_name, "p": "tagged", "o": tag,
                             "valid_from": _today(), "source": rel,
                         })
                         existing_ids.add(tid)
                         added += 1
-                    for e2 in (page_name, ent):
-                        if e2 not in data["entities"]:
-                            data["entities"][e2] = {"first_seen": _today()}
+                    for entity in (page_name, tag):
+                        if entity not in data["entities"]:
+                            data["entities"][entity] = {"first_seen": _today()}
 
-        _save_kg(self._path, data)
-        return {"added": added, "total_triples": len(data["triples"]), "entities": len(data["entities"])}
+                for m in wikilink_re.finditer(body):
+                    target = m.group(1).strip()
+                    tid = _triple_id(page_name, "links_to", target)
+                    if tid not in existing_ids:
+                        data["triples"].append({
+                            "id": tid, "s": page_name, "p": "links_to", "o": target,
+                            "valid_from": _today(), "source": rel,
+                        })
+                        existing_ids.add(tid)
+                        added += 1
+                    for entity in (page_name, target):
+                        if entity not in data["entities"]:
+                            data["entities"][entity] = {"first_seen": _today()}
+
+                kg_cfg = (self._cfg.get("knowledge_graph") or {}) if self._cfg else {}
+                if kg_cfg.get("entity_detection", True):
+                    from lib.entity_detector import extract_entities
+
+                    for ent in extract_entities(body, cfg=self._cfg or {}):
+                        tid = _triple_id(page_name, "mentions", ent)
+                        if tid not in existing_ids:
+                            data["triples"].append({
+                                "id": tid, "s": page_name, "p": "mentions", "o": ent,
+                                "valid_from": _today(), "source": rel,
+                            })
+                            existing_ids.add(tid)
+                            added += 1
+                        for e2 in (page_name, ent):
+                            if e2 not in data["entities"]:
+                                data["entities"][e2] = {"first_seen": _today()}
+
+            _save_kg(self._path, data)
+            return {"added": added, "total_triples": len(data["triples"]), "entities": len(data["entities"])}
 
     def _all_triples(self) -> list[dict[str, Any]]:
         data = _load_kg(self._path)

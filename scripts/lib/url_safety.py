@@ -3,8 +3,22 @@
 from __future__ import annotations
 
 import ipaddress
+import logging
 import socket
-from urllib.parse import urlparse
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlparse
+from urllib.request import HTTPErrorProcessor, HTTPHandler, HTTPSHandler, Request, build_opener
+
+from lib.http_defaults import DEFAULT_TIMEOUT_S, USER_AGENT
+
+_log = logging.getLogger("llm_wiki.url_safety")
+
+# Default fetch limits (overridable by callers).
+DEFAULT_FETCH_TIMEOUT_S = DEFAULT_TIMEOUT_S
+DEFAULT_MAX_REDIRECTS = 5
+DEFAULT_MAX_BYTES = 32 * 1024 * 1024
+DEFAULT_USER_AGENT = USER_AGENT
 
 
 def validate_public_http_url(url: str, *, context: str = "URL") -> str:
@@ -127,3 +141,81 @@ def validate_https_api_host(
     if port and port not in (80, 443):
         return f"{scheme}://{host}:{port}"
     return f"{scheme}://{host}"
+
+
+class _NoRedirect(HTTPErrorProcessor):
+    """Return 3xx responses to the caller instead of following them."""
+
+    def http_response(self, request: Any, response: Any) -> Any:  # noqa: ANN401
+        return response
+
+    https_response = http_response
+
+
+def safe_fetch(
+    url: str,
+    *,
+    context: str = "URL",
+    timeout: float = DEFAULT_FETCH_TIMEOUT_S,
+    max_redirects: int = DEFAULT_MAX_REDIRECTS,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    user_agent: str = DEFAULT_USER_AGENT,
+    headers: dict[str, str] | None = None,
+) -> tuple[bytes, str, str]:
+    """
+    Fetch ``url`` with SSRF checks on the initial URL and every redirect hop.
+
+    Does not follow redirects automatically: each Location is re-validated.
+    Returns ``(body_bytes, final_url, content_type)``.
+    Raises SystemExit on policy violations; URLError/HTTPError may propagate.
+    """
+    current = validate_public_http_url(url, context=context)
+    hdrs = {"User-Agent": user_agent}
+    if headers:
+        hdrs.update(headers)
+
+    opener = build_opener(HTTPHandler(), HTTPSHandler(), _NoRedirect())
+
+    for hop in range(max_redirects + 1):
+        req = Request(current, headers=hdrs, method="GET")
+        try:
+            with opener.open(req, timeout=timeout) as resp:
+                status = getattr(resp, "status", None) or resp.getcode()
+                if status in (301, 302, 303, 307, 308):
+                    loc = resp.headers.get("Location")
+                    if not loc:
+                        raise SystemExit(f"{context}: redirect without Location")
+                    nxt = urljoin(current, loc)
+                    _log.info("safe_fetch redirect hop=%s from=%r to=%r", hop, current, nxt)
+                    current = validate_public_http_url(nxt, context=f"{context} (redirect)")
+                    continue
+                if status and int(status) >= 400:
+                    raise HTTPError(current, int(status), getattr(resp, "reason", ""), resp.headers, resp)
+                chunks: list[bytes] = []
+                total = 0
+                while True:
+                    block = resp.read(64 * 1024)
+                    if not block:
+                        break
+                    total += len(block)
+                    if total > max_bytes:
+                        raise SystemExit(
+                            f"{context}: response exceeds max_bytes={max_bytes}"
+                        )
+                    chunks.append(block)
+                body = b"".join(chunks)
+                ct = resp.headers.get("Content-Type", "") or ""
+                return body, current, ct
+        except HTTPError as e:
+            if e.code in (301, 302, 303, 307, 308):
+                loc = e.headers.get("Location") if e.headers else None
+                if not loc:
+                    raise SystemExit(f"{context}: redirect without Location") from e
+                nxt = urljoin(current, loc)
+                current = validate_public_http_url(nxt, context=f"{context} (redirect)")
+                continue
+            raise
+        except URLError:
+            raise
+
+    raise SystemExit(f"{context}: too many redirects (max {max_redirects})")

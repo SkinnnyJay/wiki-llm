@@ -160,6 +160,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     blocked = cli_exit_if_mcp_disabled(cfg)
     if blocked is not None:
         return blocked
+    os.environ["LLM_WIKI_VAULT"] = str(vault.resolve())
     transport = getattr(args, "mcp_transport", None) or (cfg.get("mcp") or {}).get(
         "transport", "stdio"
     )
@@ -180,24 +181,47 @@ def cmd_mcp(args: argparse.Namespace) -> int:
 
 def _mcp_install(args: argparse.Namespace) -> int:
     """Write MCP config so Claude Code / Cursor can discover the server."""
-    import json as _json
+
     server_path = str((plugin_root() / "scripts" / "mcp_server.py").resolve())
     vault_arg = getattr(args, "vault", None)
     entry: dict = {"command": "python3", "args": [server_path]}
     if vault_arg:
         entry["args"].extend(["--vault", str(Path(vault_arg).resolve())])
 
+    project = getattr(args, "project", None)
+    force = getattr(args, "force", False)
+    if project and not force:
+        print("--project requires --force to avoid modifying an unintended Cursor project.", file=sys.stderr)
+        return 2
+    cursor_root = Path(project).resolve() if project else plugin_root()
+    if not cursor_root.is_dir():
+        print(f"Cursor project directory does not exist: {cursor_root}", file=sys.stderr)
+        return 2
+    cursor_cfg = cursor_root / ".cursor" / "mcp.json"
+    cursor_data: dict = {}
+    if cursor_cfg.exists():
+        try:
+            cursor_data = json.loads(cursor_cfg.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"Refusing to replace invalid Cursor MCP config {cursor_cfg}: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(cursor_data, dict):
+            print(f"Refusing to replace non-object Cursor MCP config: {cursor_cfg}", file=sys.stderr)
+            return 2
+        if (cursor_data.get("mcpServers") or {}).get("llm-wiki") and not force:
+            print(f"{cursor_cfg} already has an llm-wiki entry; rerun with --force to replace it.", file=sys.stderr)
+            return 2
+    cursor_data.setdefault("mcpServers", {})["llm-wiki"] = entry
+    cursor_cfg.parent.mkdir(parents=True, exist_ok=True)
+    cursor_cfg.write_text(json.dumps(cursor_data, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {cursor_cfg}")
+
     claude_cfg = Path.home() / ".claude" / "claude_desktop_config.json"
     if claude_cfg.parent.exists():
         existing = {}
         if claude_cfg.exists():
-            existing = _json.loads(claude_cfg.read_text(encoding="utf-8"))
+            existing = json.loads(claude_cfg.read_text(encoding="utf-8"))
         existing.setdefault("mcpServers", {})["llm-wiki"] = entry
-        claude_cfg.write_text(_json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+        claude_cfg.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote {claude_cfg}")
-
-    cursor_cfg = Path.cwd() / "mcp.json"
-    data = {"mcpServers": {"llm-wiki": entry}}
-    cursor_cfg.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {cursor_cfg}")
     return 0

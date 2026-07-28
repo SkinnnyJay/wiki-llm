@@ -1,0 +1,33 @@
+name: skill evals
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Explain skipped credentialed evaluation
+        if: ${{ secrets.ANTHROPIC_API_KEY == '' }}
+        run: 'echo "Skipping Claude skill evals: ANTHROPIC_API_KEY is not configured."'
+      - name: Install skill-eval dependencies
+        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          python -m pip install -r requirements-dev.txt
+          npm install --global @anthropic-ai/claude-code
+      - name: Run Claude skill evals
+        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: python -m pytest tests/test_skill_evals.py -v
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV: "1"
+          PYTHONPATH: ${{ github.workspace }}/scripts

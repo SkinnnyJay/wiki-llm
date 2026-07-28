@@ -24,11 +24,14 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib.config_loader import load_config, save_config, storage_warnings
+from lib.config_types import McpConfig, mcp_config
+from lib.doctor import doctor_report
 from lib.mcp_cli import MCP_DISABLED_MESSAGE, mcp_enabled
 from lib.paths import resolve_vault, plugin_root
 from lib.search import get_search_backend
 from lib.knowledge_graph import get_kg_backend
 from lib.metrics import get_metrics
+from lib.version import __version__
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +40,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("llm_wiki_mcp")
 
-__version__ = "0.2.0"
+# Advertise the current stable protocol while retaining the prior version for
+# clients that only negotiate that revision. Do not advertise unreleased dates.
+MCP_PROTOCOL_VERSION = "2025-11-25"
+MCP_LEGACY_PROTOCOL_VERSION = "2024-11-05"
+MCP_SUPPORTED_PROTOCOL_VERSIONS = frozenset(
+    {MCP_PROTOCOL_VERSION, MCP_LEGACY_PROTOCOL_VERSION}
+)
 
 # Reject absurdly large JSON-RPC lines (DoS / accidental paste) — stdio transport.
 _MAX_JSON_RPC_LINE_BYTES = 32 * 1024 * 1024
@@ -45,13 +54,13 @@ _MAX_JSON_RPC_LINE_BYTES = 32 * 1024 * 1024
 
 def _mcp_log_extra(
     *,
-    request_id: Any = None,
+    request_id: str | int | float | None = None,
     method: str | None = None,
     tool: str | None = None,
-    cancelled_request_id: Any = None,
-) -> dict[str, Any]:
+    cancelled_request_id: str | int | float | None = None,
+) -> dict[str, str | int | float]:
     """Keyword fields merged into LogRecord (for aggregators); keys avoid LogRecord builtins."""
-    d: dict[str, Any] = {}
+    d: dict[str, str | int | float] = {}
     if request_id is not None:
         d["mcp_request_id"] = request_id
     if method:
@@ -63,7 +72,7 @@ def _mcp_log_extra(
     return d
 
 
-def _mcp_log_line(msg: str, **fields: Any) -> str:
+def _mcp_log_line(msg: str, **fields: object) -> str:
     """Human-readable suffix with key=value pairs for stderr (works without custom formatters)."""
     tail = " ".join(f"{k}={v!r}" for k, v in fields.items() if v is not None)
     return f"{msg} | {tail}" if tail else msg
@@ -78,17 +87,53 @@ def _parse_args() -> argparse.Namespace:
     args, _ = p.parse_known_args()
     return args
 
-_args = _parse_args()
-_vault = resolve_vault(override=_args.vault)
-_cfg = load_config(_vault)
-if not mcp_enabled(_cfg):
-    logger.error(MCP_DISABLED_MESSAGE)
-    sys.exit(1)
-_metrics = get_metrics(_vault, _cfg)
-_search = get_search_backend(_vault, _cfg)
-_search._metrics = _metrics  # type: ignore[attr-defined]
-_kg = get_kg_backend(_vault, _cfg)
-_kg._metrics = _metrics  # type: ignore[attr-defined]
+_vault: Path | None = None
+_cfg: dict[str, Any] = {}
+_metrics: Any = None
+_search: Any = None
+_kg: Any = None
+
+
+def initialize(
+    vault: Path | None = None, *, require_enabled: bool = False
+) -> bool:
+    """Initialize vault-backed services on first use.
+
+    Importing this module is intentionally side-effect free so library consumers
+    can inspect or reuse the MCP protocol even when ``mcp.enabled`` is false.
+    Entry points pass ``require_enabled=True`` and retain the historical
+    non-zero exit behavior.
+    """
+    global _vault, _cfg, _metrics, _search, _kg
+    if _vault is not None and (vault is None or _vault.resolve() == vault.resolve()):
+        return mcp_enabled(_cfg)
+
+    args = _parse_args() if vault is None else None
+    _vault = resolve_vault(override=args.vault if args is not None else vault)
+    os.environ["LLM_WIKI_VAULT"] = str(_vault.resolve())
+    _cfg = load_config(_vault)
+    if not mcp_enabled(_cfg):
+        return False
+    _metrics = get_metrics(_vault, _cfg)
+    _search = get_search_backend(_vault, _cfg)
+    _search._metrics = _metrics  # type: ignore[attr-defined]
+    _kg = get_kg_backend(_vault, _cfg)
+    _kg._metrics = _metrics  # type: ignore[attr-defined]
+    return True
+
+
+def set_metrics(metrics: Any) -> None:
+    """Replace the active metrics recorder (primarily for embedding and tests)."""
+    global _metrics
+    _metrics = metrics
+    if _search is not None:
+        _search._metrics = metrics  # type: ignore[attr-defined]
+    if _kg is not None:
+        _kg._metrics = metrics  # type: ignore[attr-defined]
+
+import threading
+
+_state_lock = threading.RLock()
 
 
 def _no_vault() -> dict[str, Any]:
@@ -96,11 +141,11 @@ def _no_vault() -> dict[str, Any]:
 
 
 def _vault_ok() -> bool:
-    return (_vault / "config.json").is_file()
+    return _vault is not None and (_vault / "config.json").is_file()
 
 
-def _mcp_cfg() -> dict[str, Any]:
-    return _cfg.get("mcp") or {}
+def _mcp_cfg() -> McpConfig:
+    return mcp_config(_cfg)
 
 
 # Cache for tool_wiki_status markdown file counts (mtime + TTL)
@@ -143,8 +188,21 @@ def _cached_md_counts() -> tuple[int, int]:
 
 
 def _configure_key_allowed(key: str, rules: list[Any]) -> bool:
+    """
+    Allowlist for wiki_configure.
+
+    Empty allowlist: allow ordinary keys, but deny mcp.* / security.* /
+    ingestion_security.* (fail closed for trust knobs).
+    Non-empty: only listed keys / prefixes (suffix '.').
+    """
+    key = (key or "").strip()
+    sensitive_prefixes = ("mcp.", "security.", "ingestion_security.")
+    sensitive_exact = {"mcp", "security", "ingestion_security"}
+    is_sensitive = key in sensitive_exact or any(
+        key.startswith(p) for p in sensitive_prefixes
+    )
     if not rules:
-        return True
+        return not is_sensitive
     for r in rules:
         if not isinstance(r, str):
             continue
@@ -157,6 +215,18 @@ def _configure_key_allowed(key: str, rules: list[Any]) -> bool:
         elif key == r:
             return True
     return False
+
+
+_CONFIGURE_RESTART_KEYS = frozenset(
+    {
+        "mcp.enabled",
+        "mcp.transport",
+        "mcp.port",
+        "mcp.host",
+        "mcp.sse_token",
+        "mcp.sse_require_loopback",
+    }
+)
 
 
 # ============================================================================
@@ -201,6 +271,11 @@ def tool_wiki_status() -> dict[str, Any]:
     return out
 
 
+def tool_wiki_doctor() -> dict[str, Any]:
+    """Run the same non-mutating checks as ``llm-wiki doctor``."""
+    return doctor_report(_vault)
+
+
 def tool_wiki_list_topics() -> dict[str, Any]:
     """Tag index with wiki coverage markers."""
     if not _vault_ok():
@@ -237,10 +312,10 @@ def tool_wiki_read_page(path: str, max_chars: int = 0) -> dict[str, Any]:
     """Read markdown + frontmatter from a wiki/ or raw/ file."""
     if not _vault_ok():
         return _no_vault()
-    full = (_vault / path).resolve()
-    try:
-        full.relative_to(_vault.resolve())
-    except ValueError:
+    from lib.path_safety import resolve_under_vault
+
+    full = resolve_under_vault(_vault, path)
+    if full is None:
         return {"error": "Path escapes vault"}
     if not full.is_file():
         return {"error": f"File not found: {path}"}
@@ -353,9 +428,12 @@ def tool_wiki_check_duplicate(content: str = "", path: str = "") -> dict[str, An
     if not _vault_ok():
         return _no_vault()
     from ingest.dedup import check_duplicate, content_hash, strip_llm_wiki_keys
+    from lib.path_safety import resolve_under_vault
 
     if path:
-        p = (_vault / path).resolve()
+        p = resolve_under_vault(_vault, path)
+        if p is None:
+            return {"error": "Path escapes vault"}
         if not p.is_file():
             return {"error": f"not a file: {path}"}
         text = p.read_text(encoding="utf-8", errors="replace")
@@ -440,6 +518,11 @@ def tool_wiki_ingest(
         return _no_vault()
     if not bool(_mcp_cfg().get("ingest_enabled", True)):
         return {"skipped": True, "reason": "mcp.ingest_enabled is false"}
+    if force_security and not bool(_mcp_cfg().get("allow_force_security", False)):
+        return {
+            "success": False,
+            "error": "force_security requires mcp.allow_force_security=true",
+        }
     from ingest.registry import adapter_map, run_ingest
     from lib.ingest_finish import post_ingest
 
@@ -481,6 +564,12 @@ def tool_wiki_raw_validate(path: str, autofix: bool = False) -> dict[str, Any]:
     """Validate a raw/ file (optional deterministic autofix, same as CLI)."""
     if not _vault_ok():
         return _no_vault()
+    mode = str((_mcp_cfg().get("tools_mode") or "full")).strip().lower()
+    if autofix and mode == "read_only":
+        return {
+            "error": "autofix is not allowed when mcp.tools_mode is read_only",
+            "hint": "Call without autofix, or use tools_mode full",
+        }
     from lib.raw_validate import validate_raw_file_result
 
     r = validate_raw_file_result(_vault, _cfg, path, autofix=autofix)
@@ -574,11 +663,36 @@ def tool_wiki_graph_build(mode: str = "links", out: str = "") -> dict[str, Any]:
     if not _vault_ok():
         return _no_vault()
     from lib.graphgen import build_graph_bundle
+    from lib.path_safety import resolve_under
 
-    out_dir = Path(out).resolve() if (out or "").strip() else (Path.cwd() / ".tmp" / "llm-wiki-graph").resolve()
     m = str(mode).lower().strip()
     if m not in ("links", "knowledge"):
         return {"success": False, "error": 'mode must be "links" or "knowledge"'}
+    # Allow writes only under vault/.tmp or plugin/.tmp (never arbitrary paths).
+    default_out = (_vault / ".tmp" / "llm-wiki-graph").resolve()
+    if (out or "").strip():
+        candidate = Path(out)
+        out_dir = None
+        for root in (_vault.resolve(), plugin_root().resolve()):
+            if candidate.is_absolute():
+                try:
+                    candidate.resolve().relative_to(root / ".tmp")
+                    out_dir = candidate.resolve()
+                    break
+                except ValueError:
+                    continue
+            else:
+                under = resolve_under(root / ".tmp", candidate)
+                if under is not None:
+                    out_dir = under
+                    break
+        if out_dir is None:
+            return {
+                "success": False,
+                "error": "out must be under vault/.tmp or plugin/.tmp",
+            }
+    else:
+        out_dir = default_out
     try:
         path = build_graph_bundle(_vault, _cfg, out_dir, m)
         return {
@@ -594,25 +708,53 @@ def tool_wiki_graph_build(mode: str = "links", out: str = "") -> dict[str, Any]:
 
 def tool_wiki_configure(key: str, value: str) -> dict[str, Any]:
     """Update a config.json key (dot-separated path, e.g. 'mcp.search_backend')."""
+    global _cfg, _search, _kg, _metrics
     if not _vault_ok():
         return _no_vault()
     rules = _mcp_cfg().get("configure_allowlist") or []
-    if isinstance(rules, list) and rules and not _configure_key_allowed(key, rules):
-        return {"success": False, "error": "Key not allowed by mcp.configure_allowlist", "key": key}
-    cfg = load_config(_vault)
-    parts = key.split(".")
-    target = cfg
-    for part in parts[:-1]:
-        if part not in target or not isinstance(target[part], dict):
-            target[part] = {}
-        target = target[part]
-    try:
-        parsed = json.loads(value)
-    except (json.JSONDecodeError, ValueError):
-        parsed = value
-    target[parts[-1]] = parsed
-    save_config(_vault, cfg)
-    return {"success": True, "key": key, "value": parsed}
+    if not isinstance(rules, list):
+        rules = []
+    if not _configure_key_allowed(key, rules):
+        return {
+            "success": False,
+            "error": "Key not allowed by mcp.configure_allowlist (empty allowlist denies mcp.*/security.*)",
+            "key": key,
+        }
+    with _state_lock:
+        cfg = load_config(_vault)
+        parts = key.split(".")
+        target = cfg
+        for part in parts[:-1]:
+            if part not in target or not isinstance(target[part], dict):
+                target[part] = {}
+            target = target[part]
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            parsed = value
+        target[parts[-1]] = parsed
+        save_config(_vault, cfg)
+        # Hot-reload in-process config so subsequent tools see the change.
+        _cfg = load_config(_vault)
+        restart_required = key in _CONFIGURE_RESTART_KEYS or key.startswith("mcp.sse_")
+        # Refresh search/KG backends when relevant knobs change.
+        if key.startswith("mcp.search") or key.startswith("knowledge_graph.") or key == "knowledge_graph":
+            _metrics = get_metrics(_vault, _cfg)
+            _search = get_search_backend(_vault, _cfg)
+            _search._metrics = _metrics  # type: ignore[attr-defined]
+            _kg = get_kg_backend(_vault, _cfg)
+            _kg._metrics = _metrics  # type: ignore[attr-defined]
+        return {
+            "success": True,
+            "key": key,
+            "value": parsed,
+            "restart_required": restart_required,
+            "hint": (
+                "Restart the MCP process for transport/port/token changes to take effect"
+                if restart_required
+                else None
+            ),
+        }
 
 
 def tool_wiki_reindex() -> dict[str, Any]:
@@ -651,9 +793,9 @@ def tool_wiki_kg_invalidate(subject: str, predicate: str, object_: str, ended: s
 
 def tool_wiki_kg_rebuild() -> dict[str, Any]:
     """Rebuild knowledge graph from vault files (wikilinks + tags)."""
-    if not (_cfg.get("knowledge_graph") or {}).get("enabled", True):
-        return {"disabled": True}
-    return _kg.rebuild(_vault)
+    from lib.knowledge_graph import rebuild_knowledge_graph
+
+    return rebuild_knowledge_graph(_vault, _cfg, backend=_kg)
 
 
 def tool_memory_save(
@@ -940,6 +1082,11 @@ TOOLS: dict[str, dict[str, Any]] = {
         "description": "Vault overview: file counts, config, backend modes.",
         "input_schema": {"type": "object", "properties": {}},
         "handler": tool_wiki_status,
+    },
+    "wiki_doctor": {
+        "description": "Diagnose vault health (same report as `llm-wiki doctor`; does not apply fixes).",
+        "input_schema": {"type": "object", "properties": {}},
+        "handler": tool_wiki_doctor,
     },
     "wiki_list_topics": {
         "description": "Tag index with wiki coverage markers.",
@@ -1355,6 +1502,7 @@ READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
     {
         "wiki_wake_up",
         "wiki_status",
+        "wiki_doctor",
         "wiki_list_topics",
         "wiki_validate",
         "wiki_read_page",
@@ -1384,28 +1532,10 @@ READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
 def build_active_tools(
     cfg: dict[str, Any], registry: dict[str, dict[str, Any]]
 ) -> dict[str, dict[str, Any]]:
-    """Filter MCP tools per mcp.tools_mode, allowlist, benchmark, and ingest flags."""
-    mcp = cfg.get("mcp") or {}
-    out = {k: v for k, v in registry.items()}
-    if not bool(mcp.get("benchmark_tool_enabled", True)):
-        out.pop("wiki_benchmark_run", None)
-        out.pop("wiki_benchmark_suites", None)
-    if not bool(mcp.get("ingest_enabled", True)):
-        out.pop("wiki_ingest", None)
-    mode = (mcp.get("tools_mode") or "full").strip().lower()
-    allow = mcp.get("tools_allowlist") or []
-    if not isinstance(allow, list):
-        allow = []
-    if mode == "full":
-        return out
-    if mode == "read_only":
-        return {k: v for k, v in out.items() if k in READ_ONLY_TOOL_NAMES}
-    if mode == "custom":
-        if not allow:
-            return {k: v for k, v in out.items() if k in READ_ONLY_TOOL_NAMES}
-        allowed_set = {str(x) for x in allow}
-        return {k: v for k, v in out.items() if k in allowed_set}
-    return out
+    """Filter the registry according to MCP mode and feature gates."""
+    from mcp.registry import build_active_tools as _build_active_tools
+
+    return _build_active_tools(cfg, registry, READ_ONLY_TOOL_NAMES)
 
 
 def get_active_tools() -> dict[str, dict[str, Any]]:
@@ -1477,11 +1607,24 @@ def _maybe_truncate_json_text(text: str, max_chars: int) -> str:
     return text[:max_chars] + "\n... [truncated by mcp.max_response_chars]"
 
 
+def _negotiated_protocol_version(params: object) -> str:
+    """Use the client's supported legacy revision when it explicitly requests it."""
+    if isinstance(params, dict) and params.get("protocolVersion") == MCP_LEGACY_PROTOCOL_VERSION:
+        return MCP_LEGACY_PROTOCOL_VERSION
+    return MCP_PROTOCOL_VERSION
+
+
 # ============================================================================
 # MCP JSON-RPC PROTOCOL (stdio)
 # ============================================================================
 
 def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
+    if not initialize():
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {"code": -32000, "message": MCP_DISABLED_MESSAGE},
+        }
     method = request.get("method", "")
     params = request.get("params", {})
     req_id = request.get("id")
@@ -1491,7 +1634,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
             "jsonrpc": "2.0",
             "id": req_id,
             "result": {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": _negotiated_protocol_version(params),
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "llm-wiki", "version": __version__},
             },
@@ -1582,6 +1725,10 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def main() -> None:
+    if not initialize(require_enabled=True):
+        logger.error(MCP_DISABLED_MESSAGE)
+        raise SystemExit(1)
+    assert _vault is not None
     logger.info("llm-wiki MCP server starting (vault: %s)...", _vault)
     while True:
         request: dict[str, Any] | None = None

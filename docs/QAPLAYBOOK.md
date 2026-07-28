@@ -13,6 +13,8 @@
 
 # QA Playbook — wiki-llm
 
+> **Maintainer QA only — not user onboarding.** Use [`QUICKSTART.md`](./QUICKSTART.md) for first-time setup and [`WORKFLOWS.md`](../WORKFLOWS.md) for normal vault use.
+
 Manual test suite for verifying the full plugin flow before releases.
 Run through each section after significant changes; mark pass/fail in your notes.
 
@@ -241,7 +243,7 @@ Run through each section after significant changes; mark pass/fail in your notes
 | 11.1 | Build site | `bin/llm-wiki build-site` | `Built site → wiki/.og`; `wiki-data.json` and HTML assets exist |
 | 11.2 | Build site (viewer disabled) | Set `viewer.enabled: false` → `bin/llm-wiki build-site` | Prints skip message; returns `.og` path |
 | 11.3 | Build site if-stale | `bin/llm-wiki build-site --if-stale` (no changes) | `Site is up-to-date; skipping build.` |
-| 11.4 | Serve viewer | `cd llm-wiki/wiki/.og && python3 -m http.server 8890` → open browser | Page loads; file tree visible; D3 graph renders |
+| 11.4 | Serve viewer | `scripts/serve-viewer.sh --vault llm-wiki` → open browser at `http://127.0.0.1:8765/` | Page loads; file tree visible; D3 graph renders |
 | 11.5 | Client-side search | Type in search box (Cmd/Ctrl+K) | Filters file tree by title/path |
 | 11.6 | Markdown reader | Click a wiki page | Markdown rendered; frontmatter stripped; links work |
 | 11.7 | D3 force graph | Click graph tab/view | Nodes and edges render; drag, zoom, click-to-select work |
@@ -259,7 +261,7 @@ Run through each section after significant changes; mark pass/fail in your notes
 | 12.3 | Graph-knowledge alias | `bin/llm-wiki graph-knowledge` | Same as `graph --mode knowledge` |
 | 12.4 | Custom output dir | `bin/llm-wiki graph --out /tmp/test-graph` | Bundle at specified path |
 | 12.5 | Empty wiki | Remove all wiki files → `bin/llm-wiki graph` | Minimal/empty graph; no crash |
-| 12.6 | Serve graph | `python3 -m http.server 8890` in graph output dir → open browser | Interactive graph renders |
+| 12.6 | Serve graph | `scripts/serve-graph.sh --vault llm-wiki` → open browser at `http://127.0.0.1:8890/` | Interactive graph renders |
 
 ---
 

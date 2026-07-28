@@ -12,7 +12,8 @@ Expose vault tools to agents via the **Model Context Protocol**. Prefer **CLI** 
 llm-wiki mcp                              # stdio JSON-RPC (default for Claude/Cursor MCP)
 llm-wiki mcp --transport sse --port 8891   # HTTP: POST / or /mcp with JSON-RPC body
 llm-wiki mcp start                         # ensure HTTP listener is up (background if needed)
-llm-wiki mcp install                       # Write ~/.claude/claude_desktop_config.json + ./mcp.json
+llm-wiki mcp install                       # Write ~/.claude/… + plugin-root/.cursor/mcp.json
+llm-wiki mcp install --project . --force   # Register in an explicit Cursor project
 ```
 
 `mcp.enabled` must be **`true`** in **`llm-wiki/config.json`** or the server exits. Search backend: **`mcp.search_backend`** (`fts5` | `grep` | `chromadb` | `hybrid`). For **`hybrid`**, optional **`mcp.hybrid_rrf_k`** (default **60**) sets reciprocal-rank fusion; Chroma must be installed or search falls back to **fts5**. **`wiki_status`** also reports **`search_backend_fallback`** and optional **`storage_warnings`** when absolute **`storage.*`** paths point outside the vault. Knowledge graph: **`knowledge_graph.backend`** (`json` | `sqlite`). Full reference: **`skills/references/mcp-and-kg.md`**.

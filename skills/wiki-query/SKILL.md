@@ -1,6 +1,7 @@
 ---
 name: wiki-query
 description: Answers questions using llm-wiki/wiki pages with citations. Use when the user asks about vault content or synthesized knowledge.
+when_to_use: Use when a user asks for facts, summaries, or navigation from curated vault content; use wiki-research or wiki-fetch when new external evidence is needed.
 allowed-tools: Read Grep Glob Bash
 argument-hint: "<question about vault content>"
 ---

@@ -83,7 +83,7 @@ Opt-in suites (set to `1`, `true`, or `yes`):
 | **`RUN_MINIMAL_SKILL_EVALS`** | Shrinks skill evals to three core cases only |
 | **`RUN_RERANK_SMOKE`** | Optional rerank smoke tests (`tests/test_rerank_llm_smoke.py`) |
 
-Or use **`bin/llm-wiki smoke-test --network`**, **`--claude`**, **`--browser`** (sets the corresponding `RUN_*` vars). See [`docs/QAPLAYBOOK.md`](./QAPLAYBOOK.md) §25–27.
+Or use **`bin/llm-wiki smoke-test --network`**, **`--claude`**, **`--browser`** (sets the corresponding `RUN_*` vars).
 
 ---
 
@@ -145,6 +145,5 @@ Session files live under **`raw/memory/`** (see **`memory.dir`** in `llm-wiki/co
 ## See also
 
 - [`.env.example`](../.env.example) — copy-paste template
-- [`docs/QAPLAYBOOK.md`](./QAPLAYBOOK.md) — CI vs manual tiers
 - [`skills/references/preflight.md`](../skills/references/preflight.md) — integration preflight patterns
 - [`commands/integrations.md`](../commands/integrations.md) — `llm-wiki integrations`

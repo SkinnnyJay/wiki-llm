@@ -10,7 +10,7 @@ if [ "${LLM_WIKI_CLEANUP_NPX:-}" != "1" ]; then
   exit 0
 fi
 
-ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+ROOT="${CURSOR_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}"
 if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
   exit 0
 fi

@@ -105,6 +105,10 @@
     "enabled": true,
     "block_on_duplicate": false
   },
+  "ingestion": {
+    "max_download_bytes": 33554432,
+    "_comment_max_download_bytes": "Maximum response body accepted by the built-in URL ingest adapter (32 MiB)."
+  },
   "hooks": {
     "sound": {
       "enabled": false,
