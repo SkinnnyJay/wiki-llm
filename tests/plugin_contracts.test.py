@@ -135,3 +135,41 @@ def test_skill_directory_matches_frontmatter_name():
         name = fm.get("name", "")
         parent = path.parent.name
         assert name == parent, f"{path}: frontmatter name {name!r} != directory {parent!r}"
+
+
+# Core skills that must declare when_to_use (third-person routing hint).
+_WHEN_TO_USE_SKILLS = (
+    "wiki-query",
+    "wiki-ingest",
+    "wiki-fetch",
+    "wiki-research",
+    "wiki-status",
+    "wiki-onboard",
+)
+
+# Skills that must include a vault path preamble (LLM_WIKI_VAULT or section title).
+_VAULT_PREAMBLE_SKILLS = (
+    "wiki-setup",
+    "wiki-status",
+    "wiki-onboard",
+)
+
+
+def test_core_skills_have_when_to_use():
+    for sid in _WHEN_TO_USE_SKILLS:
+        path = REPO / "skills" / sid / "SKILL.md"
+        assert path.is_file(), f"missing skill {sid}"
+        text = path.read_text(encoding="utf-8", errors="replace")
+        fm, _ = _simple_frontmatter(text)
+        wtu = (fm.get("when_to_use") or "").strip()
+        assert wtu, f"{sid}: missing when_to_use in frontmatter"
+
+
+def test_setup_status_onboard_have_vault_path_preamble():
+    for sid in _VAULT_PREAMBLE_SKILLS:
+        path = REPO / "skills" / sid / "SKILL.md"
+        assert path.is_file(), f"missing skill {sid}"
+        text = path.read_text(encoding="utf-8", errors="replace")
+        assert "LLM_WIKI_VAULT" in text or "Vault path preamble" in text, (
+            f"{sid}: expected vault path preamble (LLM_WIKI_VAULT or 'Vault path preamble')"
+        )
