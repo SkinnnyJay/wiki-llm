@@ -1,11 +1,15 @@
 import { acpxPermissionFlags, getWorkspaceDir } from "@/lib/acpx";
 import { tryLoadSystemPrompt } from "@/lib/system-prompt";
 import { resolveVaultPath, vaultExistsAt } from "@/lib/vault-path";
+import { requireWebToken } from "@/lib/web-auth";
 import { computeWikiPreflight, preflightForClient } from "@/lib/wiki-preflight";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const authError = requireWebToken(req);
+  if (authError) return authError;
+
   const workspacePath = getWorkspaceDir();
   const displayName = workspacePath.split(/[/\\]/).filter(Boolean).pop() ?? workspacePath;
   const vaultPath = resolveVaultPath(workspacePath);
