@@ -23,3 +23,8 @@ claude plugin validate /path/to/wiki-llm
 ```
 
 Cursor and Codex use [`AGENTS.md`](../AGENTS.md), [`rules/llm-wiki.mdc`](../rules/llm-wiki.mdc), and `bin/llm-wiki`; they do not use the Claude Code plugin install.
+
+## PyPI / pip (CLI + MCP modules only)
+
+`pip install llm-wiki` (or a built wheel) ships the **Python CLI and MCP modules** under `scripts/` — enough to run `llm-wiki` and `import mcp_server`. It does **not** install Claude/Cursor plugin assets (`skills/`, `commands/`, `hooks/`, templates). For those, clone this repo or install from the marketplace (see above).
+

@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "23 4 * * 1"
+  pull_request:
+    paths:
+      - "skills/**"
+      - "commands/**"
+      - "tests/skill_eval*"
+      - "tests/test_skill_evals*"
 
 permissions:
   contents: read
@@ -16,18 +22,50 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Explain skipped credentialed evaluation
-        if: ${{ secrets.ANTHROPIC_API_KEY == '' }}
-        run: 'echo "Skipping Claude skill evals: ANTHROPIC_API_KEY is not configured."'
+
+      - name: Gate on ANTHROPIC_API_KEY
+        id: gate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Skill evals: SKIPPED"
+            echo
+            echo "\`ANTHROPIC_API_KEY\` is not configured for this workflow run."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual workflow_dispatch requires ANTHROPIC_API_KEY." >&2
+            exit 1
+          fi
+          # schedule / pull_request without secret: succeed with SKIPPED summary
+          exit 0
+
       - name: Install skill-eval dependencies
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        if: steps.gate.outputs.run == 'true'
         run: |
           python -m pip install -r requirements-dev.txt
           npm install --global @anthropic-ai/claude-code
+
       - name: Run Claude skill evals
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
-        run: python -m pytest tests/test_skill_evals.py -v
+        if: steps.gate.outputs.run == 'true'
+        run: python -m pytest tests/test_skill_evals.py -v --junitxml=junit-skill-evals.xml
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV: "1"
+          RUN_CLAUDE_TESTS: "1"
           PYTHONPATH: ${{ github.workspace }}/scripts
+
+      - name: Upload pytest JUnit
+        if: steps.gate.outputs.run == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-evals-junit
+          path: junit-skill-evals.xml
+          if-no-files-found: ignore
+          retention-days: 90

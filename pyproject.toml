@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "llm-wiki"
 version = "0.3.0"
-description = "llm-wiki vault CLI, MCP server, and plugin assets"
+description = "llm-wiki vault CLI and MCP Python modules (plugin assets require git clone or marketplace install)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
@@ -27,3 +27,5 @@ pythonVersion = "3.10"
 typeCheckingMode = "basic"
 reportAny = "warning"
 reportExplicitAny = "none"
+# Optional adapters (playwright, chromadb, youtube_transcript_api) are not required for core CLI.
+reportMissingImports = "warning"
