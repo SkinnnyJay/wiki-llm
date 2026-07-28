@@ -468,6 +468,10 @@ class TestMCPHttpBridge:
         import urllib.error
         import urllib.request
 
+        cfg = json.loads((vault / "config.json").read_text(encoding="utf-8"))
+        cfg.setdefault("mcp", {})["sse_allow_empty_token"] = True
+        (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -504,6 +508,10 @@ class TestMCPHttpBridge:
         import time
         import urllib.error
         import urllib.request
+
+        cfg = json.loads((vault / "config.json").read_text(encoding="utf-8"))
+        cfg.setdefault("mcp", {})["sse_allow_empty_token"] = True
+        (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(("127.0.0.1", 0))
@@ -821,10 +829,11 @@ class TestFTS5Pragmas:
         backend.reindex()
         assert (custom_dir / "custom.sqlite3").exists()
 
-    def test_absolute_storage_path(self, tmp_path, vault):
+    def test_absolute_storage_path(self, vault):
         sys.path.insert(0, str(SCRIPTS))
         from lib.search import FTS5SearchBackend
-        abs_path = tmp_path / "external" / "search.db"
+
+        abs_path = (vault / "external" / "search.db").resolve()
         abs_path.parent.mkdir(parents=True)
         cfg = {"storage": {"search_db": str(abs_path)}}
         backend = FTS5SearchBackend(vault, cfg)
