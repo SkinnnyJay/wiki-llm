@@ -43,7 +43,7 @@ def test_version():
         text=True,
     )
     assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "0.2.0"
+    assert r.stdout.strip() == "0.3.0"
 
 
 def test_setup_accepts_vault_after_subcommand():

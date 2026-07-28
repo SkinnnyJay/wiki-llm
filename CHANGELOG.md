@@ -20,39 +20,44 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-28
+
+Productionization release: application security, doctor/onboard DX, installable packaging, MCP protocol negotiation, and optional `apps/web`.
+
 ### Security
 - **Vault paths** — reject path-escape attempts so file operations remain within the configured vault.
 - **URL ingest** — `safe_fetch` validates destination addresses and redirect hops to mitigate SSRF.
-- **MCP** — harden HTTP exposure with loopback and token controls, and restrict configuration and write-capable tools appropriately.
+- **MCP** — harden HTTP exposure with loopback and token controls; restrict configuration and write-capable tools; stdio binds `LLM_WIKI_VAULT` like SSE.
 - **Indexes** — quarantine corrupt knowledge-graph and raw indexes rather than treating them as empty and overwriting them.
-
-### Documentation
-- **Threat model** — document trust boundaries, security invariants, residual risks, and Phase 1 exclusions in `docs/THREAT-MODEL.md`.
+- **Ingest size caps** — bound download/body size for user-URL adapters.
+- **Threat model + disclosure** — `docs/THREAT-MODEL.md`, `SECURITY.md`, `NOTICE`, light CoC / issue / PR templates.
 
 ### Added
-- **CLI** — **`build-site`** / **`build-og`**: **`--serve`**, **`--serve-background`** (records PID in **`wiki/.og/.viewer-http.pid`**), **`--stop-serving`**, **`--port`**; preview the static viewer over HTTP without a separate **`cd`** + **`http.server`** step.
-- **`playwright` ingest adapter** — Headless Chromium fetch to **`raw/`** (same markdown shape as **`url`** / Firecrawl); **`setup_checks`** + wizard hint when the Python package or browsers are missing; **`integrations wizard`** prints install hints for adapters with no API key (**`scripts/ingest/adapters/web_playwright.py`**, **`scripts/cli/core_commands.py`**).
-- **Docs** — **`commands/ingest.md`**, **`commands/integrations.md`**, **`skills/wiki-fetch`**, **`wiki-ingest`**, **`wiki-setup`** (Section 4 + Section 8), **`wiki-status`**, **`commands/setup.md`**, **`docs/ENV.md`**: **`llm-wiki ingest playwright`** vs optional **Playwright MCP** (editor) vs vault **`llm-wiki` MCP**.
+- **`llm-wiki doctor [--fix]`** — vault health diagnostics with safe repairs; MCP `wiki_doctor`; slim **wiki-status** over doctor.
+- **`/llm-wiki:onboard`** + **wiki-onboard** — first-run router to setup / configure / doctor.
+- **CLI** — **`search`**, Windows **`bin/llm-wiki.cmd`**, **`teardown --artifacts`**, version SSOT via **`--version`**.
+- **CLI** — **`build-site`** / **`build-og`**: **`--serve`**, **`--serve-background`**, **`--stop-serving`**, **`--port`**.
+- **`apps/web`** — optional agent desk (tracked; typecheck CI); not part of the default plugin runtime.
+- **Packaging** — installable wheel via `pyproject.toml`; CI empty-venv / wheel smoke (`pypi-smoke`).
+- **Skill-evals workflow** — scheduled/manual credential-gated evals (`.github/workflows/skill-evals.yml`).
+- **Session memory** — opt-in **`memory.*`**, **`llm-wiki memory …`**, MCP memory tools, hooks, **wiki-session-memory**.
+- **`playwright` ingest adapter** — headless Chromium fetch to **`raw/`** with setup/wizard hints.
 
 ### Changed
-- **MCP protocol** — advertise `2025-11-25`; retain `2024-11-05` for clients that explicitly negotiate that legacy revision. No unreleased protocol date is advertised.
-- **Packaging** — `pip install .` now includes the CLI, ingest, library, and MCP Python modules.
-- **`commands/ingest.md`** — Claude-facing **playbook** (slash table, phased checklist, **show steps**, **`2>&1`** for stderr); plus **adapter-agnostic** whole-web principles (APIs vs pages, limits, provenance, security, **improve each run**); example table (**`url`**, **`hackernews`**, **`file`**, **`ingest --list`**); playbook step 1 names **source type** and generic risks.
-- **`skills/wiki-ingest/SKILL.md`** — **Learn from each merge**: log adapter/flags lessons, generalize patterns to **`wiki/log.md`** / vault **`CLAUDE.md`**; description notes any web/local source.
-- **Claude Code dev docs** — document **`claude --plugin-dir`** as the usual one-off dev load again (current CLI); marketplace install remains the persistent option. **`tests/conftest.py`** and **`scripts/qa_record.py`** always pass **`--plugin-dir`** (removed the **`claude --help`** probe).
-- **`scripts/plugin_dev_slim.sh`** — dry-run / **`--apply`** helper before local **`plugin install`** (local installs copy the full tree; not `.gitignore`-aware). **`setup`** warns if **`.claude/`** exists in the repo. **`.gitignore`** — common tool caches (**`.mypy_cache/`**, **`.ruff_cache/`**, etc.).
+- **MCP protocol** — advertise `2025-11-25`; retain `2024-11-05` for clients that explicitly negotiate that legacy revision. No future protocol date is advertised.
+- **MCP layout** — split helpers under `scripts/mcp/` with lazy init (no import-time exit).
+- **Skills** — lean setup/status bodies + references; `when_to_use`; SKILL-TEMPLATE invocation matrix; vault-path preamble.
+- **Viewer** — mobile/a11y basics; vendor CDN + SRI where applicable.
+- **Deps** — chromadb / pytest floors; ruff pre-commit bump; absolute `PYTHONPATH` in CI.
+- **Docs** — front-door cleanup (README, INSTALL, CLI, CONFIGURATION, ARTICLE, QAPLAYBOOK); pre-ship checklist.
 
 ### Fixed
-- **CLI** — Invoking **`llm-wiki`** with **no subcommand** (e.g. bare probe when **`bin/`** is on PATH from the Claude plugin) prints top-level help and exits **0** instead of argparse error **2**.
-- **CLI** — **`setup`** accepts **`--vault`** after the subcommand (e.g. **`llm-wiki setup --root … --vault …`**), not only the global **`llm-wiki --vault … setup …`** form.
-- **Session memory (hooks)** — Stop hook writes **`last_assistant_message`** to a **temp file** and passes **`--message-preview-file`** to **`memory log`** so multiline text, **quotes**, and **box-drawing** characters are not mangled by shell argv (fixes truncated or corrupted **`raw/memory/*.md`** rounds).
-- **Ingest** — **`hackernews`**: optional **item id/URL** for a single story; **stderr progress** + **request pacing**; clearer **HTTP errors**; note that **`topstories.json`** order can **differ from the website** front page.
-- **Plugin MCP** — **`mcpServers.llm-wiki.args`** now uses **`${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py`** (Claude Code expects plugin paths via **`${CLAUDE_PLUGIN_ROOT}`**; a bare **`scripts/mcp_server.py`** often failed when the MCP process cwd was not the plugin root).
-- **Claude Code plugin skills** — stop syncing agent rules to **`.claude/rules/`** inside the plugin repo. A **`.claude/`** directory in a plugin prevents discovery of root **`skills/`** ([anthropics/claude-code#44120](https://github.com/anthropics/claude-code/issues/44120)); use **`rules/llm-wiki.mdc`** + **`AGENTS.md`** / **`CLAUDE.md`** only.
-- **`.gitignore`** — ignore **`.claude/`** under the plugin repo so local **`settings.local.json`** cannot sit next to **`skills/`** and block plugin discovery.
-
-### Added
-- **Session memory** — opt-in **`memory.*`** config, **`llm-wiki memory {save|log|list|show|recall|prune}`**, MCP tools (`memory_save`, `memory_list`, `memory_show`, `memory_recall`, `memory_prune`), search scope **`memory`**, hooks **`llm_wiki_memory.sh`** (Stop / PostCompact / SessionEnd), **`wiki-session-memory`** skill, **`commands/memory.md`**, **`raw/memory/`** excluded from raw prepare validation scans
+- **CLI** — bare `llm-wiki` (no subcommand) prints help and exits **0**.
+- **CLI** — **`setup`** accepts **`--vault`** after the subcommand.
+- **Session memory (hooks)** — Stop hook passes multiline assistant text via **`--message-preview-file`**.
+- **Ingest** — **`hackernews`** single-item fetch, pacing, clearer HTTP errors.
+- **Plugin MCP** — args use **`${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py`**.
+- **Claude Code plugin skills** — do not sync **`.claude/`** into the plugin root ([anthropics/claude-code#44120](https://github.com/anthropics/claude-code/issues/44120)).
 
 ## [0.2.0] — 2026-04-08
 
