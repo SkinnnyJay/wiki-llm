@@ -632,7 +632,7 @@ Add **new pytest tests** when a case is **deterministic** (subprocess, `tmp_path
 
 ### Pre-ship deep test (release candidate)
 
-**L0 is the required gate** for every PR/push (pytest + plugin-repo check + retrieval-smoke). **L2 (Claude skill eval) is optional** — run when credentials are available (scheduled/manual workflow or local); recommended before a major release, not a hard merge blocker.
+**L0 is the required gate** for every PR/push (pytest + plugin-repo check + retrieval-smoke). A **retrieval-smoke SKIPPED** summary (network/download failure) is **not** an L0 pass — re-run when Hugging Face is healthy. **L2 (Claude skill eval) is optional** — the skill-evals workflow is **skipped** without `ANTHROPIC_API_KEY` (not a false-green run); recommended before a major release, not a hard merge blocker.
 
 Before a release or marketplace submission, prefer this order:
 

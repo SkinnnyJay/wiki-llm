@@ -298,6 +298,15 @@ def cmd_setup(args: argparse.Namespace) -> int:
     tpl = plugin_root() / "templates" / "llm-wiki"
     if not tpl.is_dir():
         print("Template missing:", tpl, file=sys.stderr)
+        print(
+            "Vault scaffolding needs a git clone or marketplace plugin install "
+            "(templates/ is not shipped in the CLI/MCP wheel).",
+            file=sys.stderr,
+        )
+        print(
+            "See docs/INSTALL.md — use ./bin/llm-wiki setup from a full checkout.",
+            file=sys.stderr,
+        )
         return 1
     shutil.copytree(tpl, vault, dirs_exist_ok=True)
     cfg = load_config(vault)

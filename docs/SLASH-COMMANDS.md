@@ -23,7 +23,7 @@ In **Claude Code**, each **`/llm-wiki:<name>`** slash command uses the **same pr
 
 | Slash command | Prompt file | Summary |
 |---------------|-------------|---------|
-| `/llm-wiki:setup` | [`commands/setup.md`](../commands/setup.md) | Vault and/or session-memory setup wizard; full body in **wiki-setup** skill. |
+| `/llm-wiki:setup` | [`commands/setup.md`](../commands/setup.md) | Vault and/or session-memory setup wizard; full body in **wiki-setup** skill (`skills/wiki-setup/`). There is no separate `commands/wiki-setup.md` — use **`/llm-wiki:setup`** or load the skill. |
 | `/llm-wiki:onboard` | [`commands/onboard.md`](../commands/onboard.md) | First-run router — setup, configure, or `llm-wiki doctor` (**wiki-onboard**). |
 | `/llm-wiki:configure` | [`commands/configure.md`](../commands/configure.md) | Post-setup config — MCP `wiki_configure`, `llm-wiki configure -i`, or wizard sections. |
 | `/llm-wiki:status` | [`commands/status.md`](../commands/status.md) | Vault health: setup flag, integrations, MCP search/KG; **wiki-status** skill. |

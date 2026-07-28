@@ -2,6 +2,14 @@
 
 For the complete first-run flow, follow the [five-minute quickstart](./QUICKSTART.md). It explains the plugin repo versus your vault and includes the first Claude Code and CLI commands.
 
+## What ships where
+
+| Install path | You get | Vault `setup` / skills / hooks |
+|--------------|---------|--------------------------------|
+| **Claude Code marketplace** or **git clone** | Full plugin (`skills/`, `commands/`, `templates/`, `bin/llm-wiki`) | Yes |
+| **Cursor / Codex** (open clone + `AGENTS.md` / rules) | Same checkout assets | Yes |
+| **`pip install .` / wheel** (optional) | Python **CLI + MCP modules** only | **No** — clone or marketplace for scaffolding |
+
 ## Claude Code
 
 ```text
@@ -24,7 +32,20 @@ claude plugin validate /path/to/wiki-llm
 
 Cursor and Codex use [`AGENTS.md`](../AGENTS.md), [`rules/llm-wiki.mdc`](../rules/llm-wiki.mdc), and `bin/llm-wiki`; they do not use the Claude Code plugin install.
 
-## PyPI / pip (CLI + MCP modules only)
+```bash
+./bin/llm-wiki setup --root . --defaults
+./bin/llm-wiki --vault ./llm-wiki doctor
+```
 
-`pip install llm-wiki` (or a built wheel) ships the **Python CLI and MCP modules** under `scripts/` — enough to run `llm-wiki` and `import mcp_server`. It does **not** install Claude/Cursor plugin assets (`skills/`, `commands/`, `hooks/`, templates). For those, clone this repo or install from the marketplace (see above).
+## Optional: pip / wheel (CLI + MCP modules only)
 
+From a clone you can build/install the wheel for CLI/MCP import smoke:
+
+```bash
+pip install .
+llm-wiki --version
+```
+
+That install does **not** include `templates/`, `skills/`, or `commands/`. `llm-wiki setup` will refuse with a clear error pointing here. Prefer `./bin/llm-wiki` from a full checkout (or marketplace) for day-to-day use.
+
+A public PyPI package is **not** required for the plugin; do not assume `pip install llm-wiki` from PyPI until a release publishes it.
