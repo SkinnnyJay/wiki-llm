@@ -57,12 +57,13 @@ jobs:
         run: pip install .
       - name: Version
         run: llm-wiki --version
-      - name: Setup temp vault and doctor
+      - name: Setup temp vault and doctor (from checkout; wheel has no templates/)
         shell: bash
         run: |
           tmp=$(mktemp -d)
-          llm-wiki setup "$tmp/vault"
-          llm-wiki --vault "$tmp/vault" doctor
+          python scripts/llm_wiki.py setup --root "$tmp" --defaults
+          python scripts/llm_wiki.py --vault "$tmp/llm-wiki" doctor
+          llm-wiki --version
 
   retrieval-smoke:
     runs-on: ubuntu-latest
@@ -90,10 +91,10 @@ jobs:
           if [ "$rc" -ne 0 ]; then
             if grep -qiE 'URLError|HTTPError|TimedOut|timeout|ConnectionError|Temporary failure|Name or service not known|Failed to download|download.*fail|HTTPSConnectionPool|RemoteDisconnected' "${RUNNER_TEMP}/lme-smoke.out"; then
               {
-                echo "## retrieval-smoke: SKIPPED (LME download flaky)"
+                echo "## retrieval-smoke: SKIPPED (network) — not an L0 pass"
                 echo
-                echo "Prefer a real \`benchmark run lme --limit 10\` when Hugging Face / network is healthy."
-                echo "Caught download/network error; not treating as a retrieval regression."
+                echo "L0 retrieval gate only counts when the LME download succeeds and baseline R@5 compare runs."
+                echo "Caught download/network error; job exits 0 so flaky HF does not red the whole suite, but do not treat this as green L0."
                 echo
                 echo '```'
                 tail -n 40 "${RUNNER_TEMP}/lme-smoke.out"
