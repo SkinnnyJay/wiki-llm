@@ -12,8 +12,8 @@ Use `llm-wiki --help` and `llm-wiki <command> --help` for flags.
 
 | Area | Commands |
 |---|---|
-| Vault lifecycle | `setup`, `configure`, `validate`, `check`, `teardown`, `wake-up`, `list-topics` |
-| Content | `ingest`, `raw validate`, `raw record`, `raw finish`, `raw rebuild-index`, `security scan` |
+| Vault lifecycle | `setup`, `configure`, `validate`, `doctor`, `check`, `teardown`, `wake-up`, `list-topics` |
+| Content | `ingest`, `search`, `raw validate`, `raw record`, `raw finish`, `raw rebuild-index`, `security scan` |
 | Viewer and graphs | `build-site` (`build-og` alias), `graph`, `graph-knowledge` |
 | Agent integration | `mcp` (including `install` and `start`), `memory save\|log\|list\|show\|recall\|prune` |
 | Knowledge and retrieval | `kg add\|query\|invalidate\|timeline\|stats\|rebuild`, `benchmark`, `metrics` |
@@ -22,9 +22,19 @@ Use `llm-wiki --help` and `llm-wiki <command> --help` for flags.
 
 `memory` is available when `memory.enabled` is set in the vault configuration. `mcp` starts stdio JSON-RPC by default and supports HTTP with `--transport sse`; see [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md).
 
-## `doctor` and `onboard`
+## `doctor`
 
-The current CLI does not implement `doctor` or `onboard`. Use `check` for fast vault or plugin sanity checks, and `setup` for first-time vault scaffolding.
+`llm-wiki doctor` diagnoses vault health (layout, config, readiness). Pass `--fix` to apply **safe** repairs only: create missing vault/`raw`/`wiki` directories and fill safe blank config defaults. It does not delete vault content or replace secrets.
+
+Use `check` for a faster vault or plugin sanity pass (config + optional compileall) when you do not need the full doctor report.
+
+## `search`
+
+`llm-wiki search "<query>"` searches vault content using the configured MCP search backend (`mcp.search_backend`: fts5 / grep / chromadb / hybrid). Useful flags: `--limit`, `--tag`, `--scope {all,wiki,raw,memory}`.
+
+## Onboard (slash / skill only)
+
+There is **no** `llm-wiki onboard` CLI command. First-run routing is **`/llm-wiki:onboard`** (prompt [`commands/onboard.md`](../commands/onboard.md)) and the **wiki-onboard** skill. Those send new users to setup, configure, or `llm-wiki doctor` as appropriate.
 
 ## Related docs
 

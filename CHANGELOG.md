@@ -18,7 +18,21 @@ All notable changes to the llm-wiki plugin are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+### Added
+- **Agent CI L0** — free retrieval smoke (`benchmark run lme --limit 10`) + baseline R@5 compare; L2 Claude skill-evals optional with honest skip/fail gates.
+- **`mcp.allow_local_file_ingest`** — default false; MCP rejects local `file`/PDF path adapters unless enabled.
+
+### Security
+- **Configure path sinks** — empty `configure_allowlist` denies `storage.*`, `memory.dir`, and benchmark path dirs; runtime `resolve_under` for memory/storage.
+- **Playwright ingest** — re-validates final URL after Chromium navigation; Firecrawl preflights redirect chain via `safe_fetch`.
+- **`safe_fetch`** — post-connect peer IP check (DNS rebinding mitigation).
+- **HTTP MCP** — SHA-256 + compare_digest for tokens; reject invalid Content-Length; empty token with write tools fails closed.
+- **`apps/web`** — requires `ACP_WEB_TOKEN` on chat/config APIs.
+
+### Changed
+- **MCP** — tool handlers split under `scripts/mcp/tools_*.py`.
+- **Packaging** — wheel documented as CLI/MCP modules only; plugin assets via clone/marketplace.
+- **CI** — basedpyright gate; windows-smoke; retrieval-smoke.
 
 ## [0.3.0] — 2026-07-28
 
