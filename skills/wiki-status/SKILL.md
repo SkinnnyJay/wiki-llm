@@ -32,3 +32,8 @@ Read [the dashboard checks](references/dashboard-checks.md) only for a full envi
 
 - **wiki-setup** — initialize or complete the vault.
 - **wiki-onboard** — route a new user to the right first action.
+
+## Smoke check
+
+- **CLI:** `llm-wiki doctor` (and `llm-wiki integrations status` when integrations matter).
+- **Prompt:** Invoke this skill; confirm it reports readiness without changing `config.json`.

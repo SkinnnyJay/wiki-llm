@@ -15,3 +15,8 @@ Read `skills/wiki-onboard/SKILL.md` and follow its question flow.
 ## Arguments
 
 $ARGUMENTS
+
+## Smoke check
+
+- **CLI:** `llm-wiki doctor` against a configured vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
+- **Prompt:** In Claude Code with this plugin loaded, run **`/llm-wiki:onboard`** and confirm the agent routes to setup, configure, or doctor without editing files first.

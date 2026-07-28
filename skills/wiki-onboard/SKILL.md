@@ -24,3 +24,8 @@ Never assume the vault is `Path("llm-wiki/")`. Use `llm-wiki doctor` to locate a
 ```bash
 llm-wiki doctor
 ```
+
+## Smoke check
+
+- **CLI:** `llm-wiki doctor` from a project with a vault (`LLM_WIKI_VAULT` or `./llm-wiki`).
+- **Prompt:** Invoke this skill for a first-time user; confirm it asks routing questions and does not write files before the destination flow.

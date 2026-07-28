@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
+import pytest
+
 from ingest.tagger import detect_tags, merge_tags, register_tags, rebuild_tag_index
 
 def test_detect_tags_from_path():
@@ -51,11 +53,14 @@ def test_register_tags_atomic(tmp_path):
     data = json.loads((tmp_path / "raw" / ".tags.json").read_text())
     assert len(data["auth"]) == 2
 
-def test_corrupt_tags_json_treated_as_empty(tmp_path):
+def test_corrupt_tags_json_fail_closed(tmp_path):
+    from lib.json_index import CorruptIndexError
+
     (tmp_path / "raw").mkdir()
     (tmp_path / "raw" / ".tags.json").write_text("NOT JSON")
-    # Should not raise
-    register_tags(tmp_path, ["auth"], tmp_path / "raw" / "a.md")
+    with pytest.raises(CorruptIndexError):
+        register_tags(tmp_path, ["auth"], tmp_path / "raw" / "a.md")
+    assert list((tmp_path / "raw").glob(".tags.json.corrupt.*"))
 
 def test_rebuild_tag_index(tmp_path):
     raw = tmp_path / "raw"

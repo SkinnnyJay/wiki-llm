@@ -34,3 +34,8 @@ Use [the setup wizard runbook](references/setup-wizard.md) for question groups, 
 
 - **wiki-status** — verify readiness after setup.
 - **wiki-onboard** — route a first-time user to setup, configuration, or diagnosis.
+
+## Smoke check
+
+- **CLI:** `llm-wiki setup --help` (and `llm-wiki doctor` after a confirmed setup).
+- **Prompt:** Invoke this skill; confirm it shows a full config preview and waits for explicit confirmation before writing.

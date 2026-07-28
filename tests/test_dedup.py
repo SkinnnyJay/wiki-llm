@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
+import pytest
+
 from ingest.dedup import content_hash, strip_llm_wiki_keys, check_duplicate, register_hash, rebuild_index
 
 def test_strip_removes_llm_wiki_keys_from_combined_frontmatter():
@@ -65,10 +67,14 @@ def test_register_hash_atomic(tmp_path):
     assert check_duplicate(tmp_path, "sha256:abc") == [tmp_path / "a.md"]
     assert check_duplicate(tmp_path, "sha256:def") == [tmp_path / "b.md"]
 
-def test_corrupt_hashes_json_treated_as_empty(tmp_path):
+def test_corrupt_hashes_json_fail_closed(tmp_path):
+    from lib.json_index import CorruptIndexError
+
     (tmp_path / "raw").mkdir()
     (tmp_path / "raw" / ".hashes.json").write_text("NOT JSON")
-    assert check_duplicate(tmp_path, "sha256:abc") == []
+    with pytest.raises(CorruptIndexError):
+        check_duplicate(tmp_path, "sha256:abc")
+    assert list((tmp_path / "raw").glob(".hashes.json.corrupt.*"))
 
 def test_rebuild_index(tmp_path):
     raw = tmp_path / "raw"
