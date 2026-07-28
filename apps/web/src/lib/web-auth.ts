@@ -5,9 +5,14 @@ import { createHash, timingSafeEqual } from "node:crypto";
  * Compare via SHA-256 digests + timingSafeEqual (fixed-length buffers).
  *
  * Clients should send `Authorization: Bearer <token>` or `X-ACP-Web-Token: <token>`.
- * For the browser UI, set `NEXT_PUBLIC_ACP_WEB_TOKEN` to the same value.
+ * For the browser UI, set `NEXT_PUBLIC_ACP_WEB_TOKEN` to the same value
+ * (localhost-only desk — treat the public token as visible to anyone who can
+ * load the page; do not bind Next to a non-loopback address).
  */
 export function requireWebToken(req: Request): Response | null {
+  const hostError = requireLoopbackHost(req);
+  if (hostError) return hostError;
+
   const expected = process.env.ACP_WEB_TOKEN?.trim() ?? "";
   if (!expected) {
     return jsonError(
@@ -30,6 +35,22 @@ export function requireWebToken(req: Request): Response | null {
     return jsonError(401, "Unauthorized", "Invalid ACP_WEB_TOKEN.");
   }
 
+  return null;
+}
+
+/** Fail closed if the request Host / X-Forwarded-Host is not loopback. */
+export function requireLoopbackHost(req: Request): Response | null {
+  const forwarded = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ?? "";
+  const raw = (forwarded || req.headers.get("host") || "").trim().toLowerCase();
+  const host = raw.split(":")[0]?.replace(/^\[|\]$/g, "") ?? "";
+  const allowed = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!host || !allowed.has(host)) {
+    return jsonError(
+      403,
+      "Forbidden",
+      "Agent desk APIs only accept localhost Host (bind Next to 127.0.0.1).",
+    );
+  }
   return null;
 }
 

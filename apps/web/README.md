@@ -35,7 +35,7 @@ npm run dev         # binds 127.0.0.1:3000
 
 Open `http://127.0.0.1:3000` (not a LAN/public bind by default).
 
-`ACP_WEB_TOKEN` is **required**. `/api/chat` and `/api/config` reject missing or invalid tokens (SHA-256 + `crypto.timingSafeEqual`). The browser sends the matching `NEXT_PUBLIC_ACP_WEB_TOKEN` as `Authorization: Bearer …` / `X-ACP-Web-Token`.
+`ACP_WEB_TOKEN` is **required**. `/api/chat` and `/api/config` reject missing or invalid tokens (SHA-256 + `crypto.timingSafeEqual`), and reject non-loopback `Host` / `X-Forwarded-Host`. The browser sends the matching `NEXT_PUBLIC_ACP_WEB_TOKEN` as `Authorization: Bearer …` / `X-ACP-Web-Token` (visible in the client bundle — localhost desk only).
 
 ## How it works
 
