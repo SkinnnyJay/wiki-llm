@@ -477,6 +477,7 @@ def build_parser() -> argparse.ArgumentParser:
     pkg_query = pkg_sub.add_parser("query", help="Look up an entity")
     pkg_query.add_argument("entity")
     pkg_query.add_argument("--as-of", dest="as_of", help="Point-in-time filter (YYYY-MM-DD)")
+    pkg_query.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     pkg_inv = pkg_sub.add_parser("invalidate", help="Mark a fact as ended")
     pkg_inv.add_argument("subject")
@@ -487,7 +488,8 @@ def build_parser() -> argparse.ArgumentParser:
     pkg_tl = pkg_sub.add_parser("timeline", help="Chronological entity history")
     pkg_tl.add_argument("entity", nargs="?", default=None)
 
-    pkg_sub.add_parser("stats", help="Knowledge graph overview")
+    pkg_stats = pkg_sub.add_parser("stats", help="Knowledge graph overview")
+    pkg_stats.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
     pkg_sub.add_parser("rebuild", help="Rebuild KG from vault wikilinks + tags")
     pkg.set_defaults(func=cmd_kg)
 
@@ -726,6 +728,7 @@ def build_parser() -> argparse.ArgumentParser:
     mshow = pmemory_sub.add_parser("show", help="Print one session memory file")
     mshow.add_argument("session_id_arg", nargs="?", default=None)
     mshow.add_argument("-c", "--current", action="store_true")
+    mshow.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     mrec = pmemory_sub.add_parser("recall", help="Search session memories (indexed scope memory)")
     mrec.add_argument("query")
@@ -733,6 +736,7 @@ def build_parser() -> argparse.ArgumentParser:
     mrec.add_argument("-c", "--current", action="store_true")
     mrec.add_argument("--tag", default=None)
     mrec.add_argument("--limit", type=int, default=5)
+    mrec.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     mprune = pmemory_sub.add_parser("prune", help="Delete session memory files")
     mprune.add_argument("--session-id", dest="session_filter", default=None)

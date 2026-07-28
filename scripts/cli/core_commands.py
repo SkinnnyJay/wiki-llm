@@ -811,10 +811,12 @@ def cmd_integrations(args: argparse.Namespace) -> int:
         print("╚═══════════════════════════════════════════════════════╝")
         print()
         changed = False
+        from lib.emit import fail_mark, ok_mark
+
         for cls in sorted(adapter_map().values(), key=lambda c: c.id):
             slice_ = integrations.get(cls.id) or {}
             warns = cls.setup_checks(slice_)
-            status = "✓ ok" if not warns else "✗ " + warns[0]
+            status = f"{ok_mark()} ok" if not warns else f"{fail_mark()} " + warns[0]
             env_var = _INTEGRATION_ENV.get(cls.id, "")
             print(f"  {cls.id:14}  {status}")
             if warns and env_var:
@@ -831,7 +833,7 @@ def cmd_integrations(args: argparse.Namespace) -> int:
                 if val:
                     _set_integration_key(env_var, val)
                     cfg.setdefault("integrations", {}).setdefault(cls.id, {})["enabled"] = True
-                    print(f"               ✓ Saved to ~/.claude/settings.json")
+                    print(f"               {ok_mark()} Saved to ~/.claude/settings.json")
                     changed = True
             elif warns and not env_var:
                 hint = _INTEGRATION_HINT.get(cls.id, "")
@@ -947,7 +949,7 @@ def cmd_wakeup(args: argparse.Namespace) -> int:
 
 
 def cmd_list_topics(args: argparse.Namespace) -> int:
-    from lib.layers import _wiki_page_for_tag
+    from lib.layers import wiki_page_for_tag
 
     vault = resolve_vault(override=args.vault)
     p: Path | None = None
@@ -961,7 +963,7 @@ def cmd_list_topics(args: argparse.Namespace) -> int:
     index = json.loads(p.read_text(encoding="utf-8"))
     rows = sorted(index.items(), key=lambda kv: -len(kv[1]))
     for tag, files in rows:
-        wp = _wiki_page_for_tag(vault, tag)
+        wp = wiki_page_for_tag(vault, tag)
         coverage = f"-> {wp} [covered]" if wp else "no wiki page"
         print(f"  {tag:<20} {len(files):>4} raw files   {coverage}")
     return 0

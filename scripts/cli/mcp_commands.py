@@ -66,7 +66,18 @@ def _mcp_start_background(args: argparse.Namespace) -> int:
     lock_path = vault / ".mcp-sse-start.lock"
     lock_fd = open(lock_path, "a+", encoding="utf-8")
     try:
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            import msvcrt
+
+            # Exclusive lock for the whole file (blocking).
+            while True:
+                try:
+                    lock_fd.seek(0)
+                    msvcrt.locking(lock_fd.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.05)
+        else:
             import fcntl
 
             fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
@@ -139,7 +150,15 @@ def _mcp_start_background(args: argparse.Namespace) -> int:
         log_file.close()
         return 1
     finally:
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            import msvcrt
+
+            try:
+                lock_fd.seek(0)
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
             import fcntl
 
             try:

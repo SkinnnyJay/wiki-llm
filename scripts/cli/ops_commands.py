@@ -35,6 +35,11 @@ def cmd_kg(args: argparse.Namespace) -> int:
 
     if sub == "query":
         results = kg.query_entity(args.entity, as_of=getattr(args, "as_of", None) or None)
+        if getattr(args, "json_out", False):
+            from lib.emit import emit_json
+
+            emit_json({"entity": args.entity, "facts": results, "count": len(results)})
+            return 0
         if not results:
             print(f"No facts found for: {args.entity}")
             return 0
@@ -67,6 +72,11 @@ def cmd_kg(args: argparse.Namespace) -> int:
 
     if sub == "stats":
         s = kg.stats()
+        if getattr(args, "json_out", False):
+            from lib.emit import emit_json
+
+            emit_json(s)
+            return 0
         for k, v in s.items():
             print(f"  {k}: {v}")
         return 0
@@ -215,6 +225,11 @@ def cmd_memory(args: argparse.Namespace) -> int:
             print("show: pass SESSION_ID or --current", file=sys.stderr)
             return 1
         text = mem.memory_show(vault, cfg, sid)
+        if getattr(args, "json_out", False):
+            from lib.emit import emit_json
+
+            emit_json({"session_id": sid, "content": text})
+            return 0
         print(text, end="" if text.endswith("\n") else "\n")
         return 0
 
@@ -238,6 +253,11 @@ def cmd_memory(args: argparse.Namespace) -> int:
             tag=getattr(args, "tag", None),
             limit=getattr(args, "limit", 5),
         )
+        if getattr(args, "json_out", False):
+            from lib.emit import emit_json
+
+            emit_json({"results": [r.to_dict() for r in results], "count": len(results)})
+            return 0
         for r in results:
             print(f"{r.path}\t{r.score}\t{r.snippet[:200]}")
         return 0
@@ -334,9 +354,10 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     if sub == "report":
         from lib.metrics_report import build_metrics_report
 
+        out_arg = getattr(args, "metrics_report_out", None)
         out_dir = (
-            Path(getattr(args, "metrics_report_out", None)).resolve()
-            if getattr(args, "metrics_report_out", None)
+            Path(out_arg).resolve()
+            if out_arg
             else (Path.cwd() / ".tmp" / "llm-wiki-metrics").resolve()
         )
         try:
