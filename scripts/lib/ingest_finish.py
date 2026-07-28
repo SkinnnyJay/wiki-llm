@@ -100,7 +100,7 @@ def post_ingest(
                 return 2
 
     # Step 4 — security scan (pure text, no file I/O)
-    security_result: dict[str, Any] = {"prompt_injection": "low_risk", "signals": []}
+    security_result: dict[str, Any] | None = {"prompt_injection": "low_risk", "signals": []}
     write_security_to_frontmatter = sec_cfg.get("log_to_raw_frontmatter", True)
     if force_security or sec_cfg.get("enabled", False):
         scan = secscan.scan_text(clean_body)

@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 
 from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
-from lib.url_safety import validate_https_api_host, validate_public_http_url
+from lib.url_safety import safe_fetch, validate_https_api_host, validate_public_http_url
 from ingest.base import Adapter, IngestResult
 
 _FIRECRAWL_API_HOSTS = frozenset({"api.firecrawl.dev"})
@@ -47,6 +47,15 @@ class FirecrawlAdapter(Adapter):
         p.add_argument("--out", type=Path)
         ns = p.parse_args(argv)
         validate_public_http_url(ns.url, context="ingest firecrawl")
+        # Preflight redirect chain with our SSRF policy. Firecrawl's cloud/CLI may
+        # still follow redirects independently — see docs/THREAT-MODEL.md residual.
+        try:
+            safe_fetch(ns.url, context="ingest firecrawl (preflight)", max_bytes=1024)
+        except Exception as e:
+            # Policy violations are SystemExit; network errors still block ingest.
+            if isinstance(e, SystemExit):
+                raise
+            raise SystemExit(f"ingest firecrawl (preflight): {e}") from e
 
         prefer_cli = slice_.get("prefer_cli", True)
         has_cli = bool(shutil.which("firecrawl"))

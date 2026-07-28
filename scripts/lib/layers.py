@@ -1,20 +1,26 @@
 """Layered context protocol: wake-up blob and CLAUDE.md Memory Stack update."""
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Any
 
+from lib.json_index import CorruptIndexError, load_json_object
+
 
 def _load_tags_index(vault: Path) -> dict[str, list[str]]:
     p = vault / "raw" / ".tags.json"
-    if not p.exists():
-        return {}
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+        data = load_json_object(p, default_if_missing={})
+    except CorruptIndexError:
+        raise
+    if not isinstance(data, dict):
+        raise CorruptIndexError(p, "tags index root must be a JSON object")
+    out: dict[str, list[str]] = {}
+    for k, v in data.items():
+        if isinstance(k, str) and isinstance(v, list):
+            out[k] = [str(x) for x in v]
+    return out
 
 
 def _load_recent_log(vault: Path, n: int = 3) -> list[str]:
@@ -27,7 +33,7 @@ def _load_recent_log(vault: Path, n: int = 3) -> list[str]:
     return entries[-n:]
 
 
-def _wiki_page_for_tag(vault: Path, tag: str) -> str | None:
+def wiki_page_for_tag(vault: Path, tag: str) -> str | None:
     """Return relative path to wiki page for tag, or None."""
     candidates = [
         vault / "wiki" / f"{tag}.md",
@@ -38,6 +44,9 @@ def _wiki_page_for_tag(vault: Path, tag: str) -> str | None:
             return str(c.relative_to(vault))
     return None
 
+
+# Back-compat private alias
+_wiki_page_for_tag = wiki_page_for_tag
 
 def _approx_tokens(text: str) -> int:
     """Rough token estimate (~4 chars per token) for budgeting."""

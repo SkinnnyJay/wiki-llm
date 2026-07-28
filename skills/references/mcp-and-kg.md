@@ -91,6 +91,7 @@ All settings live in `llm-wiki/config.json`:
     "configure_allowlist": [],
     "benchmark_tool_enabled": true,
     "ingest_enabled": true,
+    "allow_local_file_ingest": false,
     "sse_require_loopback": true,
     "sse_token": "",
     "status_file_count_ttl_seconds": 45
@@ -108,7 +109,7 @@ All settings live in `llm-wiki/config.json`:
 }
 ```
 
-**Optional hardening (`mcp.*`):** **`tools_mode`** — `full` (default), `read_only` (search/query/list tools only), or `custom` (only names in **`tools_allowlist`**; an empty allowlist behaves like **`read_only`**). **`max_response_chars`** — cap serialized JSON per tool result (`0` = unlimited). **`read_page_max_chars`** — truncate **`wiki_read_page`** body when `> 0` (the tool’s **`max_chars`** argument overrides). **`configure_allowlist`** — if non-empty, **`wiki_configure`** only allows listed keys; prefix rules end with `.` (e.g. `mcp.`). **`benchmark_tool_enabled`** — hide **`wiki_benchmark_run`** and **`wiki_benchmark_suites`** when `false`. **`ingest_enabled`** — hide **`wiki_ingest`** when `false`. **`sse_require_loopback`** — when `true`, HTTP MCP refuses to bind to non-loopback hosts. **`sse_token`** — when non-empty, HTTP clients must send **`Authorization: Bearer …`** or **`X-LLM-Wiki-Token`**. Plaintext HTTP; use a reverse proxy with TLS for untrusted networks. **`status_file_count_ttl_seconds`** — TTL for cached **`wiki_status`** raw/wiki `*.md` counts.
+**Optional hardening (`mcp.*`):** **`tools_mode`** — `full` (default), `read_only` (search/query/list tools only), or `custom` (only names in **`tools_allowlist`**; an empty allowlist behaves like **`read_only`**). **`max_response_chars`** — cap serialized JSON per tool result (`0` = unlimited). **`read_page_max_chars`** — truncate **`wiki_read_page`** body when `> 0` (the tool’s **`max_chars`** argument overrides). **`configure_allowlist`** — if non-empty, **`wiki_configure`** only allows listed keys; prefix rules end with `.` (e.g. `mcp.`). Empty allowlist denies **`mcp.*` / `security.*` / `storage.*` / `memory.dir` / benchmark path dirs**. **`benchmark_tool_enabled`** — hide **`wiki_benchmark_run`** and **`wiki_benchmark_suites`** when `false`. **`ingest_enabled`** — hide **`wiki_ingest`** when `false`. **`allow_local_file_ingest`** — when `false` (default), MCP rejects **`file`** / local PDF adapters (CLI unrestricted). **`sse_require_loopback`** — when `true`, HTTP MCP refuses to bind to non-loopback hosts. **`sse_token`** — when non-empty, HTTP clients must send **`Authorization: Bearer …`** or **`X-LLM-Wiki-Token`**. Empty token with write-capable **`tools_mode`** fails closed on loopback unless **`sse_allow_empty_token`**. Plaintext HTTP; use a reverse proxy with TLS for untrusted networks. **`status_file_count_ttl_seconds`** — TTL for cached **`wiki_status`** raw/wiki `*.md` counts.
 
 **Session memory (`memory.*`):** Opt-in. When `memory.enabled` is `true`, hooks and `llm-wiki memory …` write **`raw/memory/<session-id>.md`**. **`raw validate`** skips that directory; search still indexes it (`scope="memory"`). **`llm-wiki/.current-session`** stores the active session id for **`--current`**.
 

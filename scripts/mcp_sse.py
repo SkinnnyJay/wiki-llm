@@ -72,13 +72,23 @@ def run_sse_server(
         )
         sys.exit(1)
     if not auth_token and host_is_loopback and not allow_empty:
+        tools_mode = str(mcp_cfg.get("tools_mode") or "full").strip().lower()
+        if tools_mode not in ("read_only", "readonly"):
+            print(
+                "error: mcp.sse_token is empty while tools_mode allows writes. "
+                "Set mcp.sse_token, set mcp.tools_mode=read_only, or set "
+                "mcp.sse_allow_empty_token=true (insecure).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         print(
-            "warning: mcp.sse_token is empty; HTTP MCP on loopback has no auth. "
-            "Set mcp.sse_token for defense in depth.",
+            "warning: mcp.sse_token is empty; HTTP MCP on loopback has no auth "
+            "(tools_mode=read_only).",
             file=sys.stderr,
         )
 
     from mcp import server as mcp_server
+    import hashlib
     import hmac
 
     if not mcp_server.initialize(vault, require_enabled=True):
@@ -88,6 +98,12 @@ def run_sse_server(
     _mcp_log_line = mcp_server._mcp_log_line
     handle_request = mcp_server.handle_request
     logger = mcp_server.logger
+
+    def _token_ok(got: str) -> bool:
+        """Compare tokens via SHA-256 digests to avoid length leaks."""
+        dig_got = hashlib.sha256(got.encode("utf-8")).digest()
+        dig_want = hashlib.sha256(auth_token.encode("utf-8")).digest()
+        return hmac.compare_digest(dig_got, dig_want)
 
     class MCPHTTPHandler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
@@ -101,12 +117,7 @@ def run_sse_server(
                     got = auth[7:].strip()
                 if not got:
                     got = self.headers.get("X-LLM-Wiki-Token", "") or ""
-                # Constant-time compare; pad lengths via hmac.compare_digest on equal-length utf-8
-                try:
-                    ok = hmac.compare_digest(got.encode("utf-8"), auth_token.encode("utf-8"))
-                except (TypeError, ValueError):
-                    ok = False
-                if not ok:
+                if not _token_ok(got):
                     body = json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -120,19 +131,25 @@ def run_sse_server(
                     self.end_headers()
                     self.wfile.write(body)
                     return
-            length = int(self.headers.get("Content-Length", "0") or 0)
-            if length > _MAX_HTTP_JSON_BYTES:
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+            except ValueError:
+                length = -1
+            if length < 0 or length > _MAX_HTTP_JSON_BYTES:
                 err = json.dumps(
                     {
                         "jsonrpc": "2.0",
                         "id": None,
                         "error": {
                             "code": -32600,
-                            "message": f"Content-Length exceeds {_MAX_HTTP_JSON_BYTES} bytes",
+                            "message": (
+                                "Invalid or oversized Content-Length "
+                                f"(max {_MAX_HTTP_JSON_BYTES} bytes)"
+                            ),
                         },
                     }
                 ).encode("utf-8")
-                self.send_response(413)
+                self.send_response(413 if length > _MAX_HTTP_JSON_BYTES else 400)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(err)))
                 self.end_headers()
