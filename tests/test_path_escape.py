@@ -131,3 +131,43 @@ def test_mcp_file_ingest_gated(vault: Path, monkeypatch: pytest.MonkeyPatch) -> 
     out = ms.tool_wiki_ingest(adapter="file", source="/etc/passwd")
     assert out.get("success") is False
     assert "allow_local_file_ingest" in str(out.get("error", ""))
+
+
+@pytest.mark.parametrize(
+    "adapter",
+    ["pdf", "pdf-markitdown", "pdf-marker", "pdf-mineru", "convo"],
+)
+def test_mcp_local_path_adapters_gated(
+    vault: Path, monkeypatch: pytest.MonkeyPatch, adapter: str
+) -> None:
+    import mcp_server as ms
+
+    _patch_mcp_vault(
+        monkeypatch,
+        vault,
+        {"mcp": {"ingest_enabled": True, "allow_local_file_ingest": False}},
+    )
+    out = ms.tool_wiki_ingest(adapter=adapter, source="/tmp/local.pdf")
+    assert out.get("success") is False
+    assert "allow_local_file_ingest" in str(out.get("error", ""))
+
+
+def test_configure_denies_hooks_sound(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mcp_server as ms
+
+    _patch_mcp_vault(monkeypatch, vault, {"mcp": {"configure_allowlist": []}})
+    out = ms.tool_wiki_configure("hooks.sound.allow_arbitrary_command", "true")
+    assert out.get("success") is False
+    assert "not allowed" in str(out.get("error", "")).lower()
+
+
+def test_wiki_read_page_denies_config(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import mcp_server as ms
+
+    _patch_mcp_vault(monkeypatch, vault, {"mcp": {}})
+    (vault / "config.json").write_text('{"mcp":{"sse_token":"secret"}}\n', encoding="utf-8")
+    out = ms.tool_wiki_read_page("config.json")
+    assert "error" in out
+    assert "wiki/" in str(out.get("error", "")).lower() or "refusing" in str(
+        out.get("error", "")
+    ).lower()

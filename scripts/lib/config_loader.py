@@ -108,11 +108,11 @@ DEFAULTS: dict[str, Any] = {
         "max_response_chars": 500000,
         # 0 = no truncation of wiki_read_page body (still subject to max_response_chars on output)
         "read_page_max_chars": 0,
-        # Empty allowlist: deny mcp.*/security.*/ingestion_security.* and path-bearing keys
+        # Empty allowlist: deny mcp.*/security.*/storage.*/hooks.* and path-bearing keys
         "configure_allowlist": [],
-        "benchmark_tool_enabled": True,
-        "ingest_enabled": True,
-        # Allow wiki_ingest adapter=file / local PDF paths (default off — host path read)
+        "benchmark_tool_enabled": False,
+        "ingest_enabled": False,
+        # Allow wiki_ingest local-path adapters (file/pdf-*/convo); default off — host path read
         "allow_local_file_ingest": False,
         # Allow wiki_ingest force_security=true (default off)
         "allow_force_security": False,

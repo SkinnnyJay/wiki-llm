@@ -96,7 +96,7 @@ def tool_wiki_validate() -> dict[str, Any]:
     return {"valid": len(errs) == 0, "issues": errs}
 
 def tool_wiki_read_page(path: str, max_chars: int = 0) -> dict[str, Any]:
-    """Read markdown + frontmatter from a wiki/ or raw/ file."""
+    """Read markdown + frontmatter from a wiki/, raw/, or outputs/ file."""
     if not vault_ok():
         return no_vault()
     vault = require_vault()
@@ -105,6 +105,18 @@ def tool_wiki_read_page(path: str, max_chars: int = 0) -> dict[str, Any]:
     full = resolve_under_vault(vault, path)
     if full is None:
         return {"error": "Path escapes vault"}
+    try:
+        rel = full.resolve().relative_to(vault.resolve())
+    except ValueError:
+        return {"error": "Path escapes vault"}
+    top = rel.parts[0] if rel.parts else ""
+    if top not in ("wiki", "raw", "outputs"):
+        return {
+            "error": (
+                "wiki_read_page only allows paths under wiki/, raw/, or outputs/ "
+                "(refusing config and other vault roots)"
+            ),
+        }
     if not full.is_file():
         return {"error": f"File not found: {path}"}
     text = full.read_text(encoding="utf-8", errors="replace")

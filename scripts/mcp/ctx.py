@@ -32,6 +32,7 @@ _CONFIGURE_DENY_PREFIXES = (
     "security.",
     "ingestion_security.",
     "storage.",
+    "hooks.",
 )
 _CONFIGURE_DENY_EXACT = frozenset(
     {
@@ -39,6 +40,7 @@ _CONFIGURE_DENY_EXACT = frozenset(
         "security",
         "ingestion_security",
         "storage",
+        "hooks",
         "memory.dir",
         "benchmark.data_cache_dir",
         "benchmark.results_dir",

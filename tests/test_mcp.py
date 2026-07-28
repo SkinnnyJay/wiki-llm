@@ -349,10 +349,40 @@ class TestMCPServer:
         assert "wiki_wake_up" in names
         assert "wiki_search" in names
         assert "wiki_kg_query" in names
-        assert "wiki_benchmark_run" in names
+        # Safer defaults: benchmark + ingest tools off unless opted in
+        assert "wiki_benchmark_run" not in names
+        assert "wiki_ingest" not in names
         assert "wiki_metrics_stats" in names
         assert "wiki_graph_build" in names
-        assert len(tools) >= 30
+        assert len(tools) >= 25
+
+    def test_tools_list_with_write_opt_in(self, tmp_path):
+        v = tmp_path / "llm-wiki-full"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "mcp": {
+                        "enabled": True,
+                        "search_backend": "fts5",
+                        "benchmark_tool_enabled": True,
+                        "ingest_enabled": True,
+                    },
+                    "knowledge_graph": {"enabled": True, "backend": "json"},
+                    "git": {"enabled": False},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n", encoding="utf-8")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# r\n", encoding="utf-8")
+        resp = self._call(v, "tools/list")
+        names = [t["name"] for t in resp["result"]["tools"]]
+        assert "wiki_benchmark_run" in names
+        assert "wiki_ingest" in names
 
     def test_tool_call_status(self, vault):
         resp = self._call(vault, "tools/call", {"name": "wiki_status", "arguments": {}})

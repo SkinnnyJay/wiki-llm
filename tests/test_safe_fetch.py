@@ -9,6 +9,25 @@ import pytest
 from lib.url_safety import safe_fetch, validate_public_http_url
 
 
+class _FakeSock:
+    def __init__(self, peer: str = "93.184.216.34") -> None:
+        self._peer = peer
+
+    def getpeername(self) -> tuple[str, int]:
+        return (self._peer, 443)
+
+
+class _FakeRaw:
+    def __init__(self, peer: str = "93.184.216.34") -> None:
+        self._sock = _FakeSock(peer)
+
+
+class _FakeFp:
+    def __init__(self, peer: str | None = "93.184.216.34") -> None:
+        self.raw = _FakeRaw(peer) if peer is not None else None
+        self._sock = None
+
+
 class _FakeResp:
     def __init__(
         self,
@@ -17,12 +36,14 @@ class _FakeResp:
         headers: dict[str, str] | None = None,
         body: bytes = b"ok",
         reason: str = "OK",
+        peer: str | None = "93.184.216.34",
     ) -> None:
         self.status = status
         self.headers = headers or {"Content-Type": "text/plain"}
         self.reason = reason
         self._body = body
         self._read = False
+        self.fp = _FakeFp(peer)
 
     def read(self, _n: int = -1) -> bytes:
         if self._read:
@@ -112,3 +133,38 @@ def test_safe_fetch_rejects_oversized_body(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr("lib.url_safety.socket.getaddrinfo", fake_gai)
     with pytest.raises(SystemExit, match="max_bytes"):
         safe_fetch("https://example.com/big", max_bytes=10)
+
+
+def test_safe_fetch_fails_closed_without_peer(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Opener:
+        def open(self, req: Any, timeout: float = 0) -> _FakeResp:
+            return _FakeResp(body=b"hello", peer=None)
+
+    monkeypatch.setattr("lib.url_safety.build_opener", lambda *a, **k: _Opener())
+
+    def fake_gai(host: str, *args: Any, **kwargs: Any) -> list:
+        import socket
+
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+
+    monkeypatch.setattr("lib.url_safety.socket.getaddrinfo", fake_gai)
+    monkeypatch.delenv("LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER", raising=False)
+    with pytest.raises(SystemExit, match="could not verify connected peer"):
+        safe_fetch("https://example.com/x")
+
+
+def test_safe_fetch_rejects_blocked_peer(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Opener:
+        def open(self, req: Any, timeout: float = 0) -> _FakeResp:
+            return _FakeResp(body=b"secret", peer="127.0.0.1")
+
+    monkeypatch.setattr("lib.url_safety.build_opener", lambda *a, **k: _Opener())
+
+    def fake_gai(host: str, *args: Any, **kwargs: Any) -> list:
+        import socket
+
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+
+    monkeypatch.setattr("lib.url_safety.socket.getaddrinfo", fake_gai)
+    with pytest.raises(SystemExit, match="connected peer"):
+        safe_fetch("https://example.com/x")

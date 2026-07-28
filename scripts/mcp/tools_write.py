@@ -60,15 +60,17 @@ def tool_wiki_ingest(
     if not vault_ok():
         return no_vault()
     vault = require_vault()
-    if not bool(mcp_cfg().get("ingest_enabled", True)):
+    if not bool(mcp_cfg().get("ingest_enabled", False)):
         return {"skipped": True, "reason": "mcp.ingest_enabled is false"}
     if force_security and not bool(mcp_cfg().get("allow_force_security", False)):
         return {
             "success": False,
             "error": "force_security requires mcp.allow_force_security=true",
         }
-    local_file_adapters = frozenset({"file", "pdf", "pdf_markitdown"})
-    if adapter in local_file_adapters and not bool(
+    from ingest.registry import LOCAL_PATH_ADAPTER_IDS, adapter_map, run_ingest
+    from lib.ingest_finish import post_ingest
+
+    if adapter in LOCAL_PATH_ADAPTER_IDS and not bool(
         mcp_cfg().get("allow_local_file_ingest", False)
     ):
         return {
@@ -79,8 +81,6 @@ def tool_wiki_ingest(
                 "(CLI ingest remains unrestricted)"
             ),
         }
-    from ingest.registry import adapter_map, run_ingest
-    from lib.ingest_finish import post_ingest
 
     adapters = adapter_map()
     if adapter not in adapters:
@@ -191,8 +191,8 @@ def tool_wiki_configure(key: str, value: str) -> dict[str, Any]:
             "success": False,
             "error": (
                 "Key not allowed by mcp.configure_allowlist "
-                "(empty allowlist denies mcp.*/security.*/storage.*, memory.dir, "
-                "benchmark path dirs)"
+                "(empty allowlist denies mcp.*/security.*/storage.*/hooks.*, "
+                "memory.dir, benchmark path dirs)"
             ),
             "key": key,
         }

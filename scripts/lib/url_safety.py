@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import os
 import socket
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -176,12 +177,24 @@ def _peer_ip_from_response(resp: Any) -> str | None:
 def _assert_peer_allowed(resp: Any, *, context: str, url: str) -> None:
     peer = _peer_ip_from_response(resp)
     if peer is None:
-        _log.debug("safe_fetch: could not read peer IP for %r", url)
-        return
+        allow_missing = os.environ.get(
+            "LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER", ""
+        ).strip().lower() in ("1", "true", "yes")
+        if allow_missing:
+            _log.warning(
+                "safe_fetch: could not read peer IP for %r "
+                "(LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER set)",
+                url,
+            )
+            return
+        raise SystemExit(
+            f"{context}: could not verify connected peer IP for {url!r} "
+            "(fail closed; set LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER=1 only if required)"
+        )
     if _is_blocked_ssrf_ip(peer):
         raise SystemExit(
             f"{context}: connected peer {peer!r} is not allowed "
-            "(private/loopback/link-local/metadata) for {url!r}"
+            f"(private/loopback/link-local/metadata) for {url!r}"
         )
 
 

@@ -46,7 +46,7 @@ flowchart LR
 
 1. Path arguments never escape the vault via `..` or absolute paths.
 2. Ingest URL fetch validates **every** hop (redirect chain) in `safe_fetch`.
-3. After connect, `safe_fetch` **re-validates the peer IP** when available (DNS-rebinding mitigation).
+3. After connect, `safe_fetch` **re-validates the peer IP** and **fails closed** if the peer cannot be read (override only with `LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER=1`).
 4. Playwright ingest re-validates the **final page URL** after Chromium navigation (not only the request URL).
 5. `tools_mode=read_only` never applies deterministic autofix or other writers.
 6. Empty `mcp.configure_allowlist` denies prefixes `mcp.` / `security.` / `ingestion_security.` / `storage.` and exact path-bearing keys (`memory.dir`, `benchmark.data_cache_dir`, `benchmark.results_dir`, and the bare namespace keys). Non-empty allowlist is an explicit allow-only list.
@@ -65,7 +65,7 @@ flowchart LR
 
 | Risk | Mitigation |
 |------|------------|
-| DNS rebinding between resolve and connect | Peer-IP revalidation in `safe_fetch` after connect when the socket is readable |
+| DNS rebinding between resolve and connect | Peer-IP revalidation in `safe_fetch` after connect; missing peer fails closed |
 | Prompt injection via vault pages | Document; agent hosts should treat wiki text as data |
 | HTTP MCP on non-loopback without TLS | `sse_require_loopback`, token, operator firewall |
 | Concurrent writers under ThreadingHTTPServer | File locks on KG/config/index writes |
