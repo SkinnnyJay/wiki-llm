@@ -25,6 +25,26 @@ def cmd_kg(args: argparse.Namespace) -> int:
     sub = getattr(args, "kg_sub", None)
 
     if sub == "add":
+        kg_cfg = cfg.get("knowledge_graph") or {}
+        if bool(kg_cfg.get("fact_check_on_add", True)):
+            from lib.fact_checker import conflicting_objects_for_predicate
+
+            conflicts = conflicting_objects_for_predicate(
+                kg, args.subject, args.predicate, args.object
+            )
+            if conflicts:
+                print(
+                    "Conflict: active triple(s) already exist for "
+                    f"{args.subject} → {args.predicate} with different object(s):",
+                    file=sys.stderr,
+                )
+                for t in conflicts:
+                    print(f"  → {t.get('o')}  (id={t.get('id')})", file=sys.stderr)
+                print(
+                    "Invalidate the old fact first, or set knowledge_graph.fact_check_on_add=false",
+                    file=sys.stderr,
+                )
+                return 1
         tid = kg.add_triple(
             args.subject, args.predicate, args.object,
             valid_from=getattr(args, "valid_from", None) or None,
@@ -91,7 +111,41 @@ def cmd_kg(args: argparse.Namespace) -> int:
         print(f"Rebuilt: {result.get('added', 0)} triples added, {result.get('total_triples', 0)} total, {result.get('entities', 0)} entities")
         return 0
 
-    print("Usage: llm-wiki kg {add|query|invalidate|timeline|stats|rebuild}", file=sys.stderr)
+    if sub == "conflicts":
+        from lib.emit import emit_json
+        from lib.fact_checker import find_predicate_conflicts
+
+        triples = kg._all_triples() if hasattr(kg, "_all_triples") else []  # noqa: SLF001
+        conflicts = find_predicate_conflicts(list(triples))
+        payload = {
+            "count": len(conflicts),
+            "conflicts": [
+                {
+                    "subject": c["subject"],
+                    "predicate": c["predicate"],
+                    "objects": c["objects"],
+                }
+                for c in conflicts
+            ],
+        }
+        if getattr(args, "json_out", False):
+            emit_json(payload)
+        else:
+            if not conflicts:
+                print("No predicate conflicts.")
+                return 0
+            print(f"{len(conflicts)} conflict(s):")
+            for c in conflicts:
+                print(
+                    f"  {c['subject']} → {c['predicate']} → "
+                    + " | ".join(c["objects"])
+                )
+        return 1 if conflicts else 0
+
+    print(
+        "Usage: llm-wiki kg {add|query|invalidate|timeline|stats|rebuild|conflicts}",
+        file=sys.stderr,
+    )
     return 1
 
 

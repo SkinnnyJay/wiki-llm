@@ -132,6 +132,13 @@ DEFAULTS: dict[str, Any] = {
         "entity_detection": True,
         "fact_check_on_add": True,
     },
+    "compile": {
+        # Knowledge CI: provenance schema + lint gates for llm-wiki compile/lint
+        "schema_required": False,
+        "require_sources": False,
+        "require_updated": False,
+        "fail_on_kg_conflicts": True,
+    },
     "memory": {
         "enabled": False,
         "dir": "raw/memory",

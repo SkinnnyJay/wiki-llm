@@ -157,6 +157,13 @@
     "auto_update_on_ingest": true,
     "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)"
   },
+  "compile": {
+    "schema_required": false,
+    "require_sources": false,
+    "require_updated": false,
+    "fail_on_kg_conflicts": true,
+    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence."
+  },
   "memory": {
     "enabled": false,
     "dir": "raw/memory",
