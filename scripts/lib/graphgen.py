@@ -19,9 +19,11 @@ def _valid_edges(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> li
     out: list[dict[str, Any]] = []
     for e in edges:
         s, t = e.get("source"), e.get("target")
+        if not isinstance(s, str) or not isinstance(t, str):
+            continue
         if s not in ids or t not in ids or s == t:
             continue
-        key = tuple(sorted((s, t)))
+        key: tuple[str, str] = (s, t) if s <= t else (t, s)
         if key in seen:
             continue
         seen.add(key)
@@ -94,8 +96,6 @@ def _collect_tag_edges(vault: Path, cfg: dict) -> tuple[list[dict], list[dict]]:
     Respects graph config: tag_edges, include_raw_nodes, curated_by_edges.
     Returns (raw_nodes, tag_edges) — both empty if tag_edges disabled.
     """
-    import json as _json
-
     graph_cfg = cfg.get("graph") or {}
     if not graph_cfg.get("tag_edges", True):
         return [], []
@@ -104,16 +104,19 @@ def _collect_tag_edges(vault: Path, cfg: dict) -> tuple[list[dict], list[dict]]:
     include_curated = graph_cfg.get("curated_by_edges", True)
 
     tags_path = vault / "raw" / ".tags.json"
-    if not tags_path.exists():
-        return [], []
+    from lib.json_index import CorruptIndexError, load_json_object
+
     try:
-        index = _json.loads(tags_path.read_text(encoding="utf-8"))
-    except Exception:
-        return [], []
+        index = load_json_object(tags_path, default_if_missing={})
+    except CorruptIndexError:
+        raise
+    if not isinstance(index, dict):
+        raise CorruptIndexError(tags_path, "tags index root must be a JSON object")
 
     all_raw: set[str] = set()
     for paths in index.values():
-        all_raw.update(paths)
+        if isinstance(paths, list):
+            all_raw.update(str(p) for p in paths)
 
     raw_nodes = (
         [{"id": p, "path": p, "title": Path(p).stem, "kind": "raw"} for p in sorted(all_raw)]
@@ -124,6 +127,8 @@ def _collect_tag_edges(vault: Path, cfg: dict) -> tuple[list[dict], list[dict]]:
     edges: list[dict] = []
     # Tag co-occurrence
     for tag, paths in index.items():
+        if not isinstance(paths, list):
+            continue
         for i, a in enumerate(paths):
             for b in paths[i + 1 :]:
                 edges.append({"source": a, "target": b, "kind": f"tag:{tag}"})

@@ -4,30 +4,55 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "23 4 * * 1"
+  pull_request:
+    paths:
+      - "skills/**"
+      - "commands/**"
+      - "tests/skill_eval*"
+      - "tests/test_skill_evals*"
 
 permissions:
   contents: read
 
 jobs:
+  # Fail manual runs immediately when the secret is missing (no false-green skip).
+  require-secret-on-manual:
+    if: github.event_name == 'workflow_dispatch' && secrets.ANTHROPIC_API_KEY == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: ANTHROPIC_API_KEY required
+        run: |
+          echo "workflow_dispatch requires repository secret ANTHROPIC_API_KEY" >&2
+          exit 1
+
   claude:
+    # Skipped (not a green "passed without running") when the secret is absent.
+    if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Explain skipped credentialed evaluation
-        if: ${{ secrets.ANTHROPIC_API_KEY == '' }}
-        run: 'echo "Skipping Claude skill evals: ANTHROPIC_API_KEY is not configured."'
+
       - name: Install skill-eval dependencies
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
         run: |
           python -m pip install -r requirements-dev.txt
           npm install --global @anthropic-ai/claude-code
+
       - name: Run Claude skill evals
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
-        run: python -m pytest tests/test_skill_evals.py -v
+        run: python -m pytest tests/test_skill_evals.py -v --junitxml=junit-skill-evals.xml
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_RUNNER_KEEP_ANTHROPIC_ENV: "1"
+          RUN_CLAUDE_TESTS: "1"
           PYTHONPATH: ${{ github.workspace }}/scripts
+
+      - name: Upload pytest JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-evals-junit
+          path: junit-skill-evals.xml
+          if-no-files-found: ignore
+          retention-days: 90

@@ -1,7 +1,7 @@
 ---
 name: wiki-setup
 description: Interactive vault setup wizard that previews configuration before scaffolding. Use for setup, initialization, or guided configuration.
-when_to_use: Use when a user needs a new vault, wants guided initial configuration, or explicitly invokes /llm-wiki:setup; use wiki-configure for a narrow setting change.
+when_to_use: Use when a user needs a new vault, wants guided initial configuration, or explicitly invokes /llm-wiki:setup; use /llm-wiki:configure for a narrow setting change.
 disable-model-invocation: true
 ---
 

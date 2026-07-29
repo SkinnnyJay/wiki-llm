@@ -7,6 +7,18 @@ from ingest.adapters import ADAPTERS
 from ingest.base import Adapter, IngestResult
 from ingest.config import integration_config, integration_enabled
 
+# Adapters whose primary input is a local filesystem path (MCP-gated).
+LOCAL_PATH_ADAPTER_IDS = frozenset(
+    {
+        "file",
+        "pdf",
+        "pdf-markitdown",
+        "pdf-marker",
+        "pdf-mineru",
+        "convo",
+    }
+)
+
 
 def adapter_map() -> dict[str, type[Adapter]]:
     return {cls.id: cls for cls in ADAPTERS}

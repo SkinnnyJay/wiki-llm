@@ -22,9 +22,17 @@ def _utc_now() -> str:
 
 
 def memory_dir(vault: Path, cfg: dict[str, Any]) -> Path:
+    from lib.path_safety import resolve_under_vault
+
     mem = cfg.get("memory") or {}
-    rel = (mem.get("dir") or "raw/memory").strip().strip("/")
-    return vault / rel
+    rel = (mem.get("dir") or "raw/memory").strip().strip("/") or "raw/memory"
+    resolved = resolve_under_vault(vault, rel)
+    if resolved is None:
+        raise ValueError(
+            f"memory.dir escapes vault ({rel!r}); use a path under the vault "
+            "(default raw/memory)"
+        )
+    return resolved
 
 
 def memory_enabled(cfg: dict[str, Any]) -> bool:

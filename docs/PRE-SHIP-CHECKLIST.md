@@ -12,8 +12,9 @@ Use before tagging a release. Check items off in the PR/release notes; leave a s
 
 ## Template (next release)
 
+- [ ] **L0 (required):** `bin/llm-wiki smoke-test -v`, `bin/llm-wiki check --plugin-repo`, and CI **retrieval-smoke** (or local LME `--limit 10` vs `docs/memory/benchmarks/baselines/lme_ci_limit10.json`) are green.
 - [ ] Review the threat model for the release.
 - [ ] Confirm path-validation, SSRF, and MCP test suites are green.
-- [ ] Before a major release, confirm the scheduled/manual skill-evals workflow is green (or record why credentialed evaluation was unavailable).
+- [ ] **L2 (optional):** Before a major release, confirm the scheduled/manual skill-evals workflow is green when `ANTHROPIC_API_KEY` is available — or record why credentialed evaluation was skipped. Promptfoo is **not** required (future optional only).
 - [ ] Verify marketplace links resolve to [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json).
 - [ ] Update version notes and create the matching release tag after the release commit is approved.

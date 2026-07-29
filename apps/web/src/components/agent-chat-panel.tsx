@@ -30,6 +30,7 @@ import type { PreflightClient } from "@/types/desk";
 import { Badge } from "@/components/ui/badge";
 import { getTextFromUIMessage } from "@/lib/chat-request";
 import { cn } from "@/lib/utils";
+import { webAuthHeaders } from "@/lib/web-token-client";
 
 const STARTERS = [
   "Using wiki-status, what should I check before research?",
@@ -63,6 +64,7 @@ export function AgentChatPanel({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
+        headers: webAuthHeaders(),
         prepareSendMessagesRequest: ({ id, messages, body }) => ({
           body: {
             ...(body ?? {}),

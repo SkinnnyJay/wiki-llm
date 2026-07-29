@@ -22,6 +22,8 @@ jobs:
           python -m venv /tmp/llm-wiki-install
           /tmp/llm-wiki-install/bin/python -m pip install /tmp/llm-wiki-dist/*.whl
           /tmp/llm-wiki-install/bin/llm-wiki --version
+          /tmp/llm-wiki-install/bin/llm-wiki doctor --help
+          /tmp/llm-wiki-install/bin/python -c "import mcp_server"
 
   pytest:
     runs-on: ubuntu-latest
@@ -37,10 +39,86 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Plugin repo checks (agent docs + compileall)
         run: python scripts/llm_wiki.py check --plugin-repo
+      - name: Typecheck scripts (basedpyright)
+        run: basedpyright scripts
       - name: Run pytest
         run: python -m pytest tests/
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
+      - name: Compile smoke (temp vault)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          VAULT="${RUNNER_TEMP}/llm-wiki-compile-smoke"
+          python scripts/llm_wiki.py setup --vault "$VAULT" --defaults
+          python scripts/llm_wiki.py --vault "$VAULT" lint --write-report
+          python scripts/llm_wiki.py --vault "$VAULT" compile --no-site
+          python scripts/llm_wiki.py --vault "$VAULT" knowledge-test --file examples/knowledge-tests.json
+          test -f "$VAULT/outputs/lint-report.json"
+          test -f "$VAULT/outputs/claims.json"
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install .
+      - name: Version
+        run: llm-wiki --version
+      - name: Setup temp vault and doctor (from checkout; wheel has no templates/)
+        shell: bash
+        run: |
+          tmp=$(mktemp -d)
+          python scripts/llm_wiki.py setup --root "$tmp" --defaults
+          python scripts/llm_wiki.py --vault "$tmp/llm-wiki" doctor
+          llm-wiki --version
+
+  retrieval-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dev deps
+        run: pip install -r requirements-dev.txt
+      - name: LME retrieval smoke (limit 10, no LLM)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          VAULT="${RUNNER_TEMP}/llm-wiki-retrieval-smoke"
+          python3 scripts/llm_wiki.py setup --vault "$VAULT" --defaults
+          export LLM_WIKI_VAULT="$VAULT"
+          # Prefer a real LME run. If the public dataset download is flaky, document and exit 0.
+          set +e
+          python3 scripts/llm_wiki.py benchmark run lme --limit 10 --no-metrics >"${RUNNER_TEMP}/lme-smoke.out" 2>&1
+          rc=$?
+          set -e
+          cat "${RUNNER_TEMP}/lme-smoke.out"
+          if [ "$rc" -ne 0 ]; then
+            if grep -qiE 'URLError|HTTPError|TimedOut|timeout|ConnectionError|Temporary failure|Name or service not known|Failed to download|download.*fail|HTTPSConnectionPool|RemoteDisconnected' "${RUNNER_TEMP}/lme-smoke.out"; then
+              {
+                echo "## retrieval-smoke: SKIPPED (network) — not an L0 pass"
+                echo
+                echo "L0 retrieval gate only counts when the LME download succeeds and baseline R@5 compare runs."
+                echo "Caught download/network error; job exits 0 so flaky HF does not red the whole suite, but do not treat this as green L0."
+                echo
+                echo '```'
+                tail -n 40 "${RUNNER_TEMP}/lme-smoke.out"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "LME smoke failed (non-download error), exit $rc" >&2
+            exit "$rc"
+          fi
+          python3 benchmarks/compare_ci_baseline.py \
+            --baseline docs/memory/benchmarks/baselines/lme_ci_limit10.json \
+            --vault "$VAULT"
 
   web-typecheck:
     runs-on: ubuntu-latest

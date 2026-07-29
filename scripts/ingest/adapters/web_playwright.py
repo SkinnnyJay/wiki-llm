@@ -71,6 +71,9 @@ class PlaywrightAdapter(Adapter):
                 page = browser.new_page()
                 page.set_default_timeout(timeout_ms)
                 page.goto(ns.url, wait_until="domcontentloaded")
+                final_url = page.url or ns.url
+                # Re-validate after redirects Chromium may have followed.
+                validate_public_http_url(final_url, context="ingest playwright (final URL)")
                 title = (page.title() or "").strip() or "Source"
                 html = page.content()
             finally:
@@ -80,7 +83,7 @@ class PlaywrightAdapter(Adapter):
         if not text.strip():
             text = "(no text extracted after HTML strip — page may be empty or blocked)"
 
-        md = f"# {title}\n\nURL: {ns.url}\n\n---\n\n{text}\n"
+        md = f"# {title}\n\nURL: {final_url}\n\n---\n\n{text}\n"
 
         if ns.out:
             dest = raw_destination(vault, ns.out)

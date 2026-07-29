@@ -1,0 +1,9 @@
+{
+  "suite": "lme",
+  "limit": 10,
+  "backend": "fts5",
+  "recall_at_5": 1.0,
+  "min_recall_at_5": 0.0,
+  "epsilon": 0.05,
+  "notes": "Local no-LLM fts5 limit-10 run measured R@5=1.0. CI fails when smoke R@5 < max(min_recall_at_5, recall_at_5 - epsilon). Refresh after intentional search changes."
+}

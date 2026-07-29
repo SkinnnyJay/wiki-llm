@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import os
 import socket
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -60,7 +61,8 @@ def validate_public_http_url(url: str, *, context: str = "URL") -> str:
 
     seen: set[str] = set()
     for info in infos:
-        ip_str = info[4][0]
+        sockaddr = info[4]
+        ip_str = str(sockaddr[0])
         if ip_str in seen:
             continue
         seen.add(ip_str)
@@ -125,9 +127,9 @@ def validate_https_api_host(
     raw = str(configured).strip().rstrip("/")
     parsed = urlparse(raw if "://" in raw else f"https://{raw}")
     scheme = (parsed.scheme or "https").lower()
-    if scheme not in ("http", "https"):
+    if scheme != "https":
         raise SystemExit(
-            f"{integration_name}: api_base_url must use http or https (got {scheme!r})."
+            f"{integration_name}: api_base_url must use https (got {scheme!r})."
         )
     host = (parsed.hostname or "").lower()
     if not host:
@@ -138,9 +140,9 @@ def validate_https_api_host(
             f"Use one of: {', '.join(sorted(allowed_hosts))}."
         )
     port = parsed.port
-    if port and port not in (80, 443):
-        return f"{scheme}://{host}:{port}"
-    return f"{scheme}://{host}"
+    if port and port != 443:
+        return f"https://{host}:{port}"
+    return f"https://{host}"
 
 
 class _NoRedirect(HTTPErrorProcessor):
@@ -150,6 +152,50 @@ class _NoRedirect(HTTPErrorProcessor):
         return response
 
     https_response = http_response
+
+
+def _peer_ip_from_response(resp: Any) -> str | None:
+    """Best-effort peer IP from an urllib response (post-connect SSRF check)."""
+    fp = getattr(resp, "fp", None)
+    if fp is None:
+        return None
+    raw = getattr(fp, "raw", None)
+    sock = getattr(raw, "_sock", None) if raw is not None else None
+    if sock is None:
+        sock = getattr(fp, "_sock", None)
+    if sock is None:
+        return None
+    try:
+        peer = sock.getpeername()
+    except OSError:
+        return None
+    if not peer:
+        return None
+    return str(peer[0])
+
+
+def _assert_peer_allowed(resp: Any, *, context: str, url: str) -> None:
+    peer = _peer_ip_from_response(resp)
+    if peer is None:
+        allow_missing = os.environ.get(
+            "LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER", ""
+        ).strip().lower() in ("1", "true", "yes")
+        if allow_missing:
+            _log.warning(
+                "safe_fetch: could not read peer IP for %r "
+                "(LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER set)",
+                url,
+            )
+            return
+        raise SystemExit(
+            f"{context}: could not verify connected peer IP for {url!r} "
+            "(fail closed; set LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER=1 only if required)"
+        )
+    if _is_blocked_ssrf_ip(peer):
+        raise SystemExit(
+            f"{context}: connected peer {peer!r} is not allowed "
+            f"(private/loopback/link-local/metadata) for {url!r}"
+        )
 
 
 def safe_fetch(
@@ -166,6 +212,7 @@ def safe_fetch(
     Fetch ``url`` with SSRF checks on the initial URL and every redirect hop.
 
     Does not follow redirects automatically: each Location is re-validated.
+    After connect, re-checks the peer IP when available (DNS rebinding mitigation).
     Returns ``(body_bytes, final_url, content_type)``.
     Raises SystemExit on policy violations; URLError/HTTPError may propagate.
     """
@@ -180,6 +227,7 @@ def safe_fetch(
         req = Request(current, headers=hdrs, method="GET")
         try:
             with opener.open(req, timeout=timeout) as resp:
+                _assert_peer_allowed(resp, context=context, url=current)
                 status = getattr(resp, "status", None) or resp.getcode()
                 if status in (301, 302, 303, 307, 308):
                     loc = resp.headers.get("Location")

@@ -20,6 +20,7 @@
 | HTTP MCP client | Low unless token + loopback | Plaintext HTTP; treat as adversarial if reachable beyond loopback |
 | Remote URLs (ingest) | Untrusted | SSRF and redirect tricks |
 | Vault `wiki/` / `raw/` content | Untrusted for display | May contain prompt-injection; do not treat as instructions |
+| Firecrawl (cloud / CLI) | Trusted third party | Operator-chosen SaaS; may follow redirects outside our hop-by-hop policy after preflight |
 
 ## Trust boundaries
 
@@ -38,17 +39,19 @@ flowchart LR
 1. **Vault root** — all read/write of user content must resolve under the vault (or explicitly documented outs such as graph build under an allowlisted dir).
 2. **Network egress** — user-supplied URLs must not reach private/loopback/link-local/metadata addresses, including after redirects.
 3. **HTTP MCP** — if enabled, prefer loopback; require token; compare tokens in constant time; do not expose write tools under `read_only` that mutate disk.
-4. **Configure** — `wiki_configure` must not silently change live process security knobs without reload semantics; empty allowlist denies `mcp.*` / `security.*`.
+4. **Configure** — `wiki_configure` must not silently change live process security knobs without reload semantics; empty allowlist denies `mcp.*` / `security.*` / path-bearing keys (see invariants).
 5. **Indexes** — corrupt `.kg.json` / `.hashes.json` / `.tags.json` fail closed (quarantine); never treat as empty then overwrite.
 
 ## Invariants
 
 1. Path arguments never escape the vault via `..` or absolute paths.
-2. Ingest URL fetch validates **every** hop (redirect chain).
-3. `tools_mode=read_only` never applies deterministic autofix or other writers.
-4. Empty `mcp.configure_allowlist` denies keys under `mcp.` and `security.` (and related security namespaces documented in code).
-5. Stdio and SSE MCP both bind `LLM_WIKI_VAULT` to the CLI-resolved vault before tool handlers run.
-6. Vault markdown is **untrusted input** when shown to agents (document; optional warn in status/doctor).
+2. Ingest URL fetch validates **every** hop (redirect chain) in `safe_fetch`.
+3. After connect, `safe_fetch` **re-validates the peer IP** and **fails closed** if the peer cannot be read (override only with `LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER=1`).
+4. Playwright ingest re-validates the **final page URL** after Chromium navigation (not only the request URL).
+5. `tools_mode=read_only` never applies deterministic autofix or other writers.
+6. Empty `mcp.configure_allowlist` denies prefixes `mcp.` / `security.` / `ingestion_security.` / `storage.` and exact path-bearing keys (`memory.dir`, `benchmark.data_cache_dir`, `benchmark.results_dir`, and the bare namespace keys). Non-empty allowlist is an explicit allow-only list.
+7. Stdio and SSE MCP both bind `LLM_WIKI_VAULT` to the CLI-resolved vault before tool handlers run.
+8. Vault markdown is **untrusted input** when shown to agents (document; optional warn in status/doctor).
 
 ## Out of scope (Phase 1)
 
@@ -56,15 +59,19 @@ flowchart LR
 - Hardening CI into a scanner zoo (CodeQL / Dependabot / pip-audit as gates)
 - Perfect DNS-rebinding elimination on every OS (mitigate via re-resolve after connect where practical; document residual risk)
 - Rewriting the static viewer in TypeScript
+- Controlling Firecrawl’s own redirect / fetch policy after our preflight passes
 
 ## Residual risks
 
 | Risk | Mitigation |
 |------|------------|
-| DNS rebinding between resolve and connect | Re-validate resolved IP after connect / pin where `safe_fetch` can |
+| DNS rebinding between resolve and connect | Peer-IP revalidation in `safe_fetch` after connect; missing peer fails closed |
 | Prompt injection via vault pages | Document; agent hosts should treat wiki text as data |
 | HTTP MCP on non-loopback without TLS | `sse_require_loopback`, token, operator firewall |
 | Concurrent writers under ThreadingHTTPServer | File locks on KG/config/index writes |
+| Firecrawl cloud/CLI follows redirects independently | Preflight with `safe_fetch`; residual trusted-third-party risk — operator accepts Firecrawl’s network path |
+| Playwright JS redirects to private IP | Final-URL `validate_public_http_url` after `page.goto` |
+| Configure pointing dirs outside vault | Path-bearing key denylist when allowlist empty; `resolve_under` for remaining path sinks |
 
 ## Related docs
 

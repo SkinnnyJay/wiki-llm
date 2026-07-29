@@ -13,7 +13,8 @@
 
 # llm-wiki — quickstart
 
-**How these docs are ordered:** **Claude Code** (slash commands + skills) first, then the **`llm-wiki`** **CLI**, then **bash / shell** snippets for scripts, CI, and copy-paste automation.
+**Goal:** Compile one source into an agent-ready wiki page, then **query** it.  
+**Labeling:** Ingest → Compile → Query (directories stay **`raw/`** / **`wiki/`**).
 
 ---
 
@@ -21,10 +22,12 @@
 
 | Term | Meaning |
 |------|---------|
-| **Vault** | Your knowledge folder (usually `./llm-wiki/` inside a project): `wiki/`, `raw/`, `config.json`, etc. |
-| **Plugin repo** | This **wiki-llm** repository: CLI, skills, commands, and templates — not your vault. |
+| **Vault** | Your knowledge folder (usually `./llm-wiki/`): `wiki/`, `raw/`, `config.json`. |
+| **Plugin repo** | This **wiki-llm** repository: CLI, skills, commands, templates. |
+| **Compile** | Merge **`raw/`** evidence into curated **`wiki/`** (skills / pipeline), then run quality gates. |
 
-**Cursor / Codex:** open this repo and use [`AGENTS.md`](../AGENTS.md); prompts live in [`commands/`](../commands/) (same text as **`/llm-wiki:…`**).
+**Primary install:** Claude Code marketplace (see **[`INSTALL.md`](./INSTALL.md)**).  
+**Also:** open this clone in Cursor/Codex (`AGENTS.md`); optional wheel = CLI/MCP modules only (no scaffold).
 
 ---
 
@@ -32,40 +35,39 @@
 
 ### 1. Claude Code (recommended)
 
-Install and reload (see **[`INSTALL.md`](./INSTALL.md)** for detail), then in chat:
-
 ```text
 /reload-plugins
 /llm-wiki:setup
 ```
 
-Merge **`raw/`** into **`wiki/`** with skills **wiki-ingest** and **wiki-maintainer** (or **`/llm-wiki:ingest`**). The CLI does not auto-write topic pages — that curation step is intentional.
+Then ingest a source into **`raw/`**, compile with **`/llm-wiki:ingest`** (writes **`wiki/`**), and ask via **`/llm-wiki:query`** or the CLI `search` below.
 
-### 2. CLI (same vault, terminal)
+### 2. CLI (same vault)
 
-From the **plugin repo** root with `bin/llm-wiki` on your `PATH` (or `./bin/llm-wiki`):
+From the **plugin repo** root:
 
 ```bash
 llm-wiki setup --root . --defaults
 llm-wiki --vault ./llm-wiki ingest file ./README.md --out notes/readme-clip.md
+# Compile (agent): /llm-wiki:ingest  — CLI fills raw/ only; skills write wiki topic pages
 llm-wiki --vault ./llm-wiki validate
-llm-wiki --vault ./llm-wiki build-site
+llm-wiki --vault ./llm-wiki search "llm-wiki"
+# Optional: llm-wiki --vault ./llm-wiki lint
+# Optional: llm-wiki mcp
 ```
 
-Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags. Full reference: [`CLI.md`](./CLI.md).
+Use **`llm-wiki --help`**. Full reference: [`CLI.md`](./CLI.md).
 
-### 3. Bash / shell (optional)
-
-Equivalent using explicit paths to the repo binary (good for scripts or one-off runs):
+### 3. Bash / shell (scripts)
 
 ```bash
 ./bin/llm-wiki setup --root . --defaults
 ./bin/llm-wiki --vault ./llm-wiki ingest file ./README.md --out notes/readme-clip.md
 ./bin/llm-wiki --vault ./llm-wiki validate
-./bin/llm-wiki --vault ./llm-wiki build-site
+./bin/llm-wiki --vault ./llm-wiki search "llm-wiki"
 ```
 
-**Next:** full green path, troubleshooting, and optional features → [`WORKFLOWS.md`](../WORKFLOWS.md).
+**Next:** green path and gates → [`WORKFLOWS.md`](../WORKFLOWS.md). Ethos → [`ETHOS.md`](../ETHOS.md).
 
 ---
 
@@ -73,10 +75,11 @@ Equivalent using explicit paths to the repo binary (good for scripts or one-off 
 
 | Tier | You want… | Start here |
 |------|-------------|------------|
-| **Basic** | A working vault: capture → curate → browse | This page → [`WORKFLOWS.md`](../WORKFLOWS.md) “Green path” |
-| **Intermediate** | Git history, static viewer, health checks | [`WORKFLOWS.md`](../WORKFLOWS.md), **wiki-lint** skill, `git.enabled` / `viewer` in `config.json` |
-| **Advanced** | MCP in the editor, hybrid search, knowledge graph, benchmarks | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md), [`benchmarks/README.md`](../benchmarks/README.md) |
-| **Maintainer** | Plugin development, tests, agent-doc sync | [`CONTRIBUTING.md`](../CONTRIBUTING.md), [`docs/PUBLISHING.md`](./PUBLISHING.md) |
+| **Basic** | Ingest → compile → **search** | This page |
+| **Intermediate** | Lint/schema gates, git, static viewer | [`WORKFLOWS.md`](../WORKFLOWS.md), **wiki-lint**, `viewer` in config |
+| **Advanced** | MCP, hybrid search, KG contradictions | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
+| **Optional** | Session memory, benchmarks, research loops, `apps/web` | [`INSPIRATION.md`](./INSPIRATION.md) (not the core pitch) |
+| **Maintainer** | Plugin tests, agent-doc sync | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 
 ---
 
@@ -84,19 +87,17 @@ Equivalent using explicit paths to the repo binary (good for scripts or one-off 
 
 | Feature | Doc |
 |---------|-----|
-| Claude Code install, `/reload-plugins`, dev clone | [`INSTALL.md`](./INSTALL.md) |
-| Slash commands — index and details | [`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md) |
-| Slash prompt files (`/llm-wiki:…`) | [`commands/`](../commands/) |
-| Skills (wiki-ingest, wiki-query, …) | [`skills/*/SKILL.md`](../skills/) |
-| Session memory (`memory.enabled`, `raw/memory/`) | [`skills/wiki-session-memory/SKILL.md`](../skills/wiki-session-memory/SKILL.md) |
-| MCP + search backends | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
-| Evidence layers, trust | [`ETHOS.md`](../ETHOS.md) |
-| Architecture (vault vs plugin) | [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| Env vars (`.env`, integrations, pytest opt-in) | [`docs/ENV.md`](./ENV.md), [`../.env.example`](../.env.example) |
-| GitHub Pages UI (landing + Memory hub) | [`docs/README.md`](./README.md), [`docs/css/style.css`](./css/style.css) |
+| Compile one source end-to-end | This page + README recipe |
+| Claude Code install | [`INSTALL.md`](./INSTALL.md) |
+| Slash commands | [`SLASH-COMMANDS.md`](./SLASH-COMMANDS.md) |
+| Skills | [`skills/*/SKILL.md`](../skills/) |
+| Evidence layers | [`ETHOS.md`](../ETHOS.md) |
+| Architecture | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| MCP + search | [`skills/references/mcp-and-kg.md`](../skills/references/mcp-and-kg.md) |
+| Optional session memory | [`skills/wiki-session-memory/SKILL.md`](../skills/wiki-session-memory/SKILL.md) |
 
 ---
 
 ## Example vault
 
-A minimal sample you can copy or compare against is in **[`examples/minimal-vault/`](../examples/minimal-vault/)** in this repo.
+Minimal sample: **[`examples/minimal-vault/`](../examples/minimal-vault/)**.

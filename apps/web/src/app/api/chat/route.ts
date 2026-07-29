@@ -6,6 +6,7 @@ import {
 import { ensureClaudeSession, getWorkspaceDir, streamAcpxClaudePrompt } from "@/lib/acpx";
 import { lastUserText } from "@/lib/chat-request";
 import { getSystemPromptForTurn } from "@/lib/system-prompt";
+import { requireWebToken } from "@/lib/web-auth";
 import {
   computeWikiPreflight,
   preflightForClient,
@@ -21,6 +22,9 @@ type ChatRequestBody = {
 };
 
 export async function POST(req: Request) {
+  const authError = requireWebToken(req);
+  if (authError) return authError;
+
   const body = (await req.json()) as ChatRequestBody;
   if (!body.messages || !Array.isArray(body.messages)) {
     return new Response(JSON.stringify({ error: "Missing messages array" }), {

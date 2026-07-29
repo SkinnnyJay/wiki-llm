@@ -6,7 +6,7 @@ import type { WikiPreflight } from "@/lib/wiki-preflight";
 import { computeWikiPreflight } from "@/lib/wiki-preflight";
 import { resolveVaultPath, vaultExistsAt } from "@/lib/vault-path";
 
-/** Default: `docs/web/prompts/wiki-llm-chat-system.md` (anchored to this module, not `cwd`). */
+/** Default: `apps/web/prompts/wiki-llm-chat-system.md` (anchored to this module, not `cwd`). */
 const DEFAULT_PROMPT_FILE = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -20,7 +20,7 @@ let cache: { path: string; content: string } | null = null;
 /**
  * Resolve which file backs the Claude “system” context for acpx turns.
  * - `ACP_SYSTEM_PROMPT_PATH`: absolute path, or relative to `process.cwd()`
- * - default: `docs/web/prompts/wiki-llm-chat-system.md` next to the Next app
+ * - default: `apps/web/prompts/wiki-llm-chat-system.md` next to the Next app
  */
 export function resolveSystemPromptPath(): string {
   const fromEnv = process.env.ACP_SYSTEM_PROMPT_PATH?.trim();

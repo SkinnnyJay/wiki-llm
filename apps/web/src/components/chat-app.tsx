@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { AgentChatPanel } from "@/components/agent-chat-panel";
 import { WorkspaceExplorer } from "@/components/workspace-explorer";
+import { webAuthHeaders } from "@/lib/web-token-client";
 import type { PreflightClient } from "@/types/desk";
 
 function randomSessionName() {
@@ -58,7 +59,10 @@ export function ChatApp() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/config", { method: "GET" });
+        const res = await fetch("/api/config", {
+          method: "GET",
+          headers: webAuthHeaders(),
+        });
         const data = (await res.json()) as Partial<DeskConfig> & {
           displayName?: string;
           preflight?: Partial<PreflightClient>;

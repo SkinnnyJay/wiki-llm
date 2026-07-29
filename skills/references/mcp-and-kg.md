@@ -50,7 +50,7 @@ Skills should always show the **CLI form first** and note the MCP equivalent par
 
 **HTTP (`--transport sse`):** The same tool surface is available over **plaintext HTTP** on `mcp.host`/`mcp.port`. Binding to **non-loopback** addresses exposes the vault to the LAN unless firewalled. Prefer **`127.0.0.1`**, use **`mcp.sse_require_loopback`** / **`mcp.sse_token`** (see config keys below), or put a reverse proxy with TLS in front for remote use.
 
-**Secrets:** `wiki_read_page` can read **any path under the vault** (e.g. `config.json`). Do not store raw API keys in tracked files; use env vars (see [`docs/ENV.md`](../../docs/ENV.md)).
+**Secrets:** `wiki_read_page` only reads under **`wiki/`**, **`raw/`**, or **`outputs/`** (not `config.json`). Do not store raw API keys in tracked files; use env vars (see [`docs/ENV.md`](../../docs/ENV.md)).
 
 ---
 
@@ -64,10 +64,11 @@ Rough classification for operators — see `mcp.tools_mode` / `mcp.tools_allowli
 | **Network / disk (benchmarks)** | `wiki_benchmark_run` (and dataset downloads) — hidden with `wiki_benchmark_suites` when `mcp.benchmark_tool_enabled` is false |
 | **Config write** | `wiki_configure` — optional `mcp.configure_allowlist` limits keys |
 | **Search index / site** | `wiki_reindex`, `wiki_build_site` (optional `if_stale`), `wiki_graph_build` (D3 bundle — writes under output dir) |
+| **Knowledge CI** | `wiki_lint`, `wiki_compile` (writes lint/claims reports; rebuilds KG; optional site) |
 | **KG writes** | `wiki_kg_add`, `wiki_kg_invalidate`, `wiki_kg_rebuild` |
 | **Session memory writes / deletes** | `memory_save`, `memory_log`, `memory_prune` |
 | **Subprocess (git)** | `wiki_git_status` — read-only git; no arbitrary shell |
-| **Read-mostly** | `wiki_wake_up`, `wiki_status`, `wiki_list_topics`, `wiki_validate`, `wiki_read_page`, `wiki_graph`, `wiki_search`, `wiki_find_related`, `wiki_search_index_status`, `wiki_kg_query`, `wiki_kg_timeline`, `wiki_kg_stats`, `wiki_raw_validate` (optional `autofix`), `wiki_metrics_stats`, `wiki_metrics_query`, `wiki_benchmark_suites`, `memory_list`, `memory_show`, `memory_recall` |
+| **Read-mostly** | `wiki_wake_up`, `wiki_status`, `wiki_list_topics`, `wiki_validate`, `wiki_knowledge_test`, `wiki_read_page`, `wiki_graph`, `wiki_search`, `wiki_find_related`, `wiki_search_index_status`, `wiki_kg_query`, `wiki_kg_timeline`, `wiki_kg_stats`, `wiki_raw_validate` (optional `autofix`), `wiki_metrics_stats`, `wiki_metrics_query`, `wiki_benchmark_suites`, `memory_list`, `memory_show`, `memory_recall` |
 
 ---
 
@@ -89,8 +90,9 @@ All settings live in `llm-wiki/config.json`:
     "max_response_chars": 500000,
     "read_page_max_chars": 0,
     "configure_allowlist": [],
-    "benchmark_tool_enabled": true,
-    "ingest_enabled": true,
+    "benchmark_tool_enabled": false,
+    "ingest_enabled": false,
+    "allow_local_file_ingest": false,
     "sse_require_loopback": true,
     "sse_token": "",
     "status_file_count_ttl_seconds": 45
@@ -98,7 +100,18 @@ All settings live in `llm-wiki/config.json`:
   "knowledge_graph": {
     "enabled": true,
     "backend": "json",
-    "auto_update_on_ingest": true
+    "auto_update_on_ingest": true,
+    "aliases": {},
+    "allowed_predicates": [],
+    "ontology_strict": false,
+    "fact_check_on_add": true
+  },
+  "compile": {
+    "schema_required": false,
+    "require_sources": false,
+    "fail_on_kg_conflicts": true,
+    "extract_claims": true,
+    "fail_on_uncited_claims": false
   },
   "memory": {
     "enabled": false,
@@ -108,7 +121,9 @@ All settings live in `llm-wiki/config.json`:
 }
 ```
 
-**Optional hardening (`mcp.*`):** **`tools_mode`** — `full` (default), `read_only` (search/query/list tools only), or `custom` (only names in **`tools_allowlist`**; an empty allowlist behaves like **`read_only`**). **`max_response_chars`** — cap serialized JSON per tool result (`0` = unlimited). **`read_page_max_chars`** — truncate **`wiki_read_page`** body when `> 0` (the tool’s **`max_chars`** argument overrides). **`configure_allowlist`** — if non-empty, **`wiki_configure`** only allows listed keys; prefix rules end with `.` (e.g. `mcp.`). **`benchmark_tool_enabled`** — hide **`wiki_benchmark_run`** and **`wiki_benchmark_suites`** when `false`. **`ingest_enabled`** — hide **`wiki_ingest`** when `false`. **`sse_require_loopback`** — when `true`, HTTP MCP refuses to bind to non-loopback hosts. **`sse_token`** — when non-empty, HTTP clients must send **`Authorization: Bearer …`** or **`X-LLM-Wiki-Token`**. Plaintext HTTP; use a reverse proxy with TLS for untrusted networks. **`status_file_count_ttl_seconds`** — TTL for cached **`wiki_status`** raw/wiki `*.md` counts.
+**Optional hardening (`mcp.*`):** **`tools_mode`** — `full` (default), `read_only` (search/query/list tools only), or `custom` (only names in **`tools_allowlist`**; an empty allowlist behaves like **`read_only`**). **`max_response_chars`** — cap serialized JSON per tool result (`0` = unlimited). **`read_page_max_chars`** — truncate **`wiki_read_page`** body when `> 0` (the tool’s **`max_chars`** argument overrides). **`wiki_read_page`** only allows **`wiki/`**, **`raw/`**, **`outputs/`**. **`configure_allowlist`** — if non-empty, **`wiki_configure`** only allows listed keys; prefix rules end with `.` (e.g. `mcp.`). Empty allowlist denies **`mcp.*` / `security.*` / `storage.*` / `hooks.*` / `memory.dir` / benchmark path dirs**. **`benchmark_tool_enabled`** / **`ingest_enabled`** — default **`false`** in the vault template (opt in after review). **`allow_local_file_ingest`** — when `false` (default), MCP rejects local-path adapters: **`file`**, **`pdf`**, **`pdf-markitdown`**, **`pdf-marker`**, **`pdf-mineru`**, **`convo`** (CLI unrestricted). **`sse_require_loopback`** — when `true`, HTTP MCP refuses to bind to non-loopback hosts. **`sse_token`** — when non-empty, HTTP clients must send **`Authorization: Bearer …`** or **`X-LLM-Wiki-Token`**. Empty token with write-capable **`tools_mode`** fails closed on loopback unless **`sse_allow_empty_token`**. Plaintext HTTP; use a reverse proxy with TLS for untrusted networks. **`status_file_count_ttl_seconds`** — TTL for cached **`wiki_status`** raw/wiki `*.md` counts.
+
+**Knowledge compiler (`compile.*` / `knowledge_graph.*`):** Prefer **`llm-wiki compile`** / MCP **`wiki_compile`** after wiki merge. **`knowledge_graph.aliases`** merges entity spellings on add/query/rebuild. Non-empty **`allowed_predicates`** rejects unknown predicates on **`kg add`** (builtins included unless **`ontology_strict`**). Lint/compile write **`outputs/claims.json`** when **`extract_claims`**. Surgical: **`compile --raw raw/foo.md`** / **`wiki_compile`** with **`raw`**.
 
 **Session memory (`memory.*`):** Opt-in. When `memory.enabled` is `true`, hooks and `llm-wiki memory …` write **`raw/memory/<session-id>.md`**. **`raw validate`** skips that directory; search still indexes it (`scope="memory"`). **`llm-wiki/.current-session`** stores the active session id for **`--current`**.
 

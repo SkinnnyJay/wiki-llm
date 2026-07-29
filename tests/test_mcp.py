@@ -349,10 +349,40 @@ class TestMCPServer:
         assert "wiki_wake_up" in names
         assert "wiki_search" in names
         assert "wiki_kg_query" in names
-        assert "wiki_benchmark_run" in names
+        # Safer defaults: benchmark + ingest tools off unless opted in
+        assert "wiki_benchmark_run" not in names
+        assert "wiki_ingest" not in names
         assert "wiki_metrics_stats" in names
         assert "wiki_graph_build" in names
-        assert len(tools) >= 30
+        assert len(tools) >= 25
+
+    def test_tools_list_with_write_opt_in(self, tmp_path):
+        v = tmp_path / "llm-wiki-full"
+        v.mkdir()
+        (v / "config.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "mcp": {
+                        "enabled": True,
+                        "search_backend": "fts5",
+                        "benchmark_tool_enabled": True,
+                        "ingest_enabled": True,
+                    },
+                    "knowledge_graph": {"enabled": True, "backend": "json"},
+                    "git": {"enabled": False},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (v / "wiki").mkdir()
+        (v / "wiki" / "index.md").write_text("# i\n", encoding="utf-8")
+        (v / "raw").mkdir()
+        (v / "CLAUDE.md").write_text("# r\n", encoding="utf-8")
+        resp = self._call(v, "tools/list")
+        names = [t["name"] for t in resp["result"]["tools"]]
+        assert "wiki_benchmark_run" in names
+        assert "wiki_ingest" in names
 
     def test_tool_call_status(self, vault):
         resp = self._call(vault, "tools/call", {"name": "wiki_status", "arguments": {}})
@@ -468,6 +498,10 @@ class TestMCPHttpBridge:
         import urllib.error
         import urllib.request
 
+        cfg = json.loads((vault / "config.json").read_text(encoding="utf-8"))
+        cfg.setdefault("mcp", {})["sse_allow_empty_token"] = True
+        (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -504,6 +538,10 @@ class TestMCPHttpBridge:
         import time
         import urllib.error
         import urllib.request
+
+        cfg = json.loads((vault / "config.json").read_text(encoding="utf-8"))
+        cfg.setdefault("mcp", {})["sse_allow_empty_token"] = True
+        (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(("127.0.0.1", 0))
@@ -821,10 +859,11 @@ class TestFTS5Pragmas:
         backend.reindex()
         assert (custom_dir / "custom.sqlite3").exists()
 
-    def test_absolute_storage_path(self, tmp_path, vault):
+    def test_absolute_storage_path(self, vault):
         sys.path.insert(0, str(SCRIPTS))
         from lib.search import FTS5SearchBackend
-        abs_path = tmp_path / "external" / "search.db"
+
+        abs_path = (vault / "external" / "search.db").resolve()
         abs_path.parent.mkdir(parents=True)
         cfg = {"storage": {"search_db": str(abs_path)}}
         backend = FTS5SearchBackend(vault, cfg)

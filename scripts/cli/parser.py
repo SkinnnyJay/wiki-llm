@@ -16,13 +16,17 @@ from lib.version import __version__
 
 from cli.core_commands import (
     cmd_build_site,
+    cmd_compile,
     cmd_configure,
     cmd_deps,
+    cmd_diff,
     cmd_git,
     cmd_graph,
     cmd_graph_knowledge,
     cmd_ingest,
     cmd_integrations,
+    cmd_knowledge_test,
+    cmd_lint,
     cmd_list_topics,
     cmd_raw_finish,
     cmd_raw_record,
@@ -133,7 +137,57 @@ def build_parser() -> argparse.ArgumentParser:
 
     pv = sub.add_parser("validate", help="Check vault layout")
     pv.add_argument("--wikilinks", action="store_true", help="Fail if wikilinks point to missing wiki pages")
+    pv.add_argument(
+        "--schema",
+        action="store_true",
+        help="Enforce wiki frontmatter provenance schema (sources/confidence/…)",
+    )
     pv.set_defaults(func=cmd_validate)
+
+    plint = sub.add_parser("lint", help="Deterministic wiki health (orphans, links, schema, stale)")
+    plint.add_argument("--schema", action="store_true", help="Require provenance frontmatter")
+    plint.add_argument("--no-stale", action="store_true", help="Skip stale_after checks")
+    plint.add_argument("--no-outputs", action="store_true", help="Skip outputs/ vs wiki overlap")
+    plint.add_argument("--json", dest="json_out", action="store_true", help="JSON report")
+    plint.add_argument(
+        "--write-report",
+        action="store_true",
+        help="Write outputs/lint-report.json",
+    )
+    plint.set_defaults(func=cmd_lint)
+
+    pdiff = sub.add_parser("diff", help="Knowledge diff: wiki/.kg changes since a git ref")
+    pdiff.add_argument("--since", default="HEAD~1", help="Git ref (default: HEAD~1)")
+    pdiff.add_argument("--json", dest="json_out", action="store_true")
+    pdiff.add_argument("--write-report", action="store_true", help="Write outputs/knowledge-diff.json")
+    pdiff.set_defaults(func=cmd_diff)
+
+    pcomp = sub.add_parser(
+        "compile",
+        help="Run knowledge CI gates (validate+lint+KG conflicts+optional site)",
+    )
+    pcomp.add_argument("--schema", action="store_true", help="Strict provenance schema")
+    pcomp.add_argument("--no-kg", action="store_true", help="Skip KG rebuild/conflicts")
+    pcomp.add_argument("--no-site", action="store_true", help="Skip viewer rebuild")
+    pcomp.add_argument(
+        "--raw",
+        default="",
+        help="Surgical recompile: lint/claims for wiki pages citing this raw/ path",
+    )
+    pcomp.add_argument("--json", dest="json_out", action="store_true")
+    pcomp.set_defaults(func=cmd_compile)
+
+    pkt = sub.add_parser(
+        "knowledge-test",
+        help="Run knowledge regression tests (wiki claim contains/absent)",
+    )
+    pkt.add_argument(
+        "--file",
+        default="",
+        help="JSON tests file (default: vault knowledge-tests.json or examples/)",
+    )
+    pkt.add_argument("--json", dest="json_out", action="store_true")
+    pkt.set_defaults(func=cmd_knowledge_test)
 
     pdoctor = sub.add_parser("doctor", help="Diagnose vault health; --fix applies safe repairs only")
     pdoctor.add_argument(
@@ -464,7 +518,7 @@ def build_parser() -> argparse.ArgumentParser:
     pmcp.set_defaults(func=cmd_mcp)
 
     # ── Knowledge graph ──────────────────────────────────────────────────
-    pkg = sub.add_parser("kg", help="Knowledge graph: add/query/invalidate/timeline/stats/rebuild")
+    pkg = sub.add_parser("kg", help="Knowledge graph: add/query/invalidate/timeline/stats/rebuild/conflicts")
     pkg_sub = pkg.add_subparsers(dest="kg_sub", required=True)
 
     pkg_add = pkg_sub.add_parser("add", help="Add a fact triple")
@@ -477,6 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
     pkg_query = pkg_sub.add_parser("query", help="Look up an entity")
     pkg_query.add_argument("entity")
     pkg_query.add_argument("--as-of", dest="as_of", help="Point-in-time filter (YYYY-MM-DD)")
+    pkg_query.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     pkg_inv = pkg_sub.add_parser("invalidate", help="Mark a fact as ended")
     pkg_inv.add_argument("subject")
@@ -487,8 +542,14 @@ def build_parser() -> argparse.ArgumentParser:
     pkg_tl = pkg_sub.add_parser("timeline", help="Chronological entity history")
     pkg_tl.add_argument("entity", nargs="?", default=None)
 
-    pkg_sub.add_parser("stats", help="Knowledge graph overview")
+    pkg_stats = pkg_sub.add_parser("stats", help="Knowledge graph overview")
+    pkg_stats.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
     pkg_sub.add_parser("rebuild", help="Rebuild KG from vault wikilinks + tags")
+    pkg_conf = pkg_sub.add_parser(
+        "conflicts",
+        help="List active (subject,predicate) pairs with multiple objects",
+    )
+    pkg_conf.add_argument("--json", dest="json_out", action="store_true")
     pkg.set_defaults(func=cmd_kg)
 
     # ── Metrics ──────────────────────────────────────────────────────────
@@ -726,6 +787,7 @@ def build_parser() -> argparse.ArgumentParser:
     mshow = pmemory_sub.add_parser("show", help="Print one session memory file")
     mshow.add_argument("session_id_arg", nargs="?", default=None)
     mshow.add_argument("-c", "--current", action="store_true")
+    mshow.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     mrec = pmemory_sub.add_parser("recall", help="Search session memories (indexed scope memory)")
     mrec.add_argument("query")
@@ -733,6 +795,7 @@ def build_parser() -> argparse.ArgumentParser:
     mrec.add_argument("-c", "--current", action="store_true")
     mrec.add_argument("--tag", default=None)
     mrec.add_argument("--limit", type=int, default=5)
+    mrec.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     mprune = pmemory_sub.add_parser("prune", help="Delete session memory files")
     mprune.add_argument("--session-id", dest="session_filter", default=None)

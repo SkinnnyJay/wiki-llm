@@ -606,10 +606,10 @@ claude -p --setting-sources project --no-session-persistence --dangerously-skip-
 
 | Level | Command | What is asserted | Typical use |
 |-------|---------|------------------|-------------|
-| **L0 — Default gate** | `bin/llm-wiki smoke-test -v` | Full offline pytest: contracts, CLI `--help`, vault flows, E2E (`test_e2e_flow.py`), hooks (`jq`), MCP stdio contract, golden replay, adapters, error paths, session memory, benchmarks that do not need network — **see §26** | Every PR / push |
+| **L0 — Default gate (required)** | `bin/llm-wiki smoke-test -v` | Full offline pytest: contracts, CLI `--help`, vault flows, E2E (`test_e2e_flow.py`), hooks (`jq`), MCP stdio contract, golden replay, adapters, error paths, session memory, benchmarks that do not need network — **see §26**. CI also runs **retrieval-smoke** (LME `--limit 10`, no LLM) on PRs/pushes. | **Required** every PR / push |
 | **L0b — Replay only** | `bin/llm-wiki smoke-test --replay` | Golden CLI fixtures only (`@pytest.mark.replay`) | Quick regression on parser/CLI changes |
 | **L1 — Network opt-in** | `RUN_NETWORK_TESTS=1 bin/llm-wiki smoke-test --network` or `pytest -m network` | HTTPS reachability (`tests/network.test.py`) | Environments that allow egress |
-| **L2 — Agent CLI (Claude, full skill eval)** | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | `claude plugin validate` (when enabled) + full `SKILL_EVALS` in `tests/skill_eval_cases.py` (`test_skill_evals.py`); needs Claude Code CLI + subscription/OAuth; `RUN_MINIMAL_SKILL_EVALS=1` limits to three core cases | **Pre-ship required** (full list); minimal env for quick local runs |
+| **L2 — Agent CLI (Claude, full skill eval)** | `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` | `claude plugin validate` (when enabled) + full `SKILL_EVALS` in `tests/skill_eval_cases.py` (`test_skill_evals.py`); needs Claude Code CLI + subscription/OAuth; `RUN_MINIMAL_SKILL_EVALS=1` limits to three core cases | **Optional** (scheduled/manual CI when `ANTHROPIC_API_KEY` is set; recommended before major releases) |
 | **L2b — Codex skill mirror** | `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` | Same scenarios via `codex exec` | Optional second agent (pre-ship: optional; skip if no Codex) |
 | **L2c — Browser / viewer smoke** | `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` | Playwright loads built static viewer (`@pytest.mark.browser`) | Pre-ship or machines with Chromium installed |
 | **L2d — Full inventory (deterministic)** | Included in **L0** (`test_hooks_inventory.py`, `test_plugin_inventory.py`) | `hooks.json` ↔ `hooks/*.sh`; every `wiki-*` skill in `SKILL_EVALS` or `SKILL_EVAL_EXCLUDE`; `bash -n` on hooks | Re-run explicitly before release if desired |
@@ -632,14 +632,18 @@ Add **new pytest tests** when a case is **deterministic** (subprocess, `tmp_path
 
 ### Pre-ship deep test (release candidate)
 
-PR CI can stay on **L0** only. Before a release or marketplace submission, run in order:
+**L0 is the required gate** for every PR/push (pytest + plugin-repo check + retrieval-smoke). A **retrieval-smoke SKIPPED** summary (network/download failure) is **not** an L0 pass — re-run when Hugging Face is healthy. **L2 (Claude skill eval) is optional** — the skill-evals workflow is **skipped** without `ANTHROPIC_API_KEY` (not a false-green run); recommended before a major release, not a hard merge blocker.
 
-1. **Deterministic / gate (L0 + §0):** `bin/llm-wiki smoke-test -v`, `bin/llm-wiki sync-agent-docs --check`, `bin/llm-wiki check --plugin-repo` (includes **L2d** inventory tests: `test_hooks_inventory.py`, `test_plugin_inventory.py`).
+Before a release or marketplace submission, prefer this order:
+
+1. **Deterministic / gate (L0 + §0) — required:** `bin/llm-wiki smoke-test -v`, `bin/llm-wiki sync-agent-docs --check`, `bin/llm-wiki check --plugin-repo` (includes **L2d** inventory tests: `test_hooks_inventory.py`, `test_plugin_inventory.py`). Confirm CI **retrieval-smoke** (or run `benchmark run lme --limit 10` + `benchmarks/compare_ci_baseline.py` locally).
 2. **Inventory spot-check (optional):** `python -m pytest tests/test_plugin_inventory.py tests/test_hooks_inventory.py -v` if you want an explicit re-run.
-3. **Browser (L2c):** `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` after `pip install playwright` and `playwright install chromium` — **recommended** (static viewer).
-4. **Claude skill eval (L2) — required:** `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` (full `SKILL_EVALS` + `claude plugin validate` when applicable). Do **not** set `RUN_MINIMAL_SKILL_EVALS` for release.
+3. **Browser (L2c) — optional / recommended:** `RUN_BROWSER_TESTS=1 bin/llm-wiki smoke-test --browser` after `pip install playwright` and `playwright install chromium`.
+4. **Claude skill eval (L2) — optional:** `RUN_CLAUDE_TESTS=1 bin/llm-wiki smoke-test --claude` (full `SKILL_EVALS` + `claude plugin validate` when applicable). Do **not** set `RUN_MINIMAL_SKILL_EVALS` for a serious pre-ship pass. Skip and record why if no API key / Claude CLI.
 5. **Codex mirror (L2b) — optional:** `RUN_CODEX_SKILL_EVALS=1 pytest tests/test_skill_evals_codex.py -v` — skip if you do not use Codex.
 6. **Network (L1) — optional:** `RUN_NETWORK_TESTS=1 bin/llm-wiki smoke-test --network` if egress matters for this release.
+
+**Promptfoo:** not wired in this repo. Treat any Promptfoo harness as a **future optional** eval layer only — do not block L0/CI on it.
 
 **Dev shortcut:** `RUN_MINIMAL_SKILL_EVALS=1` with `--claude` runs only wiki-query / wiki-status / wiki-session-memory (stderr banner when set).
 
@@ -659,3 +663,4 @@ When any of **L1 / L2 / L2b / L2c** (or `RUN_MINIMAL_SKILL_EVALS` / `RUN_CODEX_S
 | 2026-04-10 | §27 automation levels (L0–L3): programmatic vs manual; what cannot be CI-asserted |
 | 2026-04-10 | Tier 8 / L2c: `test_viewer_playwright.py`, `smoke-test --browser`, `RUN_BROWSER_TESTS`; `test_hooks_inventory.py`; stderr banners; pre-ship checklist (Claude required, Codex optional) |
 | 2026-04-10 | L2d/L2e: `test_plugin_inventory.py`; expanded `SKILL_EVALS` + `SKILL_EVAL_EXCLUDE`; `skill_eval_cases_for_run` + `RUN_MINIMAL_SKILL_EVALS`; pre-ship doc order (inventory → browser → Claude → Codex → network) |
+| 2026-07-28 | Align tiers: **L0 required** (incl. retrieval-smoke); **L2 optional**; Promptfoo noted as future optional only |

@@ -45,3 +45,14 @@ def test_dedup_corrupt_raises(tmp_path: Path) -> None:
     with pytest.raises(CorruptIndexError):
         _load_index(vault)
     assert list((vault / "raw").glob(".hashes.json.corrupt.*"))
+
+
+def test_layers_corrupt_tags_raises(tmp_path: Path) -> None:
+    from lib.layers import _load_tags_index
+
+    vault = tmp_path / "v"
+    (vault / "raw").mkdir(parents=True)
+    (vault / "raw" / ".tags.json").write_text("NOT JSON", encoding="utf-8")
+    with pytest.raises(CorruptIndexError):
+        _load_tags_index(vault)
+    assert list((vault / "raw").glob(".tags.json.corrupt.*"))

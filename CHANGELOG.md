@@ -20,6 +20,29 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Positioning** — Knowledge **compiler** framing: sources in → trusted agent-ready wiki out; demote session memory / web as optional; five-minute path ends at **search**.
+
+### Security
+- **MCP local ingest gate** — block all local-path adapters (`file`, `pdf`, `pdf-*`, `convo`) when `allow_local_file_ingest` is false (hyphenated IDs + convo).
+- **`wiki_configure`** — empty allowlist also denies `hooks.*` (blocks sound-command RCE via MCP).
+- **`wiki_read_page`** — restricted to `wiki/`, `raw/`, `outputs/` (no `config.json` / token reads).
+- **`safe_fetch`** — fail closed when peer IP cannot be verified (override: `LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER`).
+- **`apps/web`** — reject non-loopback `Host` / `X-Forwarded-Host` on API routes.
+
+### Added
+- **Safer vault template defaults** — MCP ingest/benchmark tools off; optional integrations off; `ingestion_security.block_on_suspected` true.
+- **Agent CI L0** — retrieval smoke + baseline R@5; L2 skill-evals skip without secret.
+- **CLI** — `--json` emit helpers; ASCII OK/FAIL; Windows launcher improvements.
+- **Knowledge compiler CLI** — `lint`, `diff`, `compile`, `knowledge-test`; `validate --schema`; `kg conflicts`; wiki page provenance schema (`sources`, `confidence`, `stale_after`, …).
+- **MCP** — `wiki_search` defaults to `scope=wiki` (compiled knowledge first).
+- **Phase 4 compiler** — entity `knowledge_graph.aliases` on add/query/rebuild; light `allowed_predicates` ontology; claim IR → `outputs/claims.json`; surgical `compile --raw <path>`.
+- **MCP knowledge CI** — `wiki_lint`, `wiki_compile`, `wiki_knowledge_test`; pytest job **Compile smoke** on a temp vault.
+
+### Fixed
+- Packaging honesty for `setup` when templates are absent from a wheel install.
+- KG conflict CI ignores multi-valued structural predicates (`mentions`, `links_to`, …).
+
 ## [0.3.0] — 2026-07-28
 
 Productionization release: application security, doctor/onboard DX, installable packaging, MCP protocol negotiation, and optional `apps/web`.

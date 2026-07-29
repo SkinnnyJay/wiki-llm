@@ -108,10 +108,12 @@ DEFAULTS: dict[str, Any] = {
         "max_response_chars": 500000,
         # 0 = no truncation of wiki_read_page body (still subject to max_response_chars on output)
         "read_page_max_chars": 0,
-        # Empty allowlist: deny mcp.*/security.*/ingestion_security.* for wiki_configure
+        # Empty allowlist: deny mcp.*/security.*/storage.*/hooks.* and path-bearing keys
         "configure_allowlist": [],
-        "benchmark_tool_enabled": True,
-        "ingest_enabled": True,
+        "benchmark_tool_enabled": False,
+        "ingest_enabled": False,
+        # Allow wiki_ingest local-path adapters (file/pdf-*/convo); default off — host path read
+        "allow_local_file_ingest": False,
         # Allow wiki_ingest force_security=true (default off)
         "allow_force_security": False,
         # HTTP MCP: refuse non-loopback bind when true; set false only with firewall/TLS/proxy
@@ -129,6 +131,20 @@ DEFAULTS: dict[str, Any] = {
         "auto_update_on_ingest": True,
         "entity_detection": True,
         "fact_check_on_add": True,
+        # alias → canonical entity label (case-insensitive match)
+        "aliases": {},
+        # Non-empty list: only these predicates (+ builtins unless ontology_strict)
+        "allowed_predicates": [],
+        "ontology_strict": False,
+    },
+    "compile": {
+        # Knowledge CI: provenance schema + lint gates for llm-wiki compile/lint
+        "schema_required": False,
+        "require_sources": False,
+        "require_updated": False,
+        "fail_on_kg_conflicts": True,
+        "extract_claims": True,
+        "fail_on_uncited_claims": False,
     },
     "memory": {
         "enabled": False,
@@ -295,29 +311,34 @@ def load_config(vault: Path) -> dict[str, Any]:
 
 
 def resolve_storage_path(vault: Path, cfg: dict[str, Any], key: StorageKey) -> Path:
-    """Resolve a storage path from config. Relative paths anchor to vault root."""
+    """Resolve a storage path from config. Relative paths anchor to vault root.
+
+    Paths must stay under the vault (absolute outside-vault paths raise ValueError).
+    """
+    from lib.path_safety import resolve_under_vault
+
     storage = storage_paths(cfg)
-    default_storage = storage_paths(DEFAULTS)
-    raw = storage.get(key, default_storage[key])
-    p = Path(raw)
-    return p if p.is_absolute() else vault / p
+    defaults = dict(DEFAULTS.get("storage") or {})
+    raw = storage.get(key, defaults.get(key))
+    if raw is None:
+        raw = defaults.get(key)
+    rel = str(raw or "").strip() or str(defaults.get(key) or key)
+    resolved = resolve_under_vault(vault, rel)
+    if resolved is None:
+        raise ValueError(
+            f"storage.{key} escapes vault ({rel!r}); use a vault-relative path"
+        )
+    return resolved
 
 
 def storage_warnings(vault: Path, cfg: dict[str, Any]) -> list[str]:
-    """Warn when absolute storage paths sit outside the vault (accidental index sharing)."""
-    vault_r = vault.resolve()
+    """Return warnings for storage paths that cannot be resolved under the vault."""
     out: list[str] = []
     for key in ("search_db", "kg_db", "kg_sqlite_db", "chromadb_dir", "metrics_db"):
-        p = resolve_storage_path(vault, cfg, key)
-        if not p.is_absolute():
-            continue
         try:
-            p.resolve().relative_to(vault_r)
-        except ValueError:
-            out.append(
-                f"storage.{key} points outside the vault ({p}): "
-                "sharing indexes across vaults can cause cross-talk or corruption"
-            )
+            resolve_storage_path(vault, cfg, key)  # type: ignore[arg-type]
+        except ValueError as e:
+            out.append(str(e))
     return out
 
 

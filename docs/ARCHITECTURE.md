@@ -15,31 +15,39 @@
 
 ## Two products in one repo
 
-| | **Vault** | **Plugin repo** |
+| | **Vault (compiled knowledge)** | **Plugin (compiler + delivery)** |
 |---|-----------|-----------------|
-| **What** | Your knowledge folder (`llm-wiki/` by default): `wiki/`, `raw/`, `config.json` | This repository: CLI, skills, commands, MCP, templates |
-| **Where** | Your project (or anywhere you point `--vault` / `LLM_WIKI_VAULT`) | Cloned / installed plugin path |
+| **What** | Your knowledge folder (`llm-wiki/`): immutable `raw/`, curated `wiki/`, `config.json` | This repository: CLI, compile/lint gates, skills, MCP, templates |
+| **Where** | Your project (or `--vault` / `LLM_WIKI_VAULT`) | Cloned / marketplace plugin path |
 
-Session memory (**`memory.enabled`**, **`raw/memory/`**) is an **optional module of the same plugin** — not a separate marketplace plugin. It shares config, CLI, and MCP with wiki tooling.
+Optional modules (session memory, benchmarks, `apps/web`) share the same plugin but are **not** the core compiler product.
 
-## Data flow (simplified)
+## What ships where
+
+| Surface | Plugin clone / marketplace | pip wheel |
+|---------|------------------------------|-----------|
+| CLI + MCP modules | Yes | Yes |
+| `templates/`, skills, commands | Yes | No (`setup` refuses) |
+| Agent desk `apps/web` | Yes (optional) | No |
+
+## Data flow (compiler)
 
 ```mermaid
 flowchart TB
   subgraph vault [Vault]
-    raw[raw/]
-    wiki[wiki/]
+    raw[raw/ evidence]
+    wiki[wiki/ compiled]
     mem[raw/memory/ optional]
   end
-  CLI[bin/llm-wiki]
-  CFG[config_loader + config.json]
-  SEARCH[search backends FTS5 grep chromadb hybrid]
-  MCP[mcp_server tools]
+  CLI[bin/llm-wiki ingest]
+  COMP[compile / wiki-ingest]
+  GATES[validate lint schema]
+  SEARCH[search + MCP]
   raw --> CLI
-  CLI --> CFG
-  CFG --> SEARCH
-  SEARCH --> MCP
-  wiki --> SEARCH
+  CLI --> COMP
+  COMP --> wiki
+  wiki --> GATES
+  GATES --> SEARCH
   mem --> SEARCH
 ```
 

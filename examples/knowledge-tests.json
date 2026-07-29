@@ -1,0 +1,13 @@
+[
+  {
+    "id": "index-exists",
+    "path": "index.md",
+    "contains": ["Wiki index", "[[auth]]"]
+  },
+  {
+    "id": "auth-page",
+    "path": "auth.md",
+    "contains": ["OAuth"],
+    "absent": ["THIS_SHOULD_NEVER_APPEAR_ZZZ"]
+  }
+]

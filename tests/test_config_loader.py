@@ -29,7 +29,7 @@ def test_storage_warnings_flags_absolute_outside_vault(tmp_path):
     w = storage_warnings(vault, cfg)
     assert len(w) == 1
     assert "chromadb_dir" in w[0]
-    assert "outside the vault" in w[0]
+    assert "escapes vault" in w[0]
 
 
 def test_storage_warnings_no_warning_when_absolute_under_vault(tmp_path):

@@ -25,13 +25,13 @@
   },
   "integrations": {
     "firecrawl": {
-      "enabled": true,
+      "enabled": false,
       "api_key_env": "FIRECRAWL_API_KEY",
       "api_base_url": "https://api.firecrawl.dev",
       "_comment": "Clean markdown from any URL. Get key: https://firecrawl.dev/app/api-keys"
     },
     "perplexity": {
-      "enabled": true,
+      "enabled": false,
       "api_key_env": "PERPLEXITY_API_KEY",
       "model": "sonar",
       "_comment": "AI-powered research queries. Get key: https://www.perplexity.ai/settings/api"
@@ -43,7 +43,7 @@
       "_comment": "Fetch tweets/threads/search. Install bird CLI: npm install -g @steipete/bird \u2014 zero config for public tweets via FxTwitter API (no token needed). Get auth_token from browser DevTools \u2192 Application \u2192 Cookies."
     },
     "brave": {
-      "enabled": true,
+      "enabled": false,
       "api_key_env": "BRAVE_SEARCH_API_KEY",
       "default_mode": "llm-context",
       "default_count": 10,
@@ -55,7 +55,7 @@
       "_comment": "Anna's Archive \u2014 fast ebook/paper downloads. Requires membership. https://annas-archive.org/account"
     },
     "playwright": {
-      "enabled": true,
+      "enabled": false,
       "_comment": "Headless Chromium fetch (pip install playwright && playwright install chromium). Same raw/ output shape as url/firecrawl."
     }
   },
@@ -92,7 +92,7 @@
   },
   "ingestion_security": {
     "enabled": true,
-    "block_on_suspected": false,
+    "block_on_suspected": true,
     "log_to_raw_frontmatter": true,
     "llm_triage": false
   },
@@ -138,21 +138,38 @@
     "max_response_chars": 500000,
     "read_page_max_chars": 0,
     "configure_allowlist": [],
-    "benchmark_tool_enabled": true,
-    "ingest_enabled": true,
+    "benchmark_tool_enabled": false,
+    "ingest_enabled": false,
+    "allow_local_file_ingest": false,
+    "allow_force_security": false,
     "sse_require_loopback": true,
     "sse_token": "",
+    "sse_allow_empty_token": false,
     "status_file_count_ttl_seconds": 45,
     "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
     "_comment_transport": "transport: stdio (default, editor MCP) | sse \u2014 HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)",
     "_comment_tools_mode": "full | read_only | custom \u2014 custom + empty tools_allowlist behaves as read_only",
-    "_comment_hardening": "configure_allowlist limits wiki_configure keys (prefix rules end with .). sse_token enables HTTP auth; use HTTPS via proxy for remote. See skills/references/mcp-and-kg.md"
+    "_comment_hardening": "Safe defaults: ingest_enabled/benchmark_tool_enabled false; allow_local_file_ingest false. Empty configure_allowlist denies mcp.*/security.*/storage.*/hooks.* and path sinks. Enable write tools after review. See skills/references/mcp-and-kg.md"
   },
   "knowledge_graph": {
     "enabled": true,
     "backend": "json",
     "auto_update_on_ingest": true,
-    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)"
+    "aliases": {},
+    "allowed_predicates": [],
+    "ontology_strict": false,
+    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)",
+    "_comment_aliases": "Map alternate entity spellings to a canonical label (merged on kg add/query/rebuild).",
+    "_comment_allowed_predicates": "Empty = unrestricted. Non-empty = allowlist (+ builtins unless ontology_strict)."
+  },
+  "compile": {
+    "schema_required": false,
+    "require_sources": false,
+    "require_updated": false,
+    "fail_on_kg_conflicts": true,
+    "extract_claims": true,
+    "fail_on_uncited_claims": false,
+    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence. Use compile --raw PATH for surgical recompile of pages citing that source."
   },
   "memory": {
     "enabled": false,
@@ -168,7 +185,7 @@
     "kg_sqlite_db": ".kg.sqlite3",
     "chromadb_dir": ".chromadb",
     "metrics_db": ".metrics.jsonl",
-    "_comment": "Relative paths resolve from vault root. Absolute paths are used as-is (e.g. /tmp/fast-disk/search.db)."
+    "_comment": "Vault-relative paths only (resolved under the vault root). Absolute or escaping paths are rejected."
   },
   "performance": {
     "sqlite": {
