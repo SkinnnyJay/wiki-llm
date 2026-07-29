@@ -70,9 +70,9 @@ Run **wiki-ingest** then **wiki-maintainer**. Append **`wiki/log.md`** with a **
 
 If **`knowledge_graph.auto_update_on_ingest`** is true, run `llm-wiki kg rebuild` after wiki merges; the CLI also runs **`kg rebuild`** after **`post_ingest`** on new `raw/` files — see **`skills/references/mcp-and-kg.md`** § "KG auto-update after ingest".
 
-### Step 5 — Lint
+### Step 5 — Lint / compile
 
-Run **wiki-lint**. If issues exist, **gate**: propose fixes or run **wiki-maintainer** / new pages.
+Run **wiki-lint** and **`llm-wiki compile --no-site`** (MCP: **`wiki_compile`**). If issues exist, **gate**: propose fixes or run **wiki-maintainer** / new pages.
 
 ### Step 6 — Build site
 
