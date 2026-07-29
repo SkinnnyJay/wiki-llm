@@ -12,78 +12,85 @@
 
 # llm-wiki
 
-**llm-wiki** is a **Claude Code plugin** (and a small Python CLI) that helps you keep a **personal knowledge vault** next to your projects. You capture sources into **`raw/`**, curate linked markdown in **`wiki/`**, and optionally generate a **static viewer**, wire **MCP search**, or turn on **session memory**—so your agent has a durable place to read and write, not a one-off chat dump.
+**Compile source documents into a trusted, agent-ready knowledge base.**
 
-It turns scattered source material into a **maintained wiki** your agent can keep improving over time—**slash-command first** (e.g. **`/llm-wiki:setup`**, **`/llm-wiki:ingest`**, **`/llm-wiki:build-og`**), without living in flag hell. **Quick setup (docs site):** [skinnnyjay.github.io/wiki-llm/index.html#setup](https://skinnnyjay.github.io/wiki-llm/index.html#setup).
+llm-wiki is the **knowledge compiler** for coding agents: raw papers, URLs, PDFs, and notes go in; a small, cross-linked, citation-backed **`wiki/`** comes out—then every agent (Claude Code, Cursor, Codex, MCP) can search that *compiled* truth instead of re-RAG’ing a junk drawer on every prompt.
 
-This repository is the **plugin**: commands, skills, templates, and `bin/llm-wiki`. After setup, your **vault** usually lives at **`./llm-wiki/`** inside whatever repo you chose (terminology is at the top of **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**).
+**What this replaces (30 seconds):** chat dumps that evaporate, undifferentiated “RAG folders,” and hope-the-model-remembered.  
+**What this is not:** NotebookLM (chat over files), Obsidian (a note app), Mem0/MemPalace (session memory), or another paste-into-Claude template.
+
+| Loop step | Meaning |
+|-----------|---------|
+| **Ingest** | Evidence lands in immutable **`raw/`** |
+| **Compile** | Agents/skills merge into curated **`wiki/`** with provenance |
+| **Query** | **`llm-wiki search`**, MCP, or skills answer from the compiled wiki first |
+
+Primary path: **Claude Code marketplace / git clone** + slash commands. Optional: Cursor/`AGENTS.md`, CLI-only wheel (no templates). Terminology and the five-minute path: **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**. Install variants: **[`docs/INSTALL.md`](docs/INSTALL.md)**.
 
 <a id="install-claude-code"></a>
 
 ## Start here
 
-**New to llm-wiki? Follow the [five-minute path in `docs/QUICKSTART.md`](docs/QUICKSTART.md).** It distinguishes the plugin repo from your vault and gives the first Claude Code and CLI commands. For installation variants only, see [`docs/INSTALL.md`](docs/INSTALL.md).
+1. Install (Claude Code) or clone this repo — see **[`docs/INSTALL.md`](docs/INSTALL.md)**.
+2. Run the **[five-minute path](docs/QUICKSTART.md)** through **ingest → compile (wiki-ingest) → `search`**.
+3. For evidence layers and trust: **[`ETHOS.md`](ETHOS.md)**.
 
-## Inspiration
+Docs site shortcut: [skinnnyjay.github.io/wiki-llm/index.html#setup](https://skinnnyjay.github.io/wiki-llm/index.html#setup).
+
+## Compile one source (recipe)
+
+```bash
+llm-wiki setup --root . --defaults
+llm-wiki --vault ./llm-wiki ingest file ./README.md --out notes/readme-clip.md
+# Compile step (agent): /llm-wiki:ingest  →  updates wiki/*.md from raw/
+llm-wiki --vault ./llm-wiki lint          # deterministic wiki health (when available)
+llm-wiki --vault ./llm-wiki search "llm-wiki"
+# Optional MCP: llm-wiki mcp
+```
+
+## Inspiration (pattern → product)
 
 > If I have seen further it is by standing on the shoulders of Giants.
 
 — Isaac Newton, letter to Robert Hooke (1675).
 
-The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** and **[Karpathy on X](https://x.com/karpathy/status/2039805659525644595)**—a simple pattern for turning sources into maintained notes—and from ideas in the **[MemPalace](https://github.com/milla-jovovich/mempalace)** line of work (**[Milla & Ben on X](https://t.co/tQaFQWWn4y)**; [more context](https://x.com/bensig/status/2041229266432733356)). The goal here is a **concrete plugin** for Claude Code (and friends) with ingest, validation, and agent-facing skills—not a generic “memory product.”
+The workflow borrows from **[Andrej Karpathy’s “LLM Wiki” gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**—compile once, query the wiki—and related local-first memory ideas. Karpathy’s gist is the **pattern**; llm-wiki productizes **compilation quality**: provenance, lint gates, KG contradictions, MCP delivery. Full feature survey: **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**.
 
-**Feature list** (vault, session memory, MCP recall, benchmarks, and more): **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)**.
+## The compiler layers
 
-## The wiki
+- **`raw/`** — Immutable evidence (ingest adapters, copies). Untrusted until compiled.
+- **`wiki/`** — Compiled knowledge: wikilinks, **`index.md`**, **`log.md`**, topic pages with sources.
+- **Gates** — **`validate`**, **`lint`**, **wiki-lint** (agent), optional knowledge tests — knowledge CI.
+- **Delivery** — **`search`**, MCP tools (prefer compiled pages), optional static viewer / graphs.
 
-We treat the vault as **sources first, then curated notes**—not one undifferentiated pile of markdown.
-
-- **`raw/`** — Ingested captures (files, URLs, feeds, APIs) land here with explicit paths; optional **raw prepare** cleans messy HTML/PDF/OCR before you merge.
-- **`wiki/`** — The maintained layer: wikilinks, **`wiki/index.md`**, **`wiki/log.md`**, and topic pages. **wiki-ingest** and **wiki-maintainer** help fold `raw/` into structure without losing coherence.
-- **Ship** — Validate, **wiki-lint**, optional **vault git** with lifecycle-tagged commits, then **`build-site`** for a static viewer (serve over HTTP, not `file://`).
-- **See the shape** — On-demand **wikilink graphs**, optional **knowledge-graph** triples, and **MCP** search (BM25 by default; optional semantic/hybrid) so agents can navigate what you stored.
-- **Go wide** — Topic research and batch loops (**`/llm-wiki:research`**, **wiki-research-loop**) plan sources → `raw/` → `wiki/` with logging.
-
-Evidence, trust, and why **`raw/`** and **`wiki/`** differ: **[`ETHOS.md`](ETHOS.md)**.
-
-- **Ingest risk** — Scraping or ingesting URLs copies **arbitrary text** into `raw/` and later into model context. That includes **prompt-injection** patterns and **bad-faith** pages meant to mislead automations or readers—**use at your discretion**. This plugin does not sanitize the web for you. See **[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md)**, **[`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md)**, and **[`ETHOS.md` — Ingestion and security](ETHOS.md#ingestion-and-security)**.
-
-## Memory
-
-We split **vault knowledge**, **chat continuity**, and **retrieval evaluation**—so “memory” stays understandable and under your control.
-
-- **Session memory** (opt-in, **`memory.enabled`**) — Per-chat notes in **`raw/memory/`**; **save**, **recall**, **list**, **prune** via **`llm-wiki memory …`** or **`/llm-wiki:memory`**. Recall ranks the same way as vault search (FTS5 / grep / optional Chroma / hybrid).
-- **Learn file** — **`llm-wiki/.agent-memory.md`** (**wiki-learn**) holds durable patterns you promote from sessions or the wiki—compact, editable, next to the vault.
-- **MCP** — With **`llm-wiki mcp`**, the host can search the wiki, query the KG, and use session memory tools without dumping whole chats into context.
-- **Benchmarks** — **`llm-wiki benchmark`** runs optional **LME / LoCoMo / ConvoMem**-style retrieval tests over the vault index. That measures **search quality**, not “remembering the conversation.”
-
-More detail: **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)** (full feature survey).
-
----
+Evidence vs claims: **[`ETHOS.md`](ETHOS.md)**. Ingest copies arbitrary web text—prompt injection is real: **[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md)**.
 
 ## Setup
 
-Use the [five-minute quickstart](docs/QUICKSTART.md) for the primary path. It covers plugin installation, `/llm-wiki:setup`, and the equivalent `llm-wiki setup --root . --defaults` flow without duplicating the wizard here.
+Use the [five-minute quickstart](docs/QUICKSTART.md). Covers `/llm-wiki:setup` and `llm-wiki setup --root . --defaults`.
 
 ---
 
 ## Usage (the loop)
 
-1. **Capture** — Ingest files or URLs into `raw/` (e.g. `llm-wiki ingest file …`, `ingest url …`).  
-2. **Curate** — In chat, use **`/llm-wiki:…`** commands and skills such as **wiki-ingest** / **wiki-maintainer** to merge material into `wiki/` with wikilinks and structure.  
-3. **Ship / browse** — `llm-wiki validate`, then `llm-wiki build-site` (or **`build-og --serve`** / **`--serve-background`**; stop background with **`build-og --stop-serving`**) so the viewer is over HTTP (not `file://`).
-
-Minimal end-to-end example:
+1. **Ingest** — `llm-wiki ingest file|url …` → **`raw/`**.  
+2. **Compile** — **`/llm-wiki:ingest`** / **wiki-ingest** (and maintainer) → **`wiki/`**.  
+3. **Query** — `llm-wiki search "…"`, or MCP; then optionally `validate` / `lint` / `build-site`.
 
 ```bash
 llm-wiki setup --root .
 llm-wiki ingest file ./README.md --out notes/readme-clip.md
-# Build + local HTTP in one step (port from viewer.port, default 8765):
-llm-wiki build-og --serve-background
-echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
+# In chat: /llm-wiki:ingest
+llm-wiki search "readme"
 ```
 
-**Full green path, troubleshooting, git phases, MCP, benchmarks:** **[`WORKFLOWS.md`](WORKFLOWS.md)**. **Why `raw/` vs `wiki/`, evidence, and trust:** **[`ETHOS.md`](ETHOS.md)**.
+**Full green path:** **[`WORKFLOWS.md`](WORKFLOWS.md)**.
+
+---
+
+## Optional (not the product)
+
+Session memory, retrieval benchmarks, research loops, graphs, and the Agent desk (`apps/web`) are **optional modules**—useful, but they are not the knowledge compiler. See **[`docs/INSPIRATION.md`](docs/INSPIRATION.md)** when you want them.
 
 ---
 
@@ -91,13 +98,14 @@ echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 
 | You want… | Read |
 |-----------|------|
-| Five-minute setup and capability tiers | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Install variants (slash-first, dev clone, scripts) | [`docs/INSTALL.md`](docs/INSTALL.md) |
-| Inspiration + feature list (memory, MCP, vault) | [`docs/INSPIRATION.md`](docs/INSPIRATION.md) |
+| Compile one source end-to-end | This README recipe + [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Five-minute setup and tiers | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Install variants | [`docs/INSTALL.md`](docs/INSTALL.md) |
+| Inspiration + optional features | [`docs/INSPIRATION.md`](docs/INSPIRATION.md) |
 | Vault vs plugin, data flow | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Day-to-day flows and ops | [`WORKFLOWS.md`](WORKFLOWS.md) |
-| Web ingest, legal access, untrusted content / prompt injection | [`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md) |
-| Security boundaries and hardening | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) |
+| Web ingest / prompt injection | [`skills/references/access-sources-disclaimer.md`](skills/references/access-sources-disclaimer.md) |
+| Security boundaries | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) |
 | Tool-specific wiring (Claude / Cursor / Codex) | [`AGENTS.md`](AGENTS.md) |
 | Slash commands — index, summaries, CLI hints | [`docs/SLASH-COMMANDS.md`](docs/SLASH-COMMANDS.md) |
 | Slash prompt sources (`commands/*.md`) | [`commands/`](commands/) |
@@ -119,7 +127,7 @@ echo "Viewer on disk: $(pwd)/llm-wiki/wiki/.og/"
 
 Run **`bin/llm-wiki`** from the plugin repo (any cwd if you use the absolute path to the script) or **`python3 scripts/llm_wiki.py`** **from the repository root**. Do **not** rely on `PYTHONPATH=scripts` with a relative path (Python 3.14+ can break); the script adds `scripts/` to `sys.path` itself.
 
-Common subcommands: **`setup`**, **`doctor`**, **`search`**, **`ingest`**, **`validate`**, **`build-site`**, **`configure`** (`-i` interactive), **`raw validate` / `raw finish`**, **`memory …`** (when enabled), **`mcp`**, **`kg …`**, **`benchmark …`**, **`check`**, **`sync-agent-docs`**. Use **`llm-wiki --help`** and **`llm-wiki <cmd> --help`** for flags; **WORKFLOWS** and **QUICKSTART** cover the happy paths.
+Common subcommands: **`setup`**, **`doctor`**, **`search`**, **`ingest`**, **`validate`**, **`lint`**, **`diff`**, **`compile`**, **`build-site`**, **`configure`** (`-i`), **`raw …`**, **`mcp`**, **`kg …`**, optional **`memory`** / **`benchmark`**, **`check`**. Happy path: **QUICKSTART** (ingest → compile → search).
 
 ---
 

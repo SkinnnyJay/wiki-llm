@@ -20,6 +20,9 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Positioning** — Knowledge **compiler** framing: sources in → trusted agent-ready wiki out; demote session memory / web as optional; five-minute path ends at **search**.
+
 ### Security
 - **MCP local ingest gate** — block all local-path adapters (`file`, `pdf`, `pdf-*`, `convo`) when `allow_local_file_ingest` is false (hyphenated IDs + convo).
 - **`wiki_configure`** — empty allowlist also denies `hooks.*` (blocks sound-command RCE via MCP).
@@ -27,15 +30,11 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`safe_fetch`** — fail closed when peer IP cannot be verified (override: `LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER`).
 - **`apps/web`** — reject non-loopback `Host` / `X-Forwarded-Host` on API routes.
 
-### Changed
-- **Safer vault template defaults** — MCP ingest/benchmark tools off; optional integrations off; `ingestion_security.block_on_suspected` true; storage paths vault-relative only.
-- **Install docs** — clone/marketplace first; wheel is CLI/MCP-only (no scaffold); Windows CI uses checkout `setup`.
-- **Skill-evals workflow** — skip (not false-green) without `ANTHROPIC_API_KEY`; manual dispatch fails if secret missing.
-
 ### Added
-- **Agent CI L0** — free retrieval smoke (`benchmark run lme --limit 10`) + baseline R@5 compare; L2 Claude skill-evals optional with honest skip/fail gates.
-- **`mcp.allow_local_file_ingest`** — default false; MCP rejects local path adapters unless enabled.
+- **Safer vault template defaults** — MCP ingest/benchmark tools off; optional integrations off; `ingestion_security.block_on_suspected` true.
+- **Agent CI L0** — retrieval smoke + baseline R@5; L2 skill-evals skip without secret.
 - **CLI** — `--json` emit helpers; ASCII OK/FAIL; Windows launcher improvements.
+- *(this branch)* schema / `lint` / `diff` / `compile` — see following commits.
 
 ### Fixed
 - Packaging honesty for `setup` when templates are absent from a wheel install.
