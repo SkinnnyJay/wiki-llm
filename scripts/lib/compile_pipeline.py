@@ -15,18 +15,23 @@ def run_compile(
     skip_site: bool = False,
     strict_schema: bool = False,
     json_out: bool = False,
+    raw_path: str | None = None,
 ) -> dict[str, Any]:
     """
     Gates only — does not auto-write topic pages (agent still merges raw→wiki).
 
-    Steps: validate layout → lint → optional KG rebuild + conflict scan →
-    optional site build --if-stale.
+    Steps: validate layout → lint (+ claims index) → optional KG rebuild +
+    conflict scan → optional site build --if-stale.
+
+    When ``raw_path`` is set, lint/claims focus on wiki pages that cite that
+    raw source (surgical recompile).
     """
     from lib.emit import emit_json
     from lib.wiki_lint import lint_vault, write_lint_report
 
     steps: list[dict[str, Any]] = []
     exit_code = 0
+    only_pages: list[str] | None = None
 
     missing = []
     for p in [vault / "config.json", vault / "wiki" / "index.md", vault / "CLAUDE.md"]:
@@ -44,7 +49,27 @@ def run_compile(
         compile_cfg["require_sources"] = True
         cfg = {**cfg, "compile": compile_cfg}
 
-    lint_report = lint_vault(vault, cfg, check_schema=True if strict_schema else None)
+    if raw_path:
+        from lib.claims import normalize_raw_rel, pages_citing_raw
+
+        needle = normalize_raw_rel(raw_path)
+        only_pages = pages_citing_raw(vault, needle)
+        steps.append(
+            {
+                "step": "scope",
+                "ok": True,
+                "raw": needle,
+                "pages": only_pages,
+                "page_count": len(only_pages),
+            }
+        )
+
+    lint_report = lint_vault(
+        vault,
+        cfg,
+        check_schema=True if strict_schema else None,
+        only_pages=only_pages,
+    )
     report_path = write_lint_report(vault, lint_report)
     steps.append(
         {
@@ -52,10 +77,21 @@ def run_compile(
             "ok": bool(lint_report.get("ok")),
             "issues": lint_report.get("counts", {}).get("issues", 0),
             "report": str(report_path),
+            "only_pages": only_pages,
         }
     )
     if not lint_report.get("ok"):
         exit_code = 1
+
+    claims_path = vault / "outputs" / "claims.json"
+    if claims_path.is_file():
+        steps.append(
+            {
+                "step": "claims",
+                "ok": True,
+                "path": str(claims_path),
+            }
+        )
 
     if not skip_kg and (cfg.get("knowledge_graph") or {}).get("enabled", True):
         from lib.fact_checker import find_predicate_conflicts
@@ -136,8 +172,12 @@ def run_compile(
             name = s.get("step")
             ok = s.get("ok")
             extra = ""
+            if name == "scope":
+                extra = f" raw={s.get('raw')} pages={s.get('page_count')}"
             if name == "lint":
                 extra = f" issues={s.get('issues')} report={s.get('report')}"
+            if name == "claims":
+                extra = f" path={s.get('path')}"
             if name == "kg" and not s.get("skipped"):
                 extra = f" conflicts={s.get('conflicts')}"
             if name == "site" and not s.get("skipped"):

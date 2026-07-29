@@ -71,6 +71,15 @@ class SQLiteKG:
         valid_from: str | None = None,
         source: str | None = None,
     ) -> str:
+        from lib.entity_aliases import canonicalize_triple
+        from lib.kg_ontology import ontology_error
+
+        subject, predicate, object_ = canonicalize_triple(
+            subject, predicate, object_, self._cfg
+        )
+        err = ontology_error(predicate, self._cfg)
+        if err:
+            raise ValueError(err)
         tid = _triple_id(subject, predicate, object_)
         vf = valid_from or _today()
         with self._conn() as conn:
@@ -99,6 +108,9 @@ class SQLiteKG:
         return tid
 
     def query_entity(self, entity: str, *, as_of: str | None = None) -> list[dict[str, Any]]:
+        from lib.entity_aliases import canonicalize_entity
+
+        entity = canonicalize_entity(entity, self._cfg)
         t0 = time.monotonic()
         with self._conn() as conn:
             rows = conn.execute(
@@ -138,6 +150,11 @@ class SQLiteKG:
     def invalidate(
         self, subject: str, predicate: str, object_: str, *, ended: str | None = None
     ) -> bool:
+        from lib.entity_aliases import canonicalize_triple
+
+        subject, predicate, object_ = canonicalize_triple(
+            subject, predicate, object_, self._cfg
+        )
         tid = _triple_id(subject, predicate, object_)
         end = ended or _today()
         with self._conn() as conn:
@@ -148,6 +165,10 @@ class SQLiteKG:
             return cur.rowcount > 0
 
     def timeline(self, entity: str | None = None) -> list[dict[str, Any]]:
+        if entity:
+            from lib.entity_aliases import canonicalize_entity
+
+            entity = canonicalize_entity(entity, self._cfg)
         with self._conn() as conn:
             if entity:
                 rows = conn.execute(
@@ -186,6 +207,8 @@ class SQLiteKG:
         }
 
     def rebuild(self, vault: Path) -> dict[str, Any]:
+        from lib.entity_aliases import canonicalize_entity
+
         wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
         added = 0
         today = _today()
@@ -195,17 +218,18 @@ class SQLiteKG:
             for rel, text in _walk_vault_md(vault):
                 fm, body = _parse_frontmatter(text)
                 tags = _tags_for_file(fm)
-                page_name = Path(rel).stem
+                page_name = canonicalize_entity(Path(rel).stem, self._cfg)
 
                 for tag in tags:
-                    tid = _triple_id(page_name, "tagged", tag)
+                    tag_c = canonicalize_entity(str(tag), self._cfg)
+                    tid = _triple_id(page_name, "tagged", tag_c)
                     if tid not in existing:
                         conn.execute(
                             """
                             INSERT INTO triples (id, s, p, o, valid_from, valid_until, source)
                             VALUES (?, ?, ?, ?, ?, NULL, ?)
                             """,
-                            (tid, page_name, "tagged", tag, today, rel),
+                            (tid, page_name, "tagged", tag_c, today, rel),
                         )
                         conn.execute(
                             "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
@@ -213,13 +237,15 @@ class SQLiteKG:
                         )
                         conn.execute(
                             "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
-                            (tag, today),
+                            (tag_c, today),
                         )
                         existing.add(tid)
                         added += 1
 
                 for m in wikilink_re.finditer(body):
-                    target = m.group(1).strip()
+                    target = canonicalize_entity(m.group(1).strip(), self._cfg)
+                    if not target:
+                        continue
                     tid = _triple_id(page_name, "links_to", target)
                     if tid not in existing:
                         conn.execute(
@@ -245,14 +271,17 @@ class SQLiteKG:
                     from lib.entity_detector import extract_entities
 
                     for ent in extract_entities(body, cfg=self._cfg or {}):
-                        tid = _triple_id(page_name, "mentions", ent)
+                        ent_c = canonicalize_entity(ent, self._cfg)
+                        if ent_c == page_name:
+                            continue
+                        tid = _triple_id(page_name, "mentions", ent_c)
                         if tid not in existing:
                             conn.execute(
                                 """
                                 INSERT INTO triples (id, s, p, o, valid_from, valid_until, source)
                                 VALUES (?, ?, ?, ?, ?, NULL, ?)
                                 """,
-                                (tid, page_name, "mentions", ent, today, rel),
+                                (tid, page_name, "mentions", ent_c, today, rel),
                             )
                             conn.execute(
                                 "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
@@ -260,7 +289,7 @@ class SQLiteKG:
                             )
                             conn.execute(
                                 "INSERT OR IGNORE INTO entities (name, first_seen) VALUES (?, ?)",
-                                (ent, today),
+                                (ent_c, today),
                             )
                             existing.add(tid)
                             added += 1

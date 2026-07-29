@@ -63,17 +63,21 @@ def lint_vault(
     check_schema: bool | None = None,
     check_stale: bool = True,
     check_outputs: bool = True,
+    only_pages: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Run deterministic wiki health checks.
 
     Returns a JSON-serializable report with ok, issues[], counts.
+    When ``only_pages`` is set (wiki-relative paths), restrict orphan/schema/stale
+    checks to those pages (broken link scan stays vault-wide).
     """
     compile_cfg = cfg.get("compile") or {}
     if check_schema is None:
         check_schema = bool(compile_cfg.get("schema_required", False))
     require_sources = bool(compile_cfg.get("require_sources", check_schema))
     require_updated = bool(compile_cfg.get("require_updated", False))
+    page_allow = {p.replace("\\", "/") for p in (only_pages or [])} or None
 
     wiki = vault / "wiki"
     issues: list[dict[str, str]] = []
@@ -103,6 +107,8 @@ def lint_vault(
     for path in _wiki_md_files(wiki):
         rel = _rel_wiki_id(vault, path)
         if path.name in SCHEMA_EXEMPT_NAMES:
+            continue
+        if page_allow is not None and rel not in page_allow and path.name not in page_allow:
             continue
         stem = path.stem
         linked = (
@@ -148,7 +154,7 @@ def lint_vault(
                 }
             )
 
-    if check_outputs:
+    if check_outputs and page_allow is None:
         outputs = vault / "outputs"
         if outputs.is_dir():
             wiki_names = {p.name for p in _wiki_md_files(wiki)}
@@ -162,9 +168,17 @@ def lint_vault(
                         }
                     )
 
+    if bool(compile_cfg.get("extract_claims", True)):
+        from lib.claims import extract_vault_claims, uncited_claim_issues, write_claims_index
+
+        claims = extract_vault_claims(vault, only_pages=only_pages)
+        write_claims_index(vault, claims, only_pages=only_pages)
+        if bool(compile_cfg.get("fail_on_uncited_claims", False)):
+            issues.extend(uncited_claim_issues(claims))
+
     coverage_missing: list[str] = []
     tags_path = vault / "raw" / ".tags.json"
-    if tags_path.is_file():
+    if tags_path.is_file() and page_allow is None:
         try:
             tags_data = json.loads(tags_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -187,6 +201,7 @@ def lint_vault(
         "counts": {"issues": len(issues), "by_code": by_code},
         "coverage_missing_tags": coverage_missing[:50],
         "issues": issues,
+        "only_pages": list(only_pages) if only_pages else None,
     }
 
 

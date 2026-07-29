@@ -110,6 +110,15 @@ class JSONFileKG:
         self, subject: str, predicate: str, object_: str,
         *, valid_from: str | None = None, source: str | None = None,
     ) -> str:
+        from lib.entity_aliases import canonicalize_triple
+        from lib.kg_ontology import ontology_error
+
+        subject, predicate, object_ = canonicalize_triple(
+            subject, predicate, object_, self._cfg
+        )
+        err = ontology_error(predicate, self._cfg)
+        if err:
+            raise ValueError(err)
         with self._lock:
             data = _load_kg(self._path)
             tid = _triple_id(subject, predicate, object_)
@@ -140,6 +149,9 @@ class JSONFileKG:
             return tid
 
     def query_entity(self, entity: str, *, as_of: str | None = None) -> list[dict[str, Any]]:
+        from lib.entity_aliases import canonicalize_entity
+
+        entity = canonicalize_entity(entity, self._cfg)
         t0 = time.monotonic()
         data = _load_kg(self._path)
         results: list[dict[str, Any]] = []
@@ -165,6 +177,11 @@ class JSONFileKG:
         self, subject: str, predicate: str, object_: str,
         *, ended: str | None = None,
     ) -> bool:
+        from lib.entity_aliases import canonicalize_triple
+
+        subject, predicate, object_ = canonicalize_triple(
+            subject, predicate, object_, self._cfg
+        )
         with self._lock:
             data = _load_kg(self._path)
             tid = _triple_id(subject, predicate, object_)
@@ -181,6 +198,9 @@ class JSONFileKG:
         data = _load_kg(self._path)
         triples = data["triples"]
         if entity:
+            from lib.entity_aliases import canonicalize_entity
+
+            entity = canonicalize_entity(entity, self._cfg)
             triples = [t for t in triples if t["s"] == entity or t["o"] == entity]
         return sorted(triples, key=lambda t: t.get("valid_from", ""))
 
@@ -213,26 +233,31 @@ class JSONFileKG:
 
             wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
+            from lib.entity_aliases import canonicalize_entity
+
             for rel, text in _walk_vault_md(vault):
                 fm, body = _parse_frontmatter(text)
                 tags = _tags_for_file(fm)
-                page_name = Path(rel).stem
+                page_name = canonicalize_entity(Path(rel).stem, self._cfg)
 
                 for tag in tags:
-                    tid = _triple_id(page_name, "tagged", tag)
+                    tag_c = canonicalize_entity(str(tag), self._cfg)
+                    tid = _triple_id(page_name, "tagged", tag_c)
                     if tid not in existing_ids:
                         data["triples"].append({
-                            "id": tid, "s": page_name, "p": "tagged", "o": tag,
+                            "id": tid, "s": page_name, "p": "tagged", "o": tag_c,
                             "valid_from": _today(), "source": rel,
                         })
                         existing_ids.add(tid)
                         added += 1
-                    for entity in (page_name, tag):
+                    for entity in (page_name, tag_c):
                         if entity not in data["entities"]:
                             data["entities"][entity] = {"first_seen": _today()}
 
                 for m in wikilink_re.finditer(body):
-                    target = m.group(1).strip()
+                    target = canonicalize_entity(m.group(1).strip(), self._cfg)
+                    if not target:
+                        continue
                     tid = _triple_id(page_name, "links_to", target)
                     if tid not in existing_ids:
                         data["triples"].append({
@@ -250,15 +275,18 @@ class JSONFileKG:
                     from lib.entity_detector import extract_entities
 
                     for ent in extract_entities(body, cfg=self._cfg or {}):
-                        tid = _triple_id(page_name, "mentions", ent)
+                        ent_c = canonicalize_entity(ent, self._cfg)
+                        if ent_c == page_name:
+                            continue
+                        tid = _triple_id(page_name, "mentions", ent_c)
                         if tid not in existing_ids:
                             data["triples"].append({
-                                "id": tid, "s": page_name, "p": "mentions", "o": ent,
+                                "id": tid, "s": page_name, "p": "mentions", "o": ent_c,
                                 "valid_from": _today(), "source": rel,
                             })
                             existing_ids.add(tid)
                             added += 1
-                        for e2 in (page_name, ent):
+                        for e2 in (page_name, ent_c):
                             if e2 not in data["entities"]:
                                 data["entities"][e2] = {"first_seen": _today()}
 

@@ -58,18 +58,26 @@ def tool_wiki_kg_add(subject: str, predicate: str, object_: str, valid_from: str
     """Add a fact triple to the knowledge graph."""
     if not (get_cfg().get("knowledge_graph") or {}).get("enabled", True):
         return {"disabled": True}
-    kg_cfg = get_cfg().get("knowledge_graph") or {}
+    cfg = get_cfg()
+    kg_cfg = cfg.get("knowledge_graph") or {}
     if kg_cfg.get("fact_check_on_add", True):
         from lib.fact_checker import conflicting_objects_for_predicate
 
-        conflicts = conflicting_objects_for_predicate(get_kg(), subject, predicate, object_)
+        conflicts = conflicting_objects_for_predicate(
+            get_kg(), subject, predicate, object_, cfg=cfg
+        )
         if conflicts:
             return {
                 "success": False,
                 "conflicts": conflicts,
                 "hint": "Existing triple(s) with same subject+predicate but different object; invalidate or adjust.",
             }
-    tid = get_kg().add_triple(subject, predicate, object_, valid_from=valid_from or None, source=source or None)
+    try:
+        tid = get_kg().add_triple(
+            subject, predicate, object_, valid_from=valid_from or None, source=source or None
+        )
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
     return {"success": True, "triple_id": tid, "fact": f"{subject} → {predicate} → {object_}"}
 
 def tool_wiki_kg_invalidate(subject: str, predicate: str, object_: str, ended: str = "") -> dict[str, Any]:

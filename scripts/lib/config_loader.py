@@ -131,6 +131,11 @@ DEFAULTS: dict[str, Any] = {
         "auto_update_on_ingest": True,
         "entity_detection": True,
         "fact_check_on_add": True,
+        # alias → canonical entity label (case-insensitive match)
+        "aliases": {},
+        # Non-empty list: only these predicates (+ builtins unless ontology_strict)
+        "allowed_predicates": [],
+        "ontology_strict": False,
     },
     "compile": {
         # Knowledge CI: provenance schema + lint gates for llm-wiki compile/lint
@@ -138,6 +143,8 @@ DEFAULTS: dict[str, Any] = {
         "require_sources": False,
         "require_updated": False,
         "fail_on_kg_conflicts": True,
+        "extract_claims": True,
+        "fail_on_uncited_claims": False,
     },
     "memory": {
         "enabled": False,

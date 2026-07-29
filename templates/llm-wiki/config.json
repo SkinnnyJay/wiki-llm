@@ -155,14 +155,21 @@
     "enabled": true,
     "backend": "json",
     "auto_update_on_ingest": true,
-    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)"
+    "aliases": {},
+    "allowed_predicates": [],
+    "ontology_strict": false,
+    "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)",
+    "_comment_aliases": "Map alternate entity spellings to a canonical label (merged on kg add/query/rebuild).",
+    "_comment_allowed_predicates": "Empty = unrestricted. Non-empty = allowlist (+ builtins unless ontology_strict)."
   },
   "compile": {
     "schema_required": false,
     "require_sources": false,
     "require_updated": false,
     "fail_on_kg_conflicts": true,
-    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence."
+    "extract_claims": true,
+    "fail_on_uncited_claims": false,
+    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence. Use compile --raw PATH for surgical recompile of pages citing that source."
   },
   "memory": {
     "enabled": false,

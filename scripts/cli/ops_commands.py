@@ -30,7 +30,7 @@ def cmd_kg(args: argparse.Namespace) -> int:
             from lib.fact_checker import conflicting_objects_for_predicate
 
             conflicts = conflicting_objects_for_predicate(
-                kg, args.subject, args.predicate, args.object
+                kg, args.subject, args.predicate, args.object, cfg=cfg
             )
             if conflicts:
                 print(
@@ -45,11 +45,15 @@ def cmd_kg(args: argparse.Namespace) -> int:
                     file=sys.stderr,
                 )
                 return 1
-        tid = kg.add_triple(
-            args.subject, args.predicate, args.object,
-            valid_from=getattr(args, "valid_from", None) or None,
-            source=getattr(args, "source", None) or None,
-        )
+        try:
+            tid = kg.add_triple(
+                args.subject, args.predicate, args.object,
+                valid_from=getattr(args, "valid_from", None) or None,
+                source=getattr(args, "source", None) or None,
+            )
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         print(f"Added: {args.subject} → {args.predicate} → {args.object}  (id: {tid})")
         return 0
 

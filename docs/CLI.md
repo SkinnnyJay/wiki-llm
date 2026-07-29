@@ -32,11 +32,13 @@ Use `check` for a faster vault or plugin sanity pass (config + optional compilea
 
 Knowledge compiler CI:
 
-- **`lint`** — orphans, broken wikilinks, optional schema/stale/`review_required`; `--write-report` → `outputs/lint-report.json`
+- **`lint`** — orphans, broken wikilinks, optional schema/stale/`review_required`; extracts claim IR to `outputs/claims.json` when `compile.extract_claims`; `--write-report` → `outputs/lint-report.json`
 - **`diff --since HEAD~1`** — wiki/.kg path changes since a git ref
-- **`compile`** — validate + lint + KG rebuild/conflicts + optional site (does **not** auto-write topic pages)
+- **`compile`** — validate + lint + KG rebuild/conflicts + optional site (does **not** auto-write topic pages); **`compile --raw raw/foo.md`** limits lint/claims to pages citing that source
 - **`knowledge-test --file examples/knowledge-tests.json`** — claim regression tests against `wiki/`
 - **`kg conflicts`** — semantic (s,p) multi-object conflicts (skips multi-valued `mentions`/`links_to`)
+- **Entity merge** — set `knowledge_graph.aliases` (e.g. `{"OAuth2":"OAuth"}`) so add/query/rebuild canonicalize labels
+- **Ontology** — non-empty `knowledge_graph.allowed_predicates` rejects unknown predicates on `kg add` (builtins included unless `ontology_strict`)
 
 ## `search`
 

@@ -141,3 +141,68 @@ def test_multi_valued_predicates_ignored() -> None:
         {"s": "Auth", "p": "mentions", "o": "B"},
     ]
     assert find_predicate_conflicts(triples) == []
+
+
+def test_entity_aliases_merge(vault: Path) -> None:
+    from lib.config_loader import load_config, save_config
+    from lib.knowledge_graph import get_kg_backend
+
+    cfg = load_config(vault)
+    cfg.setdefault("knowledge_graph", {})["aliases"] = {"OAuth2": "OAuth"}
+    save_config(vault, cfg)
+    cfg = load_config(vault)
+    kg = get_kg_backend(vault, cfg)
+    tid1 = kg.add_triple("Auth", "uses", "OAuth2")
+    tid2 = kg.add_triple("Auth", "uses", "OAuth")
+    assert tid1 == tid2
+    rows = kg.query_entity("OAuth2")
+    assert any(r.get("o") == "OAuth" for r in rows)
+    assert any(r.get("s") == "Auth" for r in rows)
+
+
+def test_ontology_rejects_unknown_predicate(vault: Path) -> None:
+    from lib.config_loader import load_config, save_config
+    from lib.knowledge_graph import get_kg_backend
+
+    cfg = load_config(vault)
+    kg_cfg = cfg.setdefault("knowledge_graph", {})
+    kg_cfg["allowed_predicates"] = ["uses"]
+    kg_cfg["ontology_strict"] = True
+    save_config(vault, cfg)
+    cfg = load_config(vault)
+    kg = get_kg_backend(vault, cfg)
+    kg.add_triple("Auth", "uses", "OAuth")
+    try:
+        kg.add_triple("Auth", "invented_rel", "X")
+        raise AssertionError("expected ontology ValueError")
+    except ValueError as exc:
+        assert "allowed_predicates" in str(exc)
+
+
+def test_claims_and_incremental_compile(vault: Path) -> None:
+    from lib.claims import extract_vault_claims, pages_citing_raw
+    from lib.compile_pipeline import run_compile
+    from lib.config_loader import load_config
+
+    (vault / "wiki" / "topic.md").write_text(
+        "---\ntitle: Topic\nupdated: 2026-07-01\nsources:\n  - raw/a.md\nconfidence: 0.9\n---\n"
+        "# Topic\n\n- OAuth is preferred source: `raw/a.md`\n",
+        encoding="utf-8",
+    )
+    (vault / "wiki" / "other.md").write_text(
+        "---\ntitle: Other\nupdated: 2026-07-01\nsources:\n  - raw/b.md\n---\n# Other\n",
+        encoding="utf-8",
+    )
+    (vault / "raw" / "b.md").write_text("# b\n", encoding="utf-8")
+    (vault / "wiki" / "index.md").write_text("# Index\n\n[[topic]]\n[[other]]\n", encoding="utf-8")
+
+    assert pages_citing_raw(vault, "raw/a.md") == ["topic.md"]
+    claims = extract_vault_claims(vault)
+    assert any("OAuth" in c["text"] for c in claims)
+
+    cfg = load_config(vault)
+    result = run_compile(vault, cfg, skip_site=True, skip_kg=True, raw_path="raw/a.md")
+    assert result["exit_code"] == 0
+    scope = next(s for s in result["steps"] if s.get("step") == "scope")
+    assert scope["pages"] == ["topic.md"]
+    assert (vault / "outputs" / "claims.json").is_file()

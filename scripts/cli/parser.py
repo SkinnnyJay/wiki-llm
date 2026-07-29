@@ -169,6 +169,11 @@ def build_parser() -> argparse.ArgumentParser:
     pcomp.add_argument("--schema", action="store_true", help="Strict provenance schema")
     pcomp.add_argument("--no-kg", action="store_true", help="Skip KG rebuild/conflicts")
     pcomp.add_argument("--no-site", action="store_true", help="Skip viewer rebuild")
+    pcomp.add_argument(
+        "--raw",
+        default="",
+        help="Surgical recompile: lint/claims for wiki pages citing this raw/ path",
+    )
     pcomp.add_argument("--json", dest="json_out", action="store_true")
     pcomp.set_defaults(func=cmd_compile)
 

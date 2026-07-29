@@ -665,6 +665,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
 
     vault = resolve_vault(override=args.vault)
     cfg = load_config(vault)
+    raw = (getattr(args, "raw", "") or "").strip() or None
     result = run_compile(
         vault,
         cfg,
@@ -672,6 +673,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
         skip_site=getattr(args, "no_site", False),
         strict_schema=getattr(args, "schema", False),
         json_out=getattr(args, "json_out", False),
+        raw_path=raw,
     )
     return int(result.get("exit_code", 1))
 

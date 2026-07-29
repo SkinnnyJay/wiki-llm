@@ -23,6 +23,7 @@ def conflicting_objects_for_predicate(
     subject: str,
     predicate: str,
     proposed_object: str,
+    cfg: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """
     If an active triple already has the same subject+predicate but a different object,
@@ -31,6 +32,10 @@ def conflicting_objects_for_predicate(
     """
     if predicate in MULTI_VALUED_PREDICATES:
         return []
+    from lib.entity_aliases import canonicalize_entity
+
+    subject = canonicalize_entity(subject, cfg)
+    proposed_object = canonicalize_entity(proposed_object, cfg)
     rows = kg.query_entity(subject, as_of=None)
     conflicts: list[dict[str, Any]] = []
     for t in rows:
