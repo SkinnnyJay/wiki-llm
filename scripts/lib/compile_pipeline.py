@@ -100,8 +100,8 @@ def run_compile(
         kg = get_kg_backend(vault, cfg)
         rebuild = rebuild_knowledge_graph(vault, cfg, backend=kg)
         kg = get_kg_backend(vault, cfg)
-        triples = kg._all_triples() if hasattr(kg, "_all_triples") else []  # noqa: SLF001
-        conflicts = find_predicate_conflicts(list(triples))
+        triples = list(kg.all_triples())
+        conflicts = find_predicate_conflicts(triples)
         ok_kg = len(conflicts) == 0
         if conflicts and bool(compile_cfg.get("fail_on_kg_conflicts", True)):
             exit_code = 1

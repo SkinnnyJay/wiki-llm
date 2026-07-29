@@ -37,6 +37,8 @@ class KGBackend(Protocol):
 
     def rebuild(self, vault: Path) -> dict[str, Any]: ...
 
+    def all_triples(self) -> list[dict[str, Any]]: ...
+
 
 def rebuild_knowledge_graph(
     vault: Path, cfg: dict[str, Any], *, backend: KGBackend | None = None
@@ -292,6 +294,9 @@ class JSONFileKG:
 
             _save_kg(self._path, data)
             return {"added": added, "total_triples": len(data["triples"]), "entities": len(data["entities"])}
+
+    def all_triples(self) -> list[dict[str, Any]]:
+        return self._all_triples()
 
     def _all_triples(self) -> list[dict[str, Any]]:
         data = _load_kg(self._path)

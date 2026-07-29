@@ -298,6 +298,9 @@ class SQLiteKG:
             n_ent = conn.execute("SELECT count(*) FROM entities").fetchone()[0]
         return {"added": added, "total_triples": total, "entities": n_ent}
 
+    def all_triples(self) -> list[dict[str, Any]]:
+        return self._all_triples()
+
     def _all_triples(self) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(

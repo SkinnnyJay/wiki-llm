@@ -119,8 +119,8 @@ def cmd_kg(args: argparse.Namespace) -> int:
         from lib.emit import emit_json
         from lib.fact_checker import find_predicate_conflicts
 
-        triples = kg._all_triples() if hasattr(kg, "_all_triples") else []  # noqa: SLF001
-        conflicts = find_predicate_conflicts(list(triples))
+        triples = list(kg.all_triples())
+        conflicts = find_predicate_conflicts(triples)
         payload = {
             "count": len(conflicts),
             "conflicts": [
