@@ -34,10 +34,12 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Safer vault template defaults** — MCP ingest/benchmark tools off; optional integrations off; `ingestion_security.block_on_suspected` true.
 - **Agent CI L0** — retrieval smoke + baseline R@5; L2 skill-evals skip without secret.
 - **CLI** — `--json` emit helpers; ASCII OK/FAIL; Windows launcher improvements.
-- *(this branch)* schema / `lint` / `diff` / `compile` — see following commits.
+- **Knowledge compiler CLI** — `lint`, `diff`, `compile`, `knowledge-test`; `validate --schema`; `kg conflicts`; wiki page provenance schema (`sources`, `confidence`, `stale_after`, …).
+- **MCP** — `wiki_search` defaults to `scope=wiki` (compiled knowledge first).
 
 ### Fixed
 - Packaging honesty for `setup` when templates are absent from a wheel install.
+- KG conflict CI ignores multi-valued structural predicates (`mentions`, `links_to`, …).
 
 ## [0.3.0] — 2026-07-28
 

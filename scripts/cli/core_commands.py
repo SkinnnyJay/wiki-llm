@@ -580,11 +580,139 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 if key not in seen:
                     errs.append(f"broken wikilink from {src} → {tgt}")
                     seen.add(key)
+    if getattr(args, "schema", False) or (cfg.get("compile") or {}).get("schema_required"):
+        from lib.wiki_schema import SCHEMA_EXEMPT_NAMES, validate_page_schema
+
+        wiki = vault / "wiki"
+        require_sources = bool((cfg.get("compile") or {}).get("require_sources", True))
+        require_updated = bool((cfg.get("compile") or {}).get("require_updated", False))
+        if wiki.is_dir():
+            for path in wiki.rglob("*.md"):
+                if ".og" in path.parts or path.name in SCHEMA_EXEMPT_NAMES:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+                for msg in validate_page_schema(
+                    path,
+                    text,
+                    require_sources=require_sources,
+                    require_updated=require_updated,
+                ):
+                    rel = path.relative_to(wiki).as_posix()
+                    errs.append(f"schema {rel}: {msg}")
     if errs:
         print("Validation issues:", *errs, sep="\n  - ", file=sys.stderr)
         return 1
     print("OK")
     return 0
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    from lib.emit import emit_json
+    from lib.wiki_lint import lint_vault, write_lint_report
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    report = lint_vault(
+        vault,
+        cfg,
+        check_schema=True if getattr(args, "schema", False) else None,
+        check_stale=not getattr(args, "no_stale", False),
+        check_outputs=not getattr(args, "no_outputs", False),
+    )
+    if getattr(args, "write_report", False):
+        path = write_lint_report(vault, report)
+        report["report_path"] = str(path)
+    if getattr(args, "json_out", False):
+        emit_json(report)
+    else:
+        counts = report.get("counts") or {}
+        print(f"lint: {counts.get('issues', 0)} issue(s)  ok={report.get('ok')}")
+        for it in report.get("issues") or []:
+            print(f"  [{it.get('code')}] {it.get('path')}: {it.get('message')}")
+        missing = report.get("coverage_missing_tags") or []
+        if missing:
+            print(f"  coverage: {len(missing)} tag(s) without matching wiki page stem")
+            for t in missing[:15]:
+                print(f"    - {t}")
+        if report.get("report_path"):
+            print(f"  wrote {report['report_path']}")
+    return 0 if report.get("ok") else 1
+
+
+def cmd_diff(args: argparse.Namespace) -> int:
+    from lib.emit import emit_json
+    from lib.wiki_diff import format_diff_text, knowledge_diff, write_diff_json
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    since = getattr(args, "since", None) or "HEAD~1"
+    report = knowledge_diff(vault, cfg, since=since)
+    if getattr(args, "write_report", False):
+        path = write_diff_json(vault, report)
+        report["report_path"] = str(path)
+    if getattr(args, "json_out", False):
+        emit_json(report)
+    else:
+        sys.stdout.write(format_diff_text(report))
+        if report.get("report_path"):
+            print(f"wrote {report['report_path']}")
+    return 0 if report.get("ok") else 1
+
+
+def cmd_compile(args: argparse.Namespace) -> int:
+    """Run knowledge CI gates after agent/wiki merge (lint + validate + optional KG)."""
+    from lib.compile_pipeline import run_compile
+
+    vault = resolve_vault(override=args.vault)
+    cfg = load_config(vault)
+    result = run_compile(
+        vault,
+        cfg,
+        skip_kg=getattr(args, "no_kg", False),
+        skip_site=getattr(args, "no_site", False),
+        strict_schema=getattr(args, "schema", False),
+        json_out=getattr(args, "json_out", False),
+    )
+    return int(result.get("exit_code", 1))
+
+
+def cmd_knowledge_test(args: argparse.Namespace) -> int:
+    """Run knowledge regression tests (claim contains/absent) against wiki/."""
+    from lib.emit import emit_json
+    from lib.knowledge_tests import load_knowledge_tests, run_knowledge_tests
+    from lib.paths import plugin_root
+
+    vault = resolve_vault(override=args.vault)
+    path = Path(getattr(args, "file", "") or "")
+    if not path.is_file():
+        # default fixture path under vault or plugin examples
+        candidates = [
+            vault / "knowledge-tests.json",
+            vault / "outputs" / "knowledge-tests.json",
+            plugin_root() / "examples" / "knowledge-tests.json",
+        ]
+        for c in candidates:
+            if c.is_file():
+                path = c
+                break
+    if not path.is_file():
+        print(
+            "knowledge-test: provide --file PATH (JSON list of {id,path,contains})",
+            file=sys.stderr,
+        )
+        return 1
+    tests = load_knowledge_tests(path)
+    report = run_knowledge_tests(vault, tests)
+    report["file"] = str(path)
+    if getattr(args, "json_out", False):
+        emit_json(report)
+    else:
+        print(f"knowledge-test: {report['total'] - report['failed']}/{report['total']} passed")
+        for r in report.get("results") or []:
+            mark = "ok" if r.get("ok") else "FAIL"
+            detail = f" — {r.get('detail')}" if r.get("detail") else ""
+            print(f"  [{mark}] {r.get('id')}{detail}")
+    return 0 if report.get("ok") else 1
 
 
 def _raw_validate_run(vault: Path, rel: str, autofix: bool) -> tuple[bool, Path, list[str]]:

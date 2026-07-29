@@ -168,11 +168,11 @@ def tool_wiki_search(
     query: str,
     limit: int = 5,
     tag: str = "",
-    scope: str = "all",
+    scope: str = "wiki",
     wing: str = "",
     room: str = "",
 ) -> dict[str, Any]:
-    """Search vault content. Uses FTS5/BM25 by default."""
+    """Search the vault. Default scope=wiki (compiled knowledge); use raw/all for evidence."""
     if not vault_ok():
         return no_vault()
     results = get_search().search(

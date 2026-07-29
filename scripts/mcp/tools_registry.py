@@ -108,7 +108,11 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "query": {"type": "string", "description": "Search query"},
                 "limit": {"type": "integer", "description": "Max results (default 5)"},
                 "tag": {"type": "string", "description": "Filter by tag (optional)"},
-                "scope": {"type": "string", "description": "all | wiki | raw | memory (default: all)"},
+                "scope": {
+                    "type": "string",
+                    "description": "wiki (default, compiled) | raw | memory | all",
+                    "default": "wiki",
+                },
                 "wing": {
                     "type": "string",
                     "description": "Optional palace-style scope: project/person (frontmatter wing / llm_wiki_wing)",

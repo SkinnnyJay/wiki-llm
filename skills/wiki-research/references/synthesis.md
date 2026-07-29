@@ -35,9 +35,16 @@ Use this structure for a new wiki page:
 ---
 title: <Topic>
 updated: YYYY-MM-DD
+last_verified: YYYY-MM-DD
+confidence: 0.0-1.0
 sources:
   - raw/research/<topic>/<slug>.md
   - raw/academic/<year>/<arxiv-id>.md
+contradictions: []
+review_required: false
+stale_after: 90
+generated_by:
+  - claude
 tags: [<relevant-tags>]
 ---
 
@@ -53,6 +60,9 @@ tags: [<relevant-tags>]
 ## Contradictions / Open Questions
 - <Description of conflicting claims and which sources disagree>
 - <Unresolved questions for future research>
+```
+
+When `compile.schema_required` is true, **`llm-wiki validate --schema`** / **`compile --schema`** require **`sources`** (or `llm_wiki_sources`). Prefer confidence + last_verified on every compiled page.
 
 ## Timeline (if applicable)
 | Date | Event | Source |

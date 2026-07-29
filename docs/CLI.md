@@ -12,11 +12,11 @@ Use `llm-wiki --help` and `llm-wiki <command> --help` for flags.
 
 | Area | Commands |
 |---|---|
-| Vault lifecycle | `setup`, `configure`, `validate`, `doctor`, `check`, `teardown`, `wake-up`, `list-topics` |
+| Vault lifecycle | `setup`, `configure`, `validate`, `lint`, `diff`, `compile`, `knowledge-test`, `doctor`, `check`, `teardown`, `wake-up`, `list-topics` |
 | Content | `ingest`, `search`, `raw validate`, `raw record`, `raw finish`, `raw rebuild-index`, `security scan` |
 | Viewer and graphs | `build-site` (`build-og` alias), `graph`, `graph-knowledge` |
-| Agent integration | `mcp` (including `install` and `start`), `memory save\|log\|list\|show\|recall\|prune` |
-| Knowledge and retrieval | `kg add\|query\|invalidate\|timeline\|stats\|rebuild`, `benchmark`, `metrics` |
+| Agent integration | `mcp` (including `install` and `start`), optional `memory …` |
+| Knowledge and retrieval | `kg add\|query\|invalidate\|timeline\|stats\|rebuild\|conflicts`, `benchmark`, `metrics` |
 | Operations | `git`, `integrations`, `deps`, `research-loop` |
 | Plugin maintenance | `sync-agent-docs`, `smoke-test`, `test-report` |
 
@@ -27,6 +27,16 @@ Use `llm-wiki --help` and `llm-wiki <command> --help` for flags.
 `llm-wiki doctor` diagnoses vault health (layout, config, readiness). Pass `--fix` to apply **safe** repairs only: create missing vault/`raw`/`wiki` directories and fill safe blank config defaults. It does not delete vault content or replace secrets.
 
 Use `check` for a faster vault or plugin sanity pass (config + optional compileall) when you do not need the full doctor report.
+
+## `lint` / `diff` / `compile` / `knowledge-test`
+
+Knowledge compiler CI:
+
+- **`lint`** — orphans, broken wikilinks, optional schema/stale/`review_required`; `--write-report` → `outputs/lint-report.json`
+- **`diff --since HEAD~1`** — wiki/.kg path changes since a git ref
+- **`compile`** — validate + lint + KG rebuild/conflicts + optional site (does **not** auto-write topic pages)
+- **`knowledge-test --file examples/knowledge-tests.json`** — claim regression tests against `wiki/`
+- **`kg conflicts`** — semantic (s,p) multi-object conflicts (skips multi-valued `mentions`/`links_to`)
 
 ## `search`
 
