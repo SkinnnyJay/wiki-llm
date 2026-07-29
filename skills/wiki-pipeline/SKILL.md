@@ -44,7 +44,7 @@ Stages are **skipped** when not applicable (e.g. no new `raw/` files → skip pr
 | 3 | **prepare** | **wiki-raw-prepare** / `llm-wiki raw validate` / `raw finish` | Usually no gate if validation passes |
 | 4 | **ingest** | **wiki-ingest** then **wiki-maintainer** | **Gate:** “Updated wiki pages: …. Run lint?” (or auto-continue if user asked for full unattended run) |
 | 4b | **kg update** | `llm-wiki kg rebuild` (if `knowledge_graph.auto_update_on_ingest`) | No gate — runs automatically after ingest |
-| 5 | **lint** | **wiki-lint** | **Gate** if issues found: list orphans/contradictions; offer fixes via **wiki-maintainer** before build |
+| 5 | **lint** | **wiki-lint** / `llm-wiki lint` then **`llm-wiki compile --no-site`** | **Gate** if issues found: list orphans/contradictions; offer fixes via **wiki-maintainer** before build |
 | 6 | **build** | `llm-wiki build-site` | No gate on success |
 | 7 | **validate** | `llm-wiki validate` and `llm-wiki validate --wikilinks` if wiki has links | **Done** |
 

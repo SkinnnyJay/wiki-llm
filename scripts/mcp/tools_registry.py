@@ -24,6 +24,7 @@ from mcp.tools_read import (
     tool_wiki_find_related,
     tool_wiki_git_status,
     tool_wiki_graph,
+    tool_wiki_knowledge_test,
     tool_wiki_list_topics,
     tool_wiki_metrics_query,
     tool_wiki_metrics_stats,
@@ -42,9 +43,11 @@ from mcp.tools_write import (
     tool_wiki_agent_diary_append,
     tool_wiki_benchmark_run,
     tool_wiki_build_site,
+    tool_wiki_compile,
     tool_wiki_configure,
     tool_wiki_graph_build,
     tool_wiki_ingest,
+    tool_wiki_lint,
     tool_wiki_reindex,
 )
 
@@ -74,6 +77,22 @@ TOOLS: dict[str, dict[str, Any]] = {
         "description": "Vault health check — returns issues (empty = healthy).",
         "input_schema": {"type": "object", "properties": {}},
         "handler": tool_wiki_validate,
+    },
+    "wiki_knowledge_test": {
+        "description": (
+            "Run knowledge regression tests (wiki path contains/absent). "
+            "Default file: vault knowledge-tests.json or plugin examples/knowledge-tests.json."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "description": "Path to JSON tests file (optional)",
+                },
+            },
+        },
+        "handler": tool_wiki_knowledge_test,
     },
     "wiki_read_page": {
         "description": "Read markdown + frontmatter from a wiki/ or raw/ file.",
@@ -327,6 +346,58 @@ TOOLS: dict[str, dict[str, Any]] = {
         "input_schema": {"type": "object", "properties": {}},
         "handler": tool_wiki_reindex,
     },
+    "wiki_lint": {
+        "description": (
+            "Deterministic wiki lint (orphans, links, schema/stale). "
+            "Writes outputs/lint-report.json and claim IR when compile.extract_claims."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "schema": {
+                    "type": "boolean",
+                    "description": "Require provenance frontmatter (sources)",
+                },
+                "check_stale": {
+                    "type": "boolean",
+                    "description": "Flag pages past stale_after (default true)",
+                },
+                "check_outputs": {
+                    "type": "boolean",
+                    "description": "Flag outputs/ vs wiki name overlap (default true)",
+                },
+            },
+        },
+        "handler": tool_wiki_lint,
+    },
+    "wiki_compile": {
+        "description": (
+            "Knowledge CI: validate + lint/claims + KG rebuild/conflicts + optional site. "
+            "Does not auto-write topic pages. Prefer after wiki-ingest merges."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "schema": {
+                    "type": "boolean",
+                    "description": "Strict provenance schema",
+                },
+                "no_kg": {
+                    "type": "boolean",
+                    "description": "Skip KG rebuild/conflicts",
+                },
+                "no_site": {
+                    "type": "boolean",
+                    "description": "Skip viewer rebuild",
+                },
+                "raw": {
+                    "type": "string",
+                    "description": "Surgical: lint/claims for pages citing this raw/ path",
+                },
+            },
+        },
+        "handler": tool_wiki_compile,
+    },
     "wiki_kg_add": {
         "description": "Add a fact triple to the knowledge graph. E.g. ('team', 'decided_to_use', 'GraphQL').",
         "input_schema": {
@@ -486,6 +557,7 @@ READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
         "wiki_doctor",
         "wiki_list_topics",
         "wiki_validate",
+        "wiki_knowledge_test",
         "wiki_read_page",
         "wiki_graph",
         "wiki_git_status",

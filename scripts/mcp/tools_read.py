@@ -95,6 +95,39 @@ def tool_wiki_validate() -> dict[str, Any]:
             errs.append(f"missing {p.relative_to(vault)}")
     return {"valid": len(errs) == 0, "issues": errs}
 
+
+def tool_wiki_knowledge_test(file: str = "") -> dict[str, Any]:
+    """Run knowledge regression tests against wiki/ (contains/absent assertions)."""
+    if not vault_ok():
+        return no_vault()
+    vault = require_vault()
+    from pathlib import Path
+
+    from lib.knowledge_tests import load_knowledge_tests, run_knowledge_tests
+    from lib.paths import plugin_root
+
+    path = Path(file) if file else Path()
+    if not path.is_file():
+        candidates = [
+            vault / "knowledge-tests.json",
+            vault / "outputs" / "knowledge-tests.json",
+            plugin_root() / "examples" / "knowledge-tests.json",
+        ]
+        for c in candidates:
+            if c.is_file():
+                path = c
+                break
+    if not path.is_file():
+        return {
+            "ok": False,
+            "error": "No knowledge-tests JSON found (pass file= or add vault knowledge-tests.json)",
+        }
+    tests = load_knowledge_tests(path)
+    report = run_knowledge_tests(vault, tests)
+    report["file"] = str(path)
+    return report
+
+
 def tool_wiki_read_page(path: str, max_chars: int = 0) -> dict[str, Any]:
     """Read markdown + frontmatter from a wiki/, raw/, or outputs/ file."""
     if not vault_ok():

@@ -45,7 +45,18 @@ jobs:
         run: python -m pytest tests/
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
-
+      - name: Compile smoke (temp vault)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          VAULT="${RUNNER_TEMP}/llm-wiki-compile-smoke"
+          python scripts/llm_wiki.py setup --vault "$VAULT" --defaults
+          python scripts/llm_wiki.py --vault "$VAULT" lint --write-report
+          python scripts/llm_wiki.py --vault "$VAULT" compile --no-site
+          python scripts/llm_wiki.py --vault "$VAULT" knowledge-test --file examples/knowledge-tests.json
+          test -f "$VAULT/outputs/lint-report.json"
+          test -f "$VAULT/outputs/claims.json"
   windows-smoke:
     runs-on: windows-latest
     steps:

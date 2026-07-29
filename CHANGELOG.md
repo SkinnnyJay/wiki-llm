@@ -37,6 +37,7 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Knowledge compiler CLI** — `lint`, `diff`, `compile`, `knowledge-test`; `validate --schema`; `kg conflicts`; wiki page provenance schema (`sources`, `confidence`, `stale_after`, …).
 - **MCP** — `wiki_search` defaults to `scope=wiki` (compiled knowledge first).
 - **Phase 4 compiler** — entity `knowledge_graph.aliases` on add/query/rebuild; light `allowed_predicates` ontology; claim IR → `outputs/claims.json`; surgical `compile --raw <path>`.
+- **MCP knowledge CI** — `wiki_lint`, `wiki_compile`, `wiki_knowledge_test`; pytest job **Compile smoke** on a temp vault.
 
 ### Fixed
 - Packaging honesty for `setup` when templates are absent from a wheel install.

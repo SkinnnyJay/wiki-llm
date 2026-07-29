@@ -89,6 +89,9 @@ def test_mcp_stdio_tools_list_and_call(mcp_proc) -> None:
     assert "wiki_status" in names
     assert "wiki_doctor" in names
     assert "wiki_validate" in names
+    assert "wiki_lint" in names
+    assert "wiki_compile" in names
+    assert "wiki_knowledge_test" in names
 
     _send(
         proc.stdin,

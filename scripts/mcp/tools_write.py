@@ -448,3 +448,55 @@ def tool_wiki_benchmark_run(
         else:
             os.environ["LLM_WIKI_BENCHMARK_LLM"] = old_llm
 
+
+def tool_wiki_lint(
+    schema: bool = False,
+    check_stale: bool = True,
+    check_outputs: bool = True,
+) -> dict[str, Any]:
+    """Deterministic wiki health lint (writes outputs/lint-report.json + claims when enabled)."""
+    if not vault_ok():
+        return no_vault()
+    vault = require_vault()
+    from lib.wiki_lint import lint_vault, write_lint_report
+
+    cfg = get_cfg()
+    report = lint_vault(
+        vault,
+        cfg,
+        check_schema=True if schema else None,
+        check_stale=check_stale,
+        check_outputs=check_outputs,
+    )
+    path = write_lint_report(vault, report)
+    return {
+        "ok": bool(report.get("ok")),
+        "counts": report.get("counts"),
+        "issues": report.get("issues", [])[:50],
+        "report": str(path.relative_to(vault)),
+    }
+
+
+def tool_wiki_compile(
+    schema: bool = False,
+    no_kg: bool = False,
+    no_site: bool = False,
+    raw: str = "",
+) -> dict[str, Any]:
+    """Run knowledge CI gates (validate + lint/claims + KG conflicts + optional site)."""
+    if not vault_ok():
+        return no_vault()
+    vault = require_vault()
+    from lib.compile_pipeline import run_compile
+
+    result = run_compile(
+        vault,
+        get_cfg(),
+        skip_kg=bool(no_kg),
+        skip_site=bool(no_site),
+        strict_schema=bool(schema),
+        json_out=False,
+        raw_path=(raw or "").strip() or None,
+    )
+    return result
+

@@ -8,11 +8,12 @@ Companion to **wiki-pipeline**. Each stage **writes** artifacts the next stage *
 | research | **wiki-research** or **wiki-fetch** | `raw/<type>/<slug>.md` with frontmatter | prepare, ingest |
 | prepare | **wiki-raw-prepare** / `llm-wiki raw finish` | Cleaned `raw/` files (excludes **`raw/memory/`**); **`raw/.preparation-log.jsonl`** | ingest |
 | memory (auto) | Claude Code hooks + `llm-wiki memory …` | **`raw/memory/<session-id>.md`** | recall, ingest (optional), search index |
-| ingest | **wiki-ingest** + **wiki-maintainer** | `wiki/**/*.md`, **`wiki/index.md`**, **`wiki/log.md`** | kg update, lint, build |
+| ingest | **wiki-ingest** + **wiki-maintainer** | `wiki/**/*.md`, **`wiki/index.md`**, **`wiki/log.md`** | kg update, lint, compile, build |
 | kg update | `llm-wiki kg rebuild` (if `knowledge_graph.auto_update_on_ingest`) | `.kg.json` or `.kg.sqlite3` | query (via MCP or CLI) |
-| lint | **wiki-lint** | Issues (stdout); optional **`outputs/lint-report.md`** | pipeline gate |
-| build | `llm-wiki build-site` | **`wiki/.og/`** static viewer | validate |
-| validate | `llm-wiki validate` / `validate --wikilinks` | Pass/fail (stdout) | done |
+| lint | **wiki-lint** / `llm-wiki lint` | **`outputs/lint-report.json`**, **`outputs/claims.json`** | pipeline gate |
+| compile | `llm-wiki compile` / MCP **`wiki_compile`** | lint + KG conflicts + optional site; surgical **`--raw`** | ship / search |
+| build | `llm-wiki build-site` (or folded into **compile**) | **`wiki/.og/`** static viewer | validate |
+| validate | `llm-wiki validate` / `validate --wikilinks` / `knowledge-test` | Pass/fail (stdout) | done |
 
 **Notes**
 
