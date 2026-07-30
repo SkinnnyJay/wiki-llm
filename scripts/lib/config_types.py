@@ -36,6 +36,9 @@ class McpConfig(TypedDict, total=False):
     configure_allowlist: list[str]
     benchmark_tool_enabled: bool
     ingest_enabled: bool
+    compile_enabled: bool
+    compile_allow_site: bool
+    allow_local_file_ingest: bool
     allow_force_security: bool
     sse_require_loopback: bool
     sse_token: str

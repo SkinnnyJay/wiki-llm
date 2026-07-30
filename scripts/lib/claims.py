@@ -24,13 +24,29 @@ def _claim_id(page: str, text: str) -> str:
 
 
 def normalize_raw_rel(raw_rel: str) -> str:
-    """Normalize to vault-relative ``raw/...`` form."""
-    s = (raw_rel or "").strip().replace("\\", "/").lstrip("./")
+    """
+    Normalize to vault-relative ``raw/...`` form.
+
+    Rejects absolute paths and ``..`` segments so surgical ``--raw`` cannot
+    escape the vault as a future filesystem target.
+    """
+    s = (raw_rel or "").strip().replace("\\", "/")
+    if not s:
+        raise ValueError("raw path is empty")
+    if s.startswith("/") or (len(s) > 1 and s[1] == ":"):
+        raise ValueError(f"raw path must be vault-relative, not absolute: {raw_rel!r}")
+    while s.startswith("./"):
+        s = s[2:]
     if s.startswith("llm-wiki/"):
         s = s[len("llm-wiki/") :]
     if not s.startswith("raw/"):
         s = f"raw/{s}"
-    return s
+    parts = [p for p in s.split("/") if p not in ("", ".")]
+    if any(p == ".." for p in parts):
+        raise ValueError(f"raw path must not contain '..': {raw_rel!r}")
+    if not parts or parts[0] != "raw":
+        raise ValueError(f"raw path must stay under raw/: {raw_rel!r}")
+    return "/".join(parts)
 
 
 def page_sources_list(fm: dict[str, Any]) -> list[str]:
@@ -54,10 +70,15 @@ def pages_citing_raw(vault: Path, raw_rel: str) -> list[str]:
         text = path.read_text(encoding="utf-8", errors="replace")
         fm, body = parse_wiki_frontmatter(text)
         sources = page_sources_list(fm)
-        if any(normalize_raw_rel(s) == needle for s in sources):
-            out.append(rel)
-            continue
-        if needle in body.replace("\\", "/"):
+        cited = False
+        for s in sources:
+            try:
+                if normalize_raw_rel(s) == needle:
+                    cited = True
+                    break
+            except ValueError:
+                continue
+        if cited or needle in body.replace("\\", "/"):
             out.append(rel)
     return out
 
@@ -86,11 +107,14 @@ def extract_claims_from_text(page_rel: str, text: str) -> list[dict[str, Any]]:
         inline = [x.strip() for x in _SOURCE_INLINE.findall(content)]
         ticks = [x.strip() for x in _BACKTICK_RAW.findall(content)]
         sources = list(dict.fromkeys([*inline, *ticks]))
-        if not sources and not page_sources:
-            continue
-        if not sources:
-            # Bullet without inline cite still counts if page has sources
+        if sources:
+            uncited = False
+        elif page_sources:
             sources = list(page_sources)
+            uncited = False
+        else:
+            sources = []
+            uncited = True
         claims.append(
             {
                 "id": _claim_id(page_rel, content),
@@ -98,7 +122,7 @@ def extract_claims_from_text(page_rel: str, text: str) -> list[dict[str, Any]]:
                 "text": content,
                 "sources": sources,
                 "confidence": conf_f,
-                "uncited": len(inline) + len(ticks) == 0 and not page_sources,
+                "uncited": uncited,
             }
         )
     return claims
@@ -110,7 +134,10 @@ def extract_vault_claims(
     wiki = vault / "wiki"
     if not wiki.is_dir():
         return []
-    allow = {p.replace("\\", "/") for p in (only_pages or [])} or None
+    # None = full vault; empty list = surgical scope with zero pages (do not fall through)
+    allow: set[str] | None = (
+        None if only_pages is None else {p.replace("\\", "/") for p in only_pages}
+    )
     out: list[dict[str, Any]] = []
     for path in sorted(wiki.rglob("*.md")):
         if ".og" in path.parts or path.name in SCHEMA_EXEMPT_NAMES:
@@ -132,8 +159,8 @@ def write_claims_index(
     """
     Write ``outputs/claims.json``.
 
-    When ``only_pages`` is set, merge updated claims for those pages into any
-    existing index (surgical recompile).
+    When ``only_pages`` is set (including empty), merge updated claims for those
+    pages into any existing index (surgical recompile).
     """
     if claims is None:
         claims = extract_vault_claims(vault, only_pages=only_pages)
@@ -142,7 +169,7 @@ def write_claims_index(
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "claims.json"
 
-    if only_pages:
+    if only_pages is not None:
         allow = {p.replace("\\", "/") for p in only_pages}
         existing: list[dict[str, Any]] = []
         if path.is_file():
@@ -163,7 +190,9 @@ def write_claims_index(
         "uncited": sum(1 for c in claims if c.get("uncited")),
         "claims": claims,
     }
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    from lib.json_index import atomic_write_json
+
+    atomic_write_json(path, payload)
     return path
 
 
@@ -179,3 +208,47 @@ def uncited_claim_issues(claims: list[dict[str, Any]]) -> list[dict[str, str]]:
                 }
             )
     return issues
+
+
+def write_claim_stubs(
+    vault: Path,
+    claims: list[dict[str, Any]] | None = None,
+    *,
+    only_pages: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Write draft topic stubs under ``outputs/stubs/`` (never ``wiki/``).
+
+    Opt-in helper for ``compile --stubs`` / ``compile.auto_stubs``.
+    One markdown file per unique source basename or claim id.
+    """
+    if claims is None:
+        claims = extract_vault_claims(vault, only_pages=only_pages)
+    out_dir = vault / "outputs" / "stubs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    for c in claims:
+        sources = [str(s) for s in (c.get("sources") or [])]
+        slug_src = sources[0] if sources else str(c.get("id") or "claim")
+        slug = Path(slug_src).stem.replace(" ", "-")[:48] or "claim"
+        cid = str(c.get("id") or _claim_id(str(c.get("page")), str(c.get("text"))))
+        fname = f"{slug}-{cid[:8]}.md"
+        path = out_dir / fname
+        page = str(c.get("page") or "")
+        text = str(c.get("text") or "").strip()
+        src_lines = "\n".join(f"  - {s}" for s in sources) or "  - (none)"
+        body = (
+            "---\n"
+            f"title: Stub from {page or 'claim'}\n"
+            "review_required: true\n"
+            f"sources:\n{src_lines}\n"
+            "confidence: 0.3\n"
+            "---\n\n"
+            f"# Stub: {slug}\n\n"
+            f"Draft from compiled claim on `{page}`.\n\n"
+            f"- {text}\n\n"
+            "_Promote into `wiki/` only after review (never auto-merged)._\n"
+        )
+        path.write_text(body, encoding="utf-8")
+        written.append(f"outputs/stubs/{fname}")
+    return {"ok": True, "count": len(written), "paths": written[:50]}

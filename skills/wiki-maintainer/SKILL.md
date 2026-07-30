@@ -1,6 +1,7 @@
 ---
 name: wiki-maintainer
 description: Maintains the LLM Wiki vault — index, log, cross-links, contradictions. Use when editing llm-wiki/wiki/, merging ingested sources, or keeping the wiki consistent.
+when_to_use: When the user asks to fix index/cross-links, resolve wiki contradictions, or curate pages after ingest before compile/lint.
 ---
 
 # Wiki maintainer — Curator

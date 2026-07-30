@@ -52,3 +52,34 @@ def test_doctor_warns_about_quarantined_indexes(tmp_path: Path) -> None:
 
     assert check["status"] == "warn"
     assert check["files"] == ["raw/.tags.json.corrupt.20260728T000000Z"]
+
+
+def test_doctor_includes_compile_health(tmp_path: Path) -> None:
+    vault = tmp_path / "llm-wiki"
+    (vault / "raw").mkdir(parents=True)
+    (vault / "wiki").mkdir()
+    (vault / "config.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mcp": {"enabled": True, "search_backend": "fts5"},
+                "knowledge_graph": {"enabled": True, "backend": "json"},
+                "compile": {"extract_claims": True},
+                "viewer": {"enabled": False},
+                "git": {"enabled": False},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "wiki" / "index.md").write_text("# Index\n\n[[topic]]\n", encoding="utf-8")
+    (vault / "wiki" / "topic.md").write_text("# Topic\n", encoding="utf-8")
+    (vault / "CLAUDE.md").write_text("# v\n", encoding="utf-8")
+
+    report = doctor_report(vault)
+    names = {c["name"] for c in report["checks"]}
+    assert "compile.config" in names
+    assert "lint" in names
+    assert "claims" in names
+    assert "kg.conflicts" in names
+    # Doctor must not mutate claims index
+    assert not (vault / "outputs" / "claims.json").exists()

@@ -1,18 +1,22 @@
 ---
-description: Health-check the wiki — contradictions, orphans, gaps.
+description: Health-check the wiki — orphans, links, claims, compile gates.
 ---
 
 # Lint wiki
 
-Follow the **wiki-lint** skill across `wiki/` and `wiki/index.md`. Propose concrete fixes or questions for the user.
+Follow the **wiki-lint** skill across `wiki/` and `wiki/index.md`. Prefer machine gates first, then semantic contradiction review.
 
 ## Quick usage
 
-- Run after large merges: orphans, broken `[[wikilinks]]`, contradictions.
-
 ```bash
-llm-wiki validate --wikilinks
+llm-wiki lint --write-report
+llm-wiki compile --no-site
+# surgical (pages citing one source):
+llm-wiki compile --raw raw/path.md --no-site
+llm-wiki knowledge-test --file examples/knowledge-tests.json
 ```
+
+MCP (after `mcp.compile_enabled=true`): **`wiki_lint`**, **`wiki_compile`**, **`wiki_knowledge_test`**.
 
 ## Arguments
 

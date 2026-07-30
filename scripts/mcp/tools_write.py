@@ -457,6 +457,8 @@ def tool_wiki_lint(
     """Deterministic wiki health lint (writes outputs/lint-report.json + claims when enabled)."""
     if not vault_ok():
         return no_vault()
+    if not bool(mcp_cfg().get("compile_enabled", False)):
+        return {"skipped": True, "reason": "mcp.compile_enabled is false"}
     vault = require_vault()
     from lib.wiki_lint import lint_vault, write_lint_report
 
@@ -482,21 +484,32 @@ def tool_wiki_compile(
     no_kg: bool = False,
     no_site: bool = False,
     raw: str = "",
+    stubs: bool = False,
 ) -> dict[str, Any]:
     """Run knowledge CI gates (validate + lint/claims + KG conflicts + optional site)."""
     if not vault_ok():
         return no_vault()
+    if not bool(mcp_cfg().get("compile_enabled", False)):
+        return {"skipped": True, "reason": "mcp.compile_enabled is false"}
     vault = require_vault()
     from lib.compile_pipeline import run_compile
 
+    allow_site = bool(mcp_cfg().get("compile_allow_site", False))
+    skip_site = bool(no_site) or not allow_site
     result = run_compile(
         vault,
         get_cfg(),
         skip_kg=bool(no_kg),
-        skip_site=bool(no_site),
+        skip_site=skip_site,
         strict_schema=bool(schema),
         json_out=False,
         raw_path=(raw or "").strip() or None,
+        write_stubs=bool(stubs),
     )
+    if not allow_site and not no_site:
+        result = {
+            **result,
+            "site_note": "viewer rebuild skipped unless mcp.compile_allow_site=true",
+        }
     return result
 

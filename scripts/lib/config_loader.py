@@ -112,6 +112,10 @@ DEFAULTS: dict[str, Any] = {
         "configure_allowlist": [],
         "benchmark_tool_enabled": False,
         "ingest_enabled": False,
+        # Allow wiki_compile / wiki_lint over MCP (writes reports + optional KG/site)
+        "compile_enabled": False,
+        # When compile_enabled, allow wiki_compile to rebuild the static viewer
+        "compile_allow_site": False,
         # Allow wiki_ingest local-path adapters (file/pdf-*/convo); default off — host path read
         "allow_local_file_ingest": False,
         # Allow wiki_ingest force_security=true (default off)
@@ -145,6 +149,8 @@ DEFAULTS: dict[str, Any] = {
         "fail_on_kg_conflicts": True,
         "extract_claims": True,
         "fail_on_uncited_claims": False,
+        # Write draft claim stubs under outputs/stubs/ (never wiki/)
+        "auto_stubs": False,
     },
     "memory": {
         "enabled": False,

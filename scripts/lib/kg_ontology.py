@@ -38,8 +38,11 @@ def allowed_predicates(cfg: dict[str, Any] | None) -> frozenset[str] | None:
     cleaned = {str(p).strip() for p in raw if str(p).strip()}
     if not cleaned:
         return None
+    # Structural rebuild predicates (mentions/links_to/tagged/…) always allowed so
+    # ontology_strict cannot be bypassed-or-broken by kg rebuild / compile.
+    structural = frozenset(MULTI_VALUED_PREDICATES)
     if kg.get("ontology_strict"):
-        return frozenset(cleaned)
+        return frozenset(cleaned) | structural
     return frozenset(cleaned) | BUILTIN_ALLOWED
 
 

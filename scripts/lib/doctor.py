@@ -171,6 +171,95 @@ def doctor_report(vault: Path, *, fix: bool = False) -> dict[str, Any]:
         )
     )
 
+    # Knowledge compiler health (diagnose only — never mutates)
+    if config is not None and (vault / "wiki").is_dir():
+        compile_cfg = config.get("compile") or {}
+        kg_cfg = config.get("knowledge_graph") or {}
+        checks.append(
+            _check(
+                "compile.config",
+                "ok",
+                (
+                    f"schema_required={bool(compile_cfg.get('schema_required'))} "
+                    f"extract_claims={bool(compile_cfg.get('extract_claims', True))} "
+                    f"fail_on_kg_conflicts={bool(compile_cfg.get('fail_on_kg_conflicts', True))}"
+                ),
+            )
+        )
+        try:
+            from lib.wiki_lint import lint_vault
+
+            lint_cfg = {
+                **config,
+                "compile": {
+                    **(config.get("compile") or {}),
+                    "extract_claims": False,
+                    "fail_on_uncited_claims": False,
+                },
+            }
+            lint_report = lint_vault(
+                vault,
+                lint_cfg,
+                check_schema=False,
+                check_stale=False,
+                check_outputs=False,
+            )
+            n_issues = int((lint_report.get("counts") or {}).get("issues") or 0)
+            checks.append(
+                _check(
+                    "lint",
+                    "warn" if n_issues else "ok",
+                    f"{n_issues} issue(s)" if n_issues else "clean",
+                    issues=n_issues,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — doctor must not crash
+            checks.append(_check("lint", "warn", f"lint failed: {exc}"))
+
+        claims_path = vault / "outputs" / "claims.json"
+        if claims_path.is_file():
+            try:
+                payload = json.loads(claims_path.read_text(encoding="utf-8"))
+                n_claims = int(payload.get("count") or len(payload.get("claims") or []))
+                n_uncited = int(payload.get("uncited") or 0)
+                checks.append(
+                    _check(
+                        "claims",
+                        "warn" if n_uncited else "ok",
+                        f"{n_claims} claim(s), {n_uncited} uncited",
+                    )
+                )
+            except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                checks.append(_check("claims", "warn", f"unreadable claims.json: {exc}"))
+        else:
+            checks.append(
+                _check(
+                    "claims",
+                    "ok",
+                    "no outputs/claims.json yet (run: llm-wiki lint or compile)",
+                )
+            )
+
+        if bool(kg_cfg.get("enabled", True)):
+            try:
+                from lib.fact_checker import find_predicate_conflicts
+                from lib.knowledge_graph import get_kg_backend
+
+                kg = get_kg_backend(vault, config)
+                conflicts = find_predicate_conflicts(list(kg.all_triples()))
+                checks.append(
+                    _check(
+                        "kg.conflicts",
+                        "warn" if conflicts else "ok",
+                        f"{len(conflicts)} conflict(s)" if conflicts else "none",
+                        count=len(conflicts),
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                checks.append(_check("kg.conflicts", "warn", f"unavailable: {exc}"))
+        else:
+            checks.append(_check("kg.conflicts", "ok", "knowledge graph disabled"))
+
     errors = sum(check["status"] == "error" for check in checks)
     warnings = sum(check["status"] == "warn" for check in checks)
     return {

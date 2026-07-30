@@ -38,6 +38,7 @@ versions use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **MCP** — `wiki_search` defaults to `scope=wiki` (compiled knowledge first).
 - **Phase 4 compiler** — entity `knowledge_graph.aliases` on add/query/rebuild; light `allowed_predicates` ontology; claim IR → `outputs/claims.json`; surgical `compile --raw <path>`.
 - **MCP knowledge CI** — `wiki_lint`, `wiki_compile`, `wiki_knowledge_test`; pytest job **Compile smoke** on a temp vault.
+- **Compiler harden** — empty `--raw` scope no longer full-vaults; harden `normalize_raw_rel`; `mcp.compile_enabled` gate; doctor lint/claims/KG checks; `compile --stubs` → `outputs/stubs/` only; atomic lint/claims writes.
 
 ### Fixed
 - Packaging honesty for `setup` when templates are absent from a wheel install.
