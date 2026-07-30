@@ -206,3 +206,121 @@ def test_claims_and_incremental_compile(vault: Path) -> None:
     scope = next(s for s in result["steps"] if s.get("step") == "scope")
     assert scope["pages"] == ["topic.md"]
     assert (vault / "outputs" / "claims.json").is_file()
+
+
+def test_empty_raw_scope_does_not_full_vault_lint(vault: Path) -> None:
+    from lib.compile_pipeline import run_compile
+    from lib.config_loader import load_config
+    from lib.wiki_lint import lint_vault
+
+    (vault / "wiki" / "orphan.md").write_text("# Orphan\n", encoding="utf-8")
+    cfg = load_config(vault)
+    # Full vault would flag orphan; empty surgical scope must not.
+    full = lint_vault(vault, cfg, check_schema=False)
+    assert any(i["code"] == "orphan" for i in full["issues"])
+
+    result = run_compile(
+        vault, cfg, skip_site=True, skip_kg=True, raw_path="raw/does-not-exist.md"
+    )
+    assert result["exit_code"] == 0
+    scope = next(s for s in result["steps"] if s.get("step") == "scope")
+    assert scope["page_count"] == 0
+    lint_step = next(s for s in result["steps"] if s.get("step") == "lint")
+    assert lint_step["ok"] is True
+    assert lint_step["only_pages"] == []
+
+
+def test_raw_path_rejects_traversal(vault: Path) -> None:
+    from lib.claims import normalize_raw_rel
+    from lib.compile_pipeline import run_compile
+    from lib.config_loader import load_config
+
+    try:
+        normalize_raw_rel("../etc/passwd")
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
+
+    cfg = load_config(vault)
+    result = run_compile(vault, cfg, skip_site=True, skip_kg=True, raw_path="../../x")
+    assert result["exit_code"] == 1
+    assert any(s.get("step") == "scope" and not s.get("ok") for s in result["steps"])
+
+
+def test_compile_stubs_write_outputs_only(vault: Path) -> None:
+    from lib.compile_pipeline import run_compile
+    from lib.config_loader import load_config
+
+    (vault / "wiki" / "topic.md").write_text(
+        "---\ntitle: Topic\nsources:\n  - raw/a.md\n---\n# Topic\n\n- Fact source: `raw/a.md`\n",
+        encoding="utf-8",
+    )
+    before = {p.name for p in (vault / "wiki").rglob("*.md")}
+    cfg = load_config(vault)
+    result = run_compile(vault, cfg, skip_site=True, skip_kg=True, write_stubs=True)
+    assert result["exit_code"] == 0
+    stubs = list((vault / "outputs" / "stubs").glob("*.md"))
+    assert stubs
+    assert {p.name for p in (vault / "wiki").rglob("*.md")} == before
+    assert all("review_required: true" in p.read_text(encoding="utf-8") for p in stubs)
+
+
+def test_compile_fails_on_kg_conflicts(vault: Path) -> None:
+    from lib.compile_pipeline import run_compile
+    from lib.config_loader import load_config
+    from lib.knowledge_graph import get_kg_backend
+
+    cfg = load_config(vault)
+    cfg.setdefault("compile", {})["fail_on_kg_conflicts"] = True
+    kg = get_kg_backend(vault, cfg)
+    kg.add_triple("Auth", "uses", "OAuth")
+    # Bypass fact_check path by writing second object via invalidate-off: use backend directly
+    # after disabling fact check for second add through JSON file
+    data = json.loads((vault / ".kg.json").read_text(encoding="utf-8"))
+    data["triples"].append(
+        {
+            "id": "deadbeefcafe",
+            "s": "Auth",
+            "p": "uses",
+            "o": "SAML",
+            "valid_from": "2026-01-01",
+        }
+    )
+    (vault / ".kg.json").write_text(json.dumps(data), encoding="utf-8")
+    result = run_compile(vault, cfg, skip_site=True, skip_kg=False)
+    # rebuild may add more triples but conflict Auth/uses remains
+    kg_step = next(s for s in result["steps"] if s.get("step") == "kg")
+    assert kg_step.get("conflicts", 0) >= 1
+    assert result["exit_code"] == 1
+
+
+def test_ontology_strict_keeps_structural_predicates(vault: Path) -> None:
+    from lib.config_loader import load_config, save_config
+    from lib.kg_ontology import predicate_allowed
+
+    cfg = load_config(vault)
+    kg_cfg = cfg.setdefault("knowledge_graph", {})
+    kg_cfg["allowed_predicates"] = ["uses"]
+    kg_cfg["ontology_strict"] = True
+    save_config(vault, cfg)
+    cfg = load_config(vault)
+    assert predicate_allowed("uses", cfg)
+    assert predicate_allowed("mentions", cfg)
+    assert predicate_allowed("links_to", cfg)
+    assert not predicate_allowed("invented_rel", cfg)
+
+
+def test_mcp_compile_gated_by_default(vault: Path) -> None:
+    from mcp.registry import build_active_tools
+    from mcp.tools_registry import READ_ONLY_TOOL_NAMES, TOOLS
+
+    cfg = {"mcp": {"enabled": True, "tools_mode": "full", "compile_enabled": False}}
+    active = build_active_tools(cfg, TOOLS, READ_ONLY_TOOL_NAMES)
+    assert "wiki_compile" not in active
+    assert "wiki_lint" not in active
+    assert "wiki_knowledge_test" in active
+
+    cfg["mcp"]["compile_enabled"] = True
+    active2 = build_active_tools(cfg, TOOLS, READ_ONLY_TOOL_NAMES)
+    assert "wiki_compile" in active2
+    assert "wiki_lint" in active2
