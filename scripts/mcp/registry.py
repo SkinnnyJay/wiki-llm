@@ -18,6 +18,9 @@ def build_active_tools(
         out.pop("wiki_benchmark_suites", None)
     if not bool(mcp.get("ingest_enabled", True)):
         out.pop("wiki_ingest", None)
+    if not bool(mcp.get("compile_enabled", False)):
+        out.pop("wiki_compile", None)
+        out.pop("wiki_lint", None)
     mode = str(mcp.get("tools_mode") or "full").strip().lower()
     allow = mcp.get("tools_allowlist") or []
     if not isinstance(allow, list):

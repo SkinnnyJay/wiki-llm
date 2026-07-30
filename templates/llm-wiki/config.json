@@ -140,6 +140,8 @@
     "configure_allowlist": [],
     "benchmark_tool_enabled": false,
     "ingest_enabled": false,
+    "compile_enabled": false,
+    "compile_allow_site": false,
     "allow_local_file_ingest": false,
     "allow_force_security": false,
     "sse_require_loopback": true,
@@ -149,7 +151,7 @@
     "_comment_search": "Options: fts5 (BM25) | grep | chromadb (semantic) | hybrid (FTS5+Chroma RRF; requires chromadb). hybrid_rrf_k: RRF constant for hybrid only.",
     "_comment_transport": "transport: stdio (default, editor MCP) | sse \u2014 HTTP POST JSON-RPC on host:port (see llm-wiki mcp --transport sse)",
     "_comment_tools_mode": "full | read_only | custom \u2014 custom + empty tools_allowlist behaves as read_only",
-    "_comment_hardening": "Safe defaults: ingest_enabled/benchmark_tool_enabled false; allow_local_file_ingest false. Empty configure_allowlist denies mcp.*/security.*/storage.*/hooks.* and path sinks. Enable write tools after review. See skills/references/mcp-and-kg.md"
+    "_comment_hardening": "Safe defaults: ingest_enabled/benchmark_tool_enabled/compile_enabled false; allow_local_file_ingest false. Empty configure_allowlist denies mcp.*/security.*/storage.*/hooks.* and path sinks. Enable write tools after review. See skills/references/mcp-and-kg.md"
   },
   "knowledge_graph": {
     "enabled": true,
@@ -160,7 +162,7 @@
     "ontology_strict": false,
     "_comment_backend": "Options: json (zero deps, vault/.kg.json) | sqlite (temporal validity, stdlib sqlite3)",
     "_comment_aliases": "Map alternate entity spellings to a canonical label (merged on kg add/query/rebuild).",
-    "_comment_allowed_predicates": "Empty = unrestricted. Non-empty = allowlist (+ builtins unless ontology_strict)."
+    "_comment_allowed_predicates": "Empty = unrestricted. Non-empty = allowlist (+ builtins unless ontology_strict). Structural mentions/links_to/tagged always allowed."
   },
   "compile": {
     "schema_required": false,
@@ -169,7 +171,8 @@
     "fail_on_kg_conflicts": true,
     "extract_claims": true,
     "fail_on_uncited_claims": false,
-    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence. Use compile --raw PATH for surgical recompile of pages citing that source."
+    "auto_stubs": false,
+    "_comment": "Knowledge CI for llm-wiki compile/lint/validate --schema. Enable schema_required after wiki pages carry sources/confidence. Use compile --raw PATH for surgical recompile. compile --stubs writes drafts under outputs/stubs/ only."
   },
   "memory": {
     "enabled": false,

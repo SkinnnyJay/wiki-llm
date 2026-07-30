@@ -394,6 +394,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                     "type": "string",
                     "description": "Surgical: lint/claims for pages citing this raw/ path",
                 },
+                "stubs": {
+                    "type": "boolean",
+                    "description": "Write draft claim stubs under outputs/stubs/ (never wiki/)",
+                },
             },
         },
         "handler": tool_wiki_compile,
