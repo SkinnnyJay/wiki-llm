@@ -79,13 +79,13 @@ This rebuilds **`wiki/.og/`** only when wiki content is newer than the last buil
 |-------|--------|
 | `raw/**/*.md` (and paths referenced), `wiki/index.md` | `wiki/**/*.md`, `wiki/index.md`, `wiki/log.md` |
 
-Downstream: **wiki-maintainer** (polish cross-links), **wiki-lint**. Pipeline: **`skills/references/pipeline-artifacts.md`**.
+Downstream: **wiki-maintainer** (polish cross-links), then **`llm-wiki compile --no-site`** (or **wiki-lint**). Pipeline: **`skills/references/pipeline-artifacts.md`**.
 
 ## Related skills
 
 - **wiki-raw-prepare** — clean structurally broken markdown in **`raw/`** before merge.
 - **wiki-maintainer** — index/cross-links after large merges.
-- **wiki-lint** — health check after bulk edits.
+- **wiki-lint** — health check after bulk edits; prefer **`llm-wiki compile --no-site`** before shipping.
 - **wiki-session-memory** — optional; **`raw/memory/*.md`** can be merged into **`wiki/`** if you promote session notes.
 - **wiki-research** — orchestrates fetch + post-process before ingest.
 

@@ -1,6 +1,7 @@
 ---
 name: wiki-pipeline
 description: End-to-end vault workflow — status, research/fetch, raw prepare, wiki ingest, lint, build-site, validate — with optional user gates between stages.
+when_to_use: When the user wants an end-to-end vault run (research through compile/validate) or says “run the pipeline” / “from raw” / “from wiki”.
 disable-model-invocation: true
 argument-hint: "[full | from raw | from wiki | status only]"
 context: fork

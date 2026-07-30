@@ -34,11 +34,13 @@ Knowledge compiler CI:
 
 - **`lint`** — orphans, broken wikilinks, optional schema/stale/`review_required`; extracts claim IR to `outputs/claims.json` when `compile.extract_claims`; `--write-report` → `outputs/lint-report.json`
 - **`diff --since HEAD~1`** — wiki/.kg path changes since a git ref
-- **`compile`** — validate + lint + KG rebuild/conflicts + optional site (does **not** auto-write topic pages); **`compile --raw raw/foo.md`** limits lint/claims to pages citing that source
+- **`compile`** — validate + lint + KG rebuild/conflicts + optional site (does **not** auto-write topic pages); **`compile --raw raw/foo.md`** limits lint/claims to pages citing that source; **`compile --stubs`** writes drafts under **`outputs/stubs/`** only
 - **`knowledge-test --file examples/knowledge-tests.json`** — claim regression tests against `wiki/`
 - **`kg conflicts`** — semantic (s,p) multi-object conflicts (skips multi-valued `mentions`/`links_to`)
 - **Entity merge** — set `knowledge_graph.aliases` (e.g. `{"OAuth2":"OAuth"}`) so add/query/rebuild canonicalize labels
-- **Ontology** — non-empty `knowledge_graph.allowed_predicates` rejects unknown predicates on `kg add` (builtins included unless `ontology_strict`)
+- **Ontology** — non-empty `knowledge_graph.allowed_predicates` rejects unknown predicates on `kg add` (builtins included unless `ontology_strict`; structural rebuild predicates always allowed)
+- **MCP** — `wiki_lint` / `wiki_compile` require `mcp.compile_enabled=true` (site also needs `mcp.compile_allow_site`)
+- **Doctor** — reports `compile.config`, `lint`, `claims`, `kg.conflicts` (diagnose only)
 
 ## `search`
 
