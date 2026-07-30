@@ -235,16 +235,37 @@ def test_raw_path_rejects_traversal(vault: Path) -> None:
     from lib.compile_pipeline import run_compile
     from lib.config_loader import load_config
 
-    try:
-        normalize_raw_rel("../etc/passwd")
-        raise AssertionError("expected ValueError")
-    except ValueError:
-        pass
+    for bad in ("../etc/passwd", "/etc/passwd", "C:/Windows/system32"):
+        try:
+            normalize_raw_rel(bad)
+            raise AssertionError(f"expected ValueError for {bad!r}")
+        except ValueError:
+            pass
 
     cfg = load_config(vault)
     result = run_compile(vault, cfg, skip_site=True, skip_kg=True, raw_path="../../x")
     assert result["exit_code"] == 1
     assert any(s.get("step") == "scope" and not s.get("ok") for s in result["steps"])
+
+
+def test_fail_on_uncited_claims(vault: Path) -> None:
+    from lib.claims import extract_claims_from_text, uncited_claim_issues
+    from lib.config_loader import load_config, save_config
+    from lib.wiki_lint import lint_vault
+
+    text = "---\ntitle: Topic\n---\n# Topic\n\n- Uncited claim without raw path\n"
+    claims = extract_claims_from_text("topic.md", text)
+    assert claims and claims[0]["uncited"] is True
+    assert uncited_claim_issues(claims)
+
+    (vault / "wiki" / "topic.md").write_text(text, encoding="utf-8")
+    cfg = load_config(vault)
+    cfg.setdefault("compile", {})["fail_on_uncited_claims"] = True
+    cfg["compile"]["extract_claims"] = True
+    save_config(vault, cfg)
+    report = lint_vault(vault, load_config(vault), check_schema=False)
+    assert any(i["code"] == "uncited_claim" for i in report["issues"])
+    assert report["ok"] is False
 
 
 def test_compile_stubs_write_outputs_only(vault: Path) -> None:

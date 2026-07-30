@@ -107,11 +107,14 @@ def extract_claims_from_text(page_rel: str, text: str) -> list[dict[str, Any]]:
         inline = [x.strip() for x in _SOURCE_INLINE.findall(content)]
         ticks = [x.strip() for x in _BACKTICK_RAW.findall(content)]
         sources = list(dict.fromkeys([*inline, *ticks]))
-        if not sources and not page_sources:
-            continue
-        if not sources:
-            # Bullet without inline cite still counts if page has sources
+        if sources:
+            uncited = False
+        elif page_sources:
             sources = list(page_sources)
+            uncited = False
+        else:
+            sources = []
+            uncited = True
         claims.append(
             {
                 "id": _claim_id(page_rel, content),
@@ -119,7 +122,7 @@ def extract_claims_from_text(page_rel: str, text: str) -> list[dict[str, Any]]:
                 "text": content,
                 "sources": sources,
                 "confidence": conf_f,
-                "uncited": len(inline) + len(ticks) == 0 and not page_sources,
+                "uncited": uncited,
             }
         )
     return claims

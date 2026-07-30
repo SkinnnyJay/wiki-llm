@@ -204,7 +204,7 @@ def lint_vault(
         "counts": {"issues": len(issues), "by_code": by_code},
         "coverage_missing_tags": coverage_missing[:50],
         "issues": issues,
-        "only_pages": list(only_pages) if only_pages else None,
+        "only_pages": list(only_pages) if only_pages is not None else None,
     }
 
 
