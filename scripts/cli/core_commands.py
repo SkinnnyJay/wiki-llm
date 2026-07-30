@@ -674,6 +674,7 @@ def cmd_compile(args: argparse.Namespace) -> int:
         strict_schema=getattr(args, "schema", False),
         json_out=getattr(args, "json_out", False),
         raw_path=raw,
+        write_stubs=getattr(args, "stubs", False),
     )
     return int(result.get("exit_code", 1))
 

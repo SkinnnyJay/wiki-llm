@@ -174,6 +174,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Surgical recompile: lint/claims for wiki pages citing this raw/ path",
     )
+    pcomp.add_argument(
+        "--stubs",
+        action="store_true",
+        help="Write draft claim stubs under outputs/stubs/ (never wiki/)",
+    )
     pcomp.add_argument("--json", dest="json_out", action="store_true")
     pcomp.set_defaults(func=cmd_compile)
 
