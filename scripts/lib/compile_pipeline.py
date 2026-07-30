@@ -16,15 +16,12 @@ def run_compile(
     strict_schema: bool = False,
     json_out: bool = False,
     raw_path: str | None = None,
+    write_stubs: bool = False,
 ) -> dict[str, Any]:
     """
-    Gates only — does not auto-write topic pages (agent still merges raw→wiki).
-
-    Steps: validate layout → lint (+ claims index) → optional KG rebuild +
-    conflict scan → optional site build --if-stale.
-
-    When ``raw_path`` is set, lint/claims focus on wiki pages that cite that
-    raw source (surgical recompile).
+    Gates only — does not auto-write topic pages under ``wiki/``
+    (agent still merges raw→wiki). Optional ``write_stubs`` writes drafts under
+    ``outputs/stubs/`` only.
     """
     from lib.emit import emit_json
     from lib.wiki_lint import lint_vault, write_lint_report
@@ -52,7 +49,23 @@ def run_compile(
     if raw_path:
         from lib.claims import normalize_raw_rel, pages_citing_raw
 
-        needle = normalize_raw_rel(raw_path)
+        try:
+            needle = normalize_raw_rel(raw_path)
+        except ValueError as exc:
+            steps.append({"step": "scope", "ok": False, "error": str(exc)})
+            result = {
+                "ok": False,
+                "exit_code": 1,
+                "vault": str(vault),
+                "steps": steps,
+                "hint": "Invalid --raw path; use a vault-relative raw/… path without '..'.",
+            }
+            if json_out:
+                emit_json(result)
+            else:
+                print("compile: FAIL")
+                print(f"  [fail] scope {exc}", file=sys.stderr)
+            return result
         only_pages = pages_citing_raw(vault, needle)
         steps.append(
             {
@@ -90,6 +103,21 @@ def run_compile(
                 "step": "claims",
                 "ok": True,
                 "path": str(claims_path),
+            }
+        )
+
+    do_stubs = bool(write_stubs) or bool(compile_cfg.get("auto_stubs", False))
+    if do_stubs:
+        from lib.claims import extract_vault_claims, write_claim_stubs
+
+        stub_claims = extract_vault_claims(vault, only_pages=only_pages)
+        stub_result = write_claim_stubs(vault, stub_claims, only_pages=only_pages)
+        steps.append(
+            {
+                "step": "stubs",
+                "ok": True,
+                "count": stub_result.get("count", 0),
+                "paths": stub_result.get("paths", []),
             }
         )
 
@@ -160,7 +188,8 @@ def run_compile(
         "steps": steps,
         "hint": (
             "Compile gates check the wiki; topic pages are still written by "
-            "/llm-wiki:ingest / wiki-ingest (or manual edits)."
+            "/llm-wiki:ingest / wiki-ingest (or manual edits). "
+            "Optional --stubs writes drafts under outputs/stubs/ only."
         ),
     }
     if json_out:
@@ -178,6 +207,8 @@ def run_compile(
                 extra = f" issues={s.get('issues')} report={s.get('report')}"
             if name == "claims":
                 extra = f" path={s.get('path')}"
+            if name == "stubs":
+                extra = f" count={s.get('count')}"
             if name == "kg" and not s.get("skipped"):
                 extra = f" conflicts={s.get('conflicts')}"
             if name == "site" and not s.get("skipped"):

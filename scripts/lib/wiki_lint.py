@@ -77,7 +77,10 @@ def lint_vault(
         check_schema = bool(compile_cfg.get("schema_required", False))
     require_sources = bool(compile_cfg.get("require_sources", check_schema))
     require_updated = bool(compile_cfg.get("require_updated", False))
-    page_allow = {p.replace("\\", "/") for p in (only_pages or [])} or None
+    # None = full vault; empty list = surgical scope with zero pages (do not fall through)
+    page_allow: set[str] | None = (
+        None if only_pages is None else {p.replace("\\", "/") for p in only_pages}
+    )
 
     wiki = vault / "wiki"
     issues: list[dict[str, str]] = []
@@ -209,5 +212,7 @@ def write_lint_report(vault: Path, report: dict[str, Any]) -> Path:
     out_dir = vault / "outputs"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "lint-report.json"
-    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    from lib.json_index import atomic_write_json
+
+    atomic_write_json(path, report)
     return path
