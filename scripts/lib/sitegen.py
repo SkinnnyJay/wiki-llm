@@ -34,7 +34,7 @@ def _simple_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 def _title(fm: dict[str, Any], body: str, rel: str) -> str:
     if fm.get("title"):
         return str(fm["title"])
-    m = re.search(r"^#\s+(.+)$", body, re.M)
+    m = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
     if m:
         return m.group(1).strip()
     return Path(rel).stem

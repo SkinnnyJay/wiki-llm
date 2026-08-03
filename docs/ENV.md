@@ -80,6 +80,7 @@ Opt-in suites (set to `1`, `true`, or `yes`):
 | **`RUN_CLAUDE_TESTS`** | `@pytest.mark.claude` (Claude CLI + skill evals) |
 | **`RUN_CODEX_SKILL_EVALS`** | `@pytest.mark.codex_skill_eval` |
 | **`RUN_BROWSER_TESTS`** | `@pytest.mark.browser` (Playwright) |
+| **`PLAYWRIGHT_CHROMIUM_EXECUTABLE`** | Optional executable path for the viewer browser smoke when Playwright's managed Chromium is unavailable |
 | **`RUN_MINIMAL_SKILL_EVALS`** | Shrinks skill evals to three core cases only |
 | **`RUN_RERANK_SMOKE`** | Optional rerank smoke tests (`tests/test_rerank_llm_smoke.py`) |
 

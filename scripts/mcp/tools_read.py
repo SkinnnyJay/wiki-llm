@@ -20,6 +20,7 @@ from mcp.ctx import (
     vault_ok,
 )
 
+
 def tool_wiki_wake_up() -> dict[str, Any]:
     """Load L0+L1 context blob for the vault — persona, topics, recent activity."""
     if not vault_ok():
@@ -153,7 +154,7 @@ def tool_wiki_read_page(path: str, max_chars: int = 0) -> dict[str, Any]:
     if not full.is_file():
         return {"error": f"File not found: {path}"}
     text = full.read_text(encoding="utf-8", errors="replace")
-    from lib.search import _parse_frontmatter, _title_from, _tags_for_file
+    from lib.search import _parse_frontmatter, _tags_for_file, _title_from
     fm, body = _parse_frontmatter(text)
     if max_chars is not None and max_chars != 0:
         lim = int(max_chars)
@@ -273,7 +274,7 @@ def tool_wiki_raw_validate(path: str, autofix: bool = False) -> dict[str, Any]:
     if not vault_ok():
         return no_vault()
     vault = require_vault()
-    mode = str((mcp_cfg().get("tools_mode") or "full")).strip().lower()
+    mode = str(mcp_cfg().get("tools_mode") or "full").strip().lower()
     if autofix and mode == "read_only":
         return {
             "error": "autofix is not allowed when mcp.tools_mode is read_only",
@@ -282,16 +283,16 @@ def tool_wiki_raw_validate(path: str, autofix: bool = False) -> dict[str, Any]:
     from lib.raw_validate import validate_raw_file_result
 
     r = validate_raw_file_result(vault, get_cfg(), path, autofix=autofix)
-    if r.get("error"):
+    if r["error"]:
         return {"error": r["error"]}
     out: dict[str, Any] = {
         "valid": r["valid"],
         "path": r["path"],
-        "issues": r.get("issues") or [],
+        "issues": r["issues"],
     }
-    if r.get("skipped"):
+    if r["skipped"]:
         out["skipped"] = r["skipped"]
-    if r.get("autofix_applied"):
+    if r["autofix_applied"]:
         out["autofix_applied"] = r["autofix_applied"]
     return out
 
@@ -382,4 +383,3 @@ def tool_memory_recall(
         limit=limit,
     )
     return {"results": [r.to_dict() for r in results], "count": len(results)}
-

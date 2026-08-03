@@ -13,12 +13,59 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import socket
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any, cast
 
 # Cap POST body size (Content-Length) to avoid memory exhaustion.
 _MAX_HTTP_JSON_BYTES = 32 * 1024 * 1024
+MCP_HTTP_MAX_WORKERS = 32
+MCP_HTTP_CLIENT_TIMEOUT_SECONDS = 15.0
+
+
+class BoundedMCPHTTPServer(ThreadingHTTPServer):
+    """Threaded HTTP server with bounded concurrent work and read timeouts."""
+
+    daemon_threads = True
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        request_handler: type[BaseHTTPRequestHandler],
+        *,
+        max_workers: int = MCP_HTTP_MAX_WORKERS,
+    ) -> None:
+        if max_workers <= 0:
+            raise ValueError("max_workers must be positive")
+        self._worker_slots = threading.BoundedSemaphore(max_workers)
+        super().__init__(server_address, request_handler)
+
+    def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
+        request, client_address = cast(
+            tuple[socket.socket, tuple[str, int]],
+            super().get_request(),
+        )
+        request.settimeout(MCP_HTTP_CLIENT_TIMEOUT_SECONDS)
+        return request, client_address
+
+    def process_request(self, request: socket.socket, client_address: tuple[str, int]) -> None:
+        if not self._worker_slots.acquire(blocking=False):
+            request.close()
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._worker_slots.release()
+            raise
+
+    def process_request_thread(self, request: socket.socket, client_address: tuple[str, int]) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._worker_slots.release()
 
 
 def run_sse_server(
@@ -87,17 +134,18 @@ def run_sse_server(
             file=sys.stderr,
         )
 
-    from mcp import server as mcp_server
     import hashlib
     import hmac
+
+    from mcp import server as mcp_server
 
     if not mcp_server.initialize(vault, require_enabled=True):
         print("MCP is disabled in config.json.", file=sys.stderr)
         raise SystemExit(1)
-    _mcp_log_extra = mcp_server._mcp_log_extra
-    _mcp_log_line = mcp_server._mcp_log_line
     handle_request = mcp_server.handle_request
-    logger = mcp_server.logger
+    log_extra = mcp_server.log_extra
+    log_line = mcp_server.log_line
+    logger = mcp_server.get_logger()
 
     def _token_ok(got: str) -> bool:
         """Compare tokens via SHA-256 digests to avoid length leaks."""
@@ -157,7 +205,7 @@ def run_sse_server(
                 return
             raw = self.rfile.read(length) if length else b"{}"
             try:
-                request = json.loads(raw.decode("utf-8"))
+                decoded = cast(object, json.loads(raw.decode("utf-8")))
             except json.JSONDecodeError:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
@@ -168,14 +216,34 @@ def run_sse_server(
                     ).encode()
                 )
                 return
+            if not isinstance(decoded, dict):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "error": {"code": -32600, "message": "JSON-RPC request must be an object"},
+                        }
+                    ).encode()
+                )
+                return
+            request = cast(dict[str, Any], decoded)
             try:
                 response = handle_request(request)
             except Exception:
-                rid = request.get("id") if isinstance(request, dict) else None
-                meth = request.get("method") if isinstance(request, dict) else None
+                raw_request_id = request.get("id")
+                rid = (
+                    raw_request_id
+                    if isinstance(raw_request_id, (str, int, float)) and not isinstance(raw_request_id, bool)
+                    else None
+                )
+                raw_method = request.get("method")
+                meth = raw_method if isinstance(raw_method, str) else None
                 logger.exception(
-                    _mcp_log_line("mcp http handle_request failed", request_id=rid, method=meth),
-                    extra=_mcp_log_extra(request_id=rid, method=str(meth) if meth else None),
+                    log_line("mcp http handle_request failed", request_id=rid, method=meth),
+                    extra=log_extra(request_id=rid, method=meth),
                 )
                 response = {
                     "jsonrpc": "2.0",
@@ -197,7 +265,7 @@ def run_sse_server(
         def log_message(self, fmt: str, *args: object) -> None:
             logger.debug("%s - %s", self.address_string(), fmt % args)
 
-    httpd = ThreadingHTTPServer((host, port), MCPHTTPHandler)
+    httpd = BoundedMCPHTTPServer((host, port), MCPHTTPHandler)
     logger.info("llm-wiki MCP HTTP listening on http://%s:%s/ (POST JSON-RPC)", host, port)
     try:
         httpd.serve_forever()

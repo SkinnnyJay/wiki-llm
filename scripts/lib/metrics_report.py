@@ -294,7 +294,7 @@ def build_metrics_report(
     size_bytes = path.stat().st_size if path.is_file() else 0
 
     labels, series = _build_timeline_series(records)
-    dist_labels = list(sorted({r.get("key", "?") for r in records}))
+    dist_labels = sorted({r.get("key", "?") for r in records})
     dist_counts = []
     for kl in dist_labels:
         dist_counts.append(sum(1 for r in records if r.get("key") == kl))

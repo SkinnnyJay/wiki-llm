@@ -10,24 +10,24 @@ import re
 import select
 import signal
 import subprocess
-import threading
-from datetime import datetime, timezone
-from collections import Counter
-import time
-import urllib.error
-import urllib.request
-from pathlib import Path
-from typing import Any, Callable
 
 # Repo scripts on path when run as python -m or from llm_wiki
 import sys
+import threading
+import time
+import urllib.error
+import urllib.request
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
 
 _SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from lib.compressors import Compressor, RawCompressor, get_compressor
-from lib.config_loader import DEFAULTS, deep_merge, load_config, resolve_storage_path, save_config
+from lib.compressors import Compressor
+from lib.config_loader import DEFAULTS, deep_merge, save_config
 from lib.metrics import MetricsRecorder
 from lib.rank_fusion import reciprocal_rank_fusion
 
@@ -1289,9 +1289,10 @@ def rerank_paths_llm(
     original_paths = list(paths)
     invoke = (invoke or "auto").strip().lower()
     if invoke == "auto":
-        invoke = _resolve_auto_invoke(api_key)
-        if invoke is None:
+        resolved_invoke = _resolve_auto_invoke(api_key)
+        if resolved_invoke is None:
             return paths
+        invoke = resolved_invoke
     if invoke == "anthropic_api" and not api_key:
         return paths
     if invoke == "openai_api" and not api_key:

@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 _BRAVE_API = "https://api.search.brave.com/res/v1"
@@ -89,7 +90,7 @@ def _format_llm_context(data: dict, query: str) -> str:
     results = data.get("results") or []
     lines = [
         f"# Brave LLM Context\n\nQuery: `{query}`\n",
-        f"*Pre-extracted web content optimised for LLM grounding.*\n\n---\n",
+        "*Pre-extracted web content optimised for LLM grounding.*\n\n---\n",
     ]
     for r in results:
         title = r.get("title") or "(no title)"

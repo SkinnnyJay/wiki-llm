@@ -37,8 +37,7 @@ def normalize_raw_rel(raw_rel: str) -> str:
         raise ValueError(f"raw path must be vault-relative, not absolute: {raw_rel!r}")
     while s.startswith("./"):
         s = s[2:]
-    if s.startswith("llm-wiki/"):
-        s = s[len("llm-wiki/") :]
+    s = s.removeprefix("llm-wiki/")
     if not s.startswith("raw/"):
         s = f"raw/{s}"
     parts = [p for p in s.split("/") if p not in ("", ".")]

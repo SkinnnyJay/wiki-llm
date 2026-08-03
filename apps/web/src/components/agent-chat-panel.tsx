@@ -26,7 +26,11 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Suggestion } from "@/components/ai-elements/suggestion";
-import type { PreflightClient } from "@/types/desk";
+import type {
+  AcpxPermissionMode,
+  PreflightClient,
+  VaultSetupState,
+} from "@/types/desk";
 import { Badge } from "@/components/ui/badge";
 import { getTextFromUIMessage } from "@/lib/chat-request";
 import { cn } from "@/lib/utils";
@@ -53,8 +57,8 @@ export function AgentChatPanel({
   chatId: string;
   vaultPath: string;
   vaultExists: boolean;
-  vaultSetup: string;
-  acpxPermissionMode: string;
+  vaultSetup: VaultSetupState;
+  acpxPermissionMode: AcpxPermissionMode;
   preflight: PreflightClient;
   className?: string;
 }) {

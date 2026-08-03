@@ -1,4 +1,8 @@
-import { acpxPermissionFlags, getWorkspaceDir } from "@/lib/acpx";
+import {
+  acpxPermissionFlags,
+  getAcpxPermissionMode,
+  getWorkspaceDir,
+} from "@/lib/acpx";
 import { tryLoadSystemPrompt } from "@/lib/system-prompt";
 import { resolveVaultPath, vaultExistsAt } from "@/lib/vault-path";
 import { requireWebToken } from "@/lib/web-auth";
@@ -15,8 +19,7 @@ export async function GET(req: Request) {
   const vaultPath = resolveVaultPath(workspacePath);
   const preflight = computeWikiPreflight(workspacePath);
   const system = tryLoadSystemPrompt();
-  const permissionMode =
-    process.env.ACP_ACPX_PERMISSION_MODE?.trim().toLowerCase() ?? "approve-reads";
+  const permissionMode = getAcpxPermissionMode(process.env.ACP_ACPX_PERMISSION_MODE);
   return Response.json({
     workspacePath,
     displayName,

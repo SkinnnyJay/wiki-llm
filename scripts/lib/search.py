@@ -269,16 +269,25 @@ _ALLOWED_JOURNAL_MODES = frozenset({"wal", "delete", "truncate", "persist", "mem
 _ALLOWED_SYNCHRONOUS_STR = frozenset({"off", "normal", "full", "extra", "0", "1", "2", "3"})
 _INT32_MIN = -(2**31)
 _INT32_MAX = 2**31 - 1
+DEFAULT_HYBRID_RRF_K = 60
+MIN_HYBRID_RRF_K = 1
 
 
-def _sanitize_journal_mode(value: Any) -> str:
+def _mapping_or_empty(value: object) -> dict[str, object]:
+    """Treat malformed user-owned config sections as absent configuration."""
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _sanitize_journal_mode(value: object) -> str:
     s = str(value).lower().strip()
     if s in _ALLOWED_JOURNAL_MODES and re.fullmatch(r"[a-z]+", s):
         return s
     return str(_SQLITE_PERF_DEFAULTS["journal_mode"])
 
 
-def _sanitize_synchronous(value: Any) -> str | int:
+def _sanitize_synchronous(value: object) -> str | int:
     if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 3:
         return value
     s = str(value).lower().strip()
@@ -292,12 +301,14 @@ def _sanitize_synchronous(value: Any) -> str | int:
 
 
 def _sanitize_int_pragma(
-    value: Any,
+    value: object,
     default: int,
     *,
     min_v: int,
     max_v: int,
 ) -> int:
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return default
     try:
         i = int(value)
     except (TypeError, ValueError):
@@ -312,7 +323,8 @@ class FTS5SearchBackend:
         self._vault = vault
         self._cfg = cfg or {}
         self._db_path = resolve_storage_path(vault, self._cfg, "search_db")
-        perf = (self._cfg.get("performance") or {}).get("sqlite") or {}
+        performance = _mapping_or_empty(self._cfg.get("performance"))
+        perf = _mapping_or_empty(performance.get("sqlite"))
         self._journal_mode = _sanitize_journal_mode(
             perf.get("journal_mode", _SQLITE_PERF_DEFAULTS["journal_mode"])
         )
@@ -642,10 +654,10 @@ class GrepSearchBackend:
         wing: str | None = None,
         room: str | None = None,
     ) -> list[SearchResult]:
-        try:
-            pattern = re.compile(query, re.IGNORECASE)
-        except re.error:
-            pattern = re.compile(re.escape(query), re.IGNORECASE)
+        # Keep fallback semantics aligned with ripgrep's --fixed-strings mode.
+        # Compiling caller-controlled regexes permits pathological patterns to
+        # monopolize the process during a local or MCP search request.
+        pattern = re.compile(re.escape(query), re.IGNORECASE)
 
         results: list[SearchResult] = []
         for rel, text in _walk_vault_md(self._vault):
@@ -731,8 +743,13 @@ class HybridSearchBackend:
         self._cfg = cfg
         self._fts = FTS5SearchBackend(vault, cfg)
         self._chroma = chroma
-        mcp = cfg.get("mcp") or {}
-        self._rrf_k = int(mcp.get("hybrid_rrf_k", 60))
+        mcp = _mapping_or_empty(cfg.get("mcp"))
+        self._rrf_k = _sanitize_int_pragma(
+            mcp.get("hybrid_rrf_k", DEFAULT_HYBRID_RRF_K),
+            DEFAULT_HYBRID_RRF_K,
+            min_v=MIN_HYBRID_RRF_K,
+            max_v=_INT32_MAX,
+        )
         self._metrics: Any = None
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -821,7 +838,8 @@ def get_search_backend(vault: Path, cfg: dict[str, Any]) -> SearchBackend:
     import logging
 
     log = logging.getLogger("llm_wiki.search")
-    backend_name = (cfg.get("mcp") or {}).get("search_backend", "fts5")
+    mcp = _mapping_or_empty(cfg.get("mcp"))
+    backend_name = mcp.get("search_backend", "fts5")
     if backend_name == "chromadb":
         try:
             from lib.search_chromadb import ChromaDBSearchBackend

@@ -16,25 +16,60 @@ from lib.search import (
     _wing_room_for_file,
 )
 
+DEFAULT_COLLECTION_NAME = "wiki_pages"
+DEFAULT_BATCH_SIZE = 100
+MIN_BATCH_SIZE = 1
+MAX_BATCH_SIZE = 10_000
+DEFAULT_DISTANCE_FUNCTION = "cosine"
+ALLOWED_DISTANCE_FUNCTIONS = frozenset({"cosine", "l2", "ip"})
+MAX_INDEX_DOCUMENT_CHARS = 80_000
+MAX_QUERY_DOCUMENT_CHARS = 8_000
+MAX_SNIPPET_CHARS = 200
+
+
+def _mapping_or_empty(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _positive_batch_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        return DEFAULT_BATCH_SIZE
+    try:
+        batch_size = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_BATCH_SIZE
+    if not MIN_BATCH_SIZE <= batch_size <= MAX_BATCH_SIZE:
+        return DEFAULT_BATCH_SIZE
+    return batch_size
+
+
+def _distance_function(value: object) -> str:
+    candidate = str(value).strip().lower()
+    return candidate if candidate in ALLOWED_DISTANCE_FUNCTIONS else DEFAULT_DISTANCE_FUNCTION
+
 
 class ChromaDBSearchBackend:
     """Embed wiki+raw markdown in a local ChromaDB collection."""
 
     def __init__(self, vault: Path, cfg: dict[str, Any]):
-        import chromadb  # noqa: F401 — import check at construction
+        import chromadb
 
         self._vault = vault
         self._cfg = cfg
         self._metrics: Any = None
-        perf = (cfg.get("performance") or {}).get("chromadb") or {}
-        self._collection_name = str(perf.get("collection_name") or "wiki_pages")
-        self._batch_size = int(perf.get("batch_size") or 100)
+        performance = _mapping_or_empty(cfg.get("performance"))
+        perf = _mapping_or_empty(performance.get("chromadb"))
+        self._collection_name = str(perf.get("collection_name") or DEFAULT_COLLECTION_NAME)
+        self._batch_size = _positive_batch_size(perf.get("batch_size", DEFAULT_BATCH_SIZE))
+        self._distance_function = _distance_function(perf.get("distance_fn"))
         chroma_dir = resolve_storage_path(vault, cfg, "chromadb_dir")
         chroma_dir.mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=str(chroma_dir))
         self._collection = self._client.get_or_create_collection(
             name=self._collection_name,
-            metadata={"hnsw:space": str(perf.get("distance_fn") or "cosine")},
+            metadata={"hnsw:space": self._distance_function},
         )
 
     def reindex(self) -> dict[str, Any]:
@@ -46,7 +81,7 @@ class ChromaDBSearchBackend:
             pass
         self._collection = self._client.get_or_create_collection(
             name=self._collection_name,
-            metadata={"hnsw:space": str((self._cfg.get("performance") or {}).get("chromadb", {}).get("distance_fn") or "cosine")},
+            metadata={"hnsw:space": self._distance_function},
         )
         ids: list[str] = []
         documents: list[str] = []
@@ -56,7 +91,7 @@ class ChromaDBSearchBackend:
             title = _title_from(fm, body, rel)
             tags = _tags_for_file(fm)
             wn, rm = _wing_room_for_file(fm)
-            chunk = (title + "\n\n" + body)[:80000]
+            chunk = (title + "\n\n" + body)[:MAX_INDEX_DOCUMENT_CHARS]
             ids.append(rel)
             documents.append(chunk)
             metadatas.append(
@@ -135,14 +170,14 @@ class ChromaDBSearchBackend:
                 continue
             title = str(meta.get("title") or Path(path).stem)
             body_snip = (row_docs[i] if i < len(row_docs) else "") or ""
-            body_snip = body_snip.replace("\n", " ")[:200]
+            body_snip = body_snip.replace("\n", " ")[:MAX_SNIPPET_CHARS]
             dist = row_dists[i] if i < len(row_dists) else None
             score = round(1.0 - float(dist), 4) if dist is not None else 0.5
             out.append(
                 SearchResult(
                     path=path,
                     title=title,
-                    snippet=body_snip + ("…" if len(body_snip) >= 200 else ""),
+                    snippet=body_snip + ("…" if len(body_snip) >= MAX_SNIPPET_CHARS else ""),
                     score=score,
                     tags=tag_list,
                     wing=wmeta,
@@ -171,7 +206,9 @@ class ChromaDBSearchBackend:
                 return []
         except Exception:
             return []
-        res = self._collection.query(query_texts=[doc[:8000]], n_results=limit + 3)
+        res = self._collection.query(
+            query_texts=[doc[:MAX_QUERY_DOCUMENT_CHARS]], n_results=limit + 3
+        )
         ids = (res.get("ids") or [[]])[0]
         docs = (res.get("documents") or [[]])[0]
         dists = (res.get("distances") or [[]])[0]
@@ -186,7 +223,7 @@ class ChromaDBSearchBackend:
             tags_s = str(meta.get("tags") or "")
             tag_list = [t.strip() for t in tags_s.split(",") if t.strip()]
             body_snip = (docs[i] if i < len(docs) else "") or ""
-            body_snip = re.sub(r"\s+", " ", body_snip)[:200]
+            body_snip = re.sub(r"\s+", " ", body_snip)[:MAX_SNIPPET_CHARS]
             dist = dists[i] if i < len(dists) else None
             score = round(1.0 - float(dist), 4) if dist is not None else 0.5
             wmeta = str(meta.get("wing") or "")

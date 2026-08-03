@@ -1,10 +1,17 @@
-# tests/test_dedup.py
+import sys
 from pathlib import Path
-import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import pytest
+from ingest.dedup import (
+    check_duplicate,
+    content_hash,
+    rebuild_index,
+    register_hash,
+    strip_llm_wiki_keys,
+)
 
-from ingest.dedup import content_hash, strip_llm_wiki_keys, check_duplicate, register_hash, rebuild_index
 
 def test_strip_removes_llm_wiki_keys_from_combined_frontmatter():
     body = "---\ntitle: Auth\nllm_wiki_tags: [auth]\nllm_wiki_content_hash: sha256:abc\n---\n\n# Auth\n\nContent."

@@ -22,10 +22,21 @@ where = ["scripts"]
 include = ["cli*", "ingest*", "lib*", "mcp*"]
 
 [tool.basedpyright]
-include = ["scripts"]
+include = ["scripts", "benchmarks"]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
 reportAny = "warning"
 reportExplicitAny = "none"
 # Optional adapters (playwright, chromadb, youtube_transcript_api) are not required for core CLI.
 reportMissingImports = "warning"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["E402"]
+"benchmarks/*.py" = ["E402"]
+"tests/*.py" = ["E402"]

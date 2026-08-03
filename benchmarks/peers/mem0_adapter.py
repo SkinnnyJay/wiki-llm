@@ -6,7 +6,7 @@ import os
 from typing import Any
 
 from benchmarks.bench_harness import session_markdown_body
-from benchmarks.peers.base import PeerAdapter, PeerCapabilities, PeerHealth
+from benchmarks.peers.base import PeerCapabilities, PeerHealth
 
 
 class Mem0PeerAdapter:

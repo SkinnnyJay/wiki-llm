@@ -172,7 +172,11 @@ def lint_vault(
                     )
 
     if bool(compile_cfg.get("extract_claims", True)):
-        from lib.claims import extract_vault_claims, uncited_claim_issues, write_claims_index
+        from lib.claims import (
+            extract_vault_claims,
+            uncited_claim_issues,
+            write_claims_index,
+        )
 
         claims = extract_vault_claims(vault, only_pages=only_pages)
         write_claims_index(vault, claims, only_pages=only_pages)

@@ -9,6 +9,7 @@ from mcp.ctx import (
     require_vault,
 )
 
+
 def tool_wiki_kg_query(entity: str, as_of: str = "") -> dict[str, Any]:
     """Query entity relationships from the knowledge graph."""
     if not (get_cfg().get("knowledge_graph") or {}).get("enabled", True):

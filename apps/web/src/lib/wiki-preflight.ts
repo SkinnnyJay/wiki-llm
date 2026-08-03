@@ -1,9 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import type { VaultSetupState } from "@/types/desk";
 import { resolveVaultPath, vaultExistsAt } from "@/lib/vault-path";
-
-export type VaultSetupState = "missing" | "no_config" | "incomplete" | "ready";
 
 export type WikiPreflight = {
   pluginRoot: string | null;
@@ -56,7 +55,7 @@ export function resolvePluginRepoRoot(workspaceRoot: string): {
     const expanded =
       raw.startsWith("/") || /^[A-Za-z]:\\/.test(raw)
         ? raw
-        : join(process.cwd(), raw);
+        : join(/* turbopackIgnore: true */ process.cwd(), raw);
     if (isWikiLlmPluginRoot(expanded)) {
       return { path: expanded, resolvedFrom: "env" };
     }
@@ -83,7 +82,8 @@ function readSkillName(skillDir: string, folderName: string): string {
   try {
     const head = readFileSync(skillFile, "utf8").split("\n").slice(0, 40).join("\n");
     const m = /^name:\s*(.+)$/m.exec(head);
-    if (m) return m[1].trim();
+    const name = m?.[1]?.trim();
+    if (name) return name;
   } catch {
     /* use folder */
   }

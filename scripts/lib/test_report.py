@@ -110,6 +110,8 @@ def _classify_argv(argv: list[str], *, network: bool) -> tuple[str, str]:
         return "skip", "interactive wizard"
     if a0 == "teardown" and "--purge" in argv:
         return "skip", "destructive teardown"
+    if a0 in ("build-site", "build-og") and "--serve" in argv:
+        return "skip", "foreground viewer server; stop manually with Ctrl+C"
     if a0 in ("validate", "build-site", "build-og", "wake-up", "list-topics", "deps", "check", "graph", "graph-knowledge"):
         return "run", ""
     if a0 == "integrations" and len(argv) >= 2 and argv[1] in ("status", "validate"):
@@ -144,9 +146,9 @@ def run_test_report(
     # Import parser for help coverage
     if str(root / "scripts") not in sys.path:
         sys.path.insert(0, str(root / "scripts"))
-    from llm_wiki import build_parser  # noqa: E402
+    from llm_wiki import build_parser
 
-    from lib.cli_spec import top_level_subcommands  # noqa: E402
+    from lib.cli_spec import top_level_subcommands
 
     env0 = _env_with_scripts(root)
 

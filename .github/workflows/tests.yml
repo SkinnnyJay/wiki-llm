@@ -39,8 +39,10 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Plugin repo checks (agent docs + compileall)
         run: python scripts/llm_wiki.py check --plugin-repo
-      - name: Typecheck scripts (basedpyright)
-        run: basedpyright scripts
+      - name: Lint Python (Ruff)
+        run: ruff check scripts tests benchmarks
+      - name: Typecheck Python (basedpyright)
+        run: basedpyright scripts benchmarks
       - name: Run pytest
         run: python -m pytest tests/
         env:
@@ -136,6 +138,14 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Build
+        run: npm run build
+      - name: HTTP auth and request-shape smoke
+        run: npm run test:http
 
   browser:
     if: github.event_name == 'workflow_dispatch'

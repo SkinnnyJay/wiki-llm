@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 import re
 import time
 from datetime import datetime
-from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Protocol
 
 from lib.config_loader import resolve_storage_path
-
 
 # ---------------------------------------------------------------------------
 # Protocol
@@ -76,7 +72,8 @@ def _load_kg(path: Path) -> dict[str, Any]:
     if "triples" not in data:
         data["triples"] = []
     if not isinstance(data["entities"], dict) or not isinstance(data["triples"], list):
-        from lib.json_index import quarantine_corrupt, CorruptIndexError as CIE
+        from lib.json_index import CorruptIndexError as CIE
+        from lib.json_index import quarantine_corrupt
 
         quarantine_corrupt(path, ValueError("invalid kg shape"))
         raise CIE(path, "invalid kg shape")
@@ -225,7 +222,7 @@ class JSONFileKG:
 
     def rebuild(self, vault: Path) -> dict[str, Any]:
         """Rebuild KG from vault files: extract entities from wikilinks + frontmatter tags."""
-        from lib.search import _walk_vault_md, _parse_frontmatter, _tags_for_file
+        from lib.search import _parse_frontmatter, _tags_for_file, _walk_vault_md
 
         with self._lock:
             data = _load_kg(self._path)

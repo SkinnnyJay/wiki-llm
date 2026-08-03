@@ -14,6 +14,7 @@ from lib.self_check import cmd_check, cmd_smoke_test
 from lib.test_report import cmd_test_report
 from lib.version import __version__
 
+from cli.arguments import boolean, nonnegative_int, port_number, positive_int
 from cli.core_commands import (
     cmd_build_site,
     cmd_compile,
@@ -29,20 +30,20 @@ from cli.core_commands import (
     cmd_lint,
     cmd_list_topics,
     cmd_raw_finish,
-    cmd_raw_record,
     cmd_raw_rebuild_index,
+    cmd_raw_record,
     cmd_raw_validate,
     cmd_research_loop_cli,
-    cmd_security,
     cmd_search,
+    cmd_security,
     cmd_setup,
     cmd_sync_agent_docs,
     cmd_teardown,
     cmd_validate,
     cmd_wakeup,
 )
-from cli.mcp_commands import cmd_mcp
 from cli.doctor_commands import cmd_doctor
+from cli.mcp_commands import cmd_mcp
 from cli.ops_commands import (
     cmd_benchmark,
     cmd_interactive_configure,
@@ -75,7 +76,7 @@ def _add_build_site_args(ap: argparse.ArgumentParser) -> None:
     )
     ap.add_argument(
         "--port",
-        type=int,
+        type=port_number,
         default=None,
         metavar="PORT",
         help="Port for --serve / --serve-background (default: viewer.port in config, else 8765)",
@@ -97,10 +98,10 @@ def build_parser() -> argparse.ArgumentParser:
     pc = sub.add_parser("configure", help="Write config.json")
     pc.add_argument("--wiki-root")
     pc.add_argument("--og-base-url", dest="og_base_url")
-    pc.add_argument("--viewer-enabled", dest="viewer_enabled", type=lambda x: x.lower() == "true")
-    pc.add_argument("--git-enabled", dest="git_enabled", type=lambda x: x.lower() == "true")
-    pc.add_argument("--research-enabled", dest="research_enabled", type=lambda x: x.lower() == "true")
-    pc.add_argument("--security-enabled", dest="security_enabled", type=lambda x: x.lower() == "true")
+    pc.add_argument("--viewer-enabled", dest="viewer_enabled", type=boolean)
+    pc.add_argument("--git-enabled", dest="git_enabled", type=boolean)
+    pc.add_argument("--research-enabled", dest="research_enabled", type=boolean)
+    pc.add_argument("--security-enabled", dest="security_enabled", type=boolean)
     pc.add_argument("--persona-name", dest="persona_name", help="Display name for the wiki (config persona.name, default Gennie)")
     pc.add_argument("-i", "--interactive", action="store_true")
     pc.set_defaults(
@@ -204,7 +205,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     psearch = sub.add_parser("search", help="Search vault content")
     psearch.add_argument("query")
-    psearch.add_argument("--limit", type=int, default=5, help="Maximum results (default: 5)")
+    psearch.add_argument(
+        "--limit",
+        type=positive_int,
+        default=5,
+        help="Maximum results (default: 5; must be positive)",
+    )
     psearch.add_argument("--tag", default="", help="Filter by tag")
     psearch.add_argument(
         "--scope",
@@ -247,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
         "git_cmd",
         choices=["init", "status", "log", "diff", "snapshot", "query", "lifecycle"],
     )
-    pg.add_argument("-n", type=int, default=20)
+    pg.add_argument("-n", type=positive_int, default=20)
     pg.add_argument("--since")
     pg.add_argument("--grep")
     pg.add_argument("--staged", action="store_true")
@@ -481,7 +487,7 @@ def build_parser() -> argparse.ArgumentParser:
     pmcp.add_argument(
         "--port",
         dest="mcp_port",
-        type=int,
+        type=port_number,
         default=None,
         help="Port for --transport sse (default: config mcp.port or 8891)",
     )
@@ -510,7 +516,7 @@ def build_parser() -> argparse.ArgumentParser:
     pmcp_start.add_argument(
         "--port",
         dest="mcp_port",
-        type=int,
+        type=port_number,
         default=None,
         help="Port (default: config mcp.port or 8891)",
     )
@@ -570,7 +576,7 @@ def build_parser() -> argparse.ArgumentParser:
     pmet_query = pmet_sub.add_parser("query", help="Read/filter metric records")
     pmet_query.add_argument("--key", default=None, help="Filter by metric key")
     pmet_query.add_argument("--since", default=None, help="Filter records after this ISO date")
-    pmet_query.add_argument("--limit", type=int, default=100, help="Max records to return (default 100)")
+    pmet_query.add_argument("--limit", type=positive_int, default=100, help="Max records to return (default 100)")
     pmet_query.add_argument("--json", dest="metrics_json", action="store_true", help="Output as JSON")
 
     pmet_sub.add_parser("stats", help="Summary: keys, counts, file size, date range")
@@ -646,14 +652,14 @@ def build_parser() -> argparse.ArgumentParser:
     pbench_run.add_argument(
         "--limit",
         dest="benchmark_limit",
-        type=int,
+        type=nonnegative_int,
         default=0,
         help="Max questions (0 = all)",
     )
     pbench_run.add_argument(
         "--top-k",
         dest="benchmark_top_k",
-        type=int,
+        type=positive_int,
         default=5,
         help="Recall/NDCG cutoff for primary headline metric (default: 5)",
     )
@@ -705,7 +711,7 @@ def build_parser() -> argparse.ArgumentParser:
     pbench_hist.add_argument(
         "--limit",
         dest="benchmark_history_limit",
-        type=int,
+        type=positive_int,
         default=30,
         help="Max benchmark lines (default: 30)",
     )
@@ -799,14 +805,14 @@ def build_parser() -> argparse.ArgumentParser:
     mrec.add_argument("--session-id", dest="session_filter", default=None)
     mrec.add_argument("-c", "--current", action="store_true")
     mrec.add_argument("--tag", default=None)
-    mrec.add_argument("--limit", type=int, default=5)
+    mrec.add_argument("--limit", type=positive_int, default=5)
     mrec.add_argument("--json", dest="json_out", action="store_true", help="Output as JSON")
 
     mprune = pmemory_sub.add_parser("prune", help="Delete session memory files")
     mprune.add_argument("--session-id", dest="session_filter", default=None)
     mprune.add_argument("--tag", default=None)
-    mprune.add_argument("--older-than", type=int, dest="older_than", default=None)
-    mprune.add_argument("--keep", type=int, default=None)
+    mprune.add_argument("--older-than", type=positive_int, dest="older_than", default=None)
+    mprune.add_argument("--keep", type=nonnegative_int, default=None)
     mprune.add_argument("--dry-run", action="store_true")
 
     pmemory.set_defaults(func=cmd_memory)

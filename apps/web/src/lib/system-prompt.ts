@@ -1,16 +1,13 @@
 import { readFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import type { WikiPreflight } from "@/lib/wiki-preflight";
 import { computeWikiPreflight } from "@/lib/wiki-preflight";
 import { resolveVaultPath, vaultExistsAt } from "@/lib/vault-path";
 
-/** Default: `apps/web/prompts/wiki-llm-chat-system.md` (anchored to this module, not `cwd`). */
+/** Default: `apps/web/prompts/wiki-llm-chat-system.md` (the Next app working directory). */
 const DEFAULT_PROMPT_FILE = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
+  /* turbopackIgnore: true */ process.cwd(),
   "prompts",
   "wiki-llm-chat-system.md",
 );
@@ -28,7 +25,7 @@ export function resolveSystemPromptPath(): string {
     if (fromEnv.startsWith("/") || /^[A-Za-z]:\\/.test(fromEnv)) {
       return fromEnv;
     }
-    return join(process.cwd(), fromEnv);
+    return join(/* turbopackIgnore: true */ process.cwd(), fromEnv);
   }
   return DEFAULT_PROMPT_FILE;
 }
@@ -42,12 +39,12 @@ export function loadSystemPrompt(): string {
   if (cache?.path === path) {
     return cache.content;
   }
-  if (!existsSync(path)) {
+  if (!existsSync(/* turbopackIgnore: true */ path)) {
     throw new Error(
       `System prompt file not found: ${path}. Create it or set ACP_SYSTEM_PROMPT_PATH.`,
     );
   }
-  const content = readFileSync(path, "utf8");
+  const content = readFileSync(/* turbopackIgnore: true */ path, "utf8");
   cache = { path, content };
   return content;
 }

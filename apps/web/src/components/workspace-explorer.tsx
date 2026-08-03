@@ -10,9 +10,14 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import type { PreflightClient } from "@/types/desk";
+import type {
+  AcpxPermissionMode,
+  PreflightClient,
+  VaultSetupState,
+} from "@/types/desk";
 
 import { cn } from "@/lib/utils";
+import { normalizeSessionName, SESSION_NAME_HELP } from "@/lib/session-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +42,8 @@ export function WorkspaceExplorer({
   workspacePath: string;
   vaultPath: string;
   vaultExists: boolean;
-  vaultSetup: string;
-  acpxPermissionMode: string;
+  vaultSetup: VaultSetupState;
+  acpxPermissionMode: AcpxPermissionMode;
   preflight: PreflightClient;
   sessionName: string;
   recentSessions: string[];
@@ -181,10 +186,17 @@ export function WorkspaceExplorer({
           className="w-full justify-start gap-2"
           onClick={() => {
             const name = window.prompt(
-              "Session name (parallel acpx -s …)",
+              `Session name (parallel acpx -s …)\n${SESSION_NAME_HELP}`,
               sessionName,
             );
-            if (name && name.trim()) onSessionNameChange(name.trim());
+            if (name && name.trim()) {
+              const normalized = normalizeSessionName(name);
+              if (normalized) {
+                onSessionNameChange(normalized);
+              } else {
+                window.alert(`Invalid session name. ${SESSION_NAME_HELP}`);
+              }
+            }
           }}
         >
           <FolderGit2 className="h-4 w-4" />

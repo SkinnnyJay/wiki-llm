@@ -13,6 +13,7 @@ export function getTextFromUIMessage(message: UIMessage): string {
 export function lastUserText(messages: UIMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const m = messages[i];
+    if (!m) continue;
     if (m.role !== "user") continue;
     const parts = m.parts ?? [];
     const text = parts

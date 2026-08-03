@@ -6,12 +6,7 @@ from typing import Any
 
 # Common English words to skip when treating Title Case tokens as entities.
 _STOP = frozenset(
-    "The And But For With From Into About After Before During This That These Those "
-    "When Where What Which Who How Why There Here Then Than They Them Their Some Any "
-    "Each Every Other Such Same Very Much Too Not Yes All Can May Will Would Could "
-    "Should Shall Might Must Has Have Had Was Were Been Being Does Did Do Is Are Am "
-    "Been Being Your Our My Her His Its Their One Two Three First Next Last New Old "
-    "Using Used Use Make Made Like Just Also Only Both Into Over Under Out Off Up Down".split()
+    ["The", "And", "But", "For", "With", "From", "Into", "About", "After", "Before", "During", "This", "That", "These", "Those", "When", "Where", "What", "Which", "Who", "How", "Why", "There", "Here", "Then", "Than", "They", "Them", "Their", "Some", "Any", "Each", "Every", "Other", "Such", "Same", "Very", "Much", "Too", "Not", "Yes", "All", "Can", "May", "Will", "Would", "Could", "Should", "Shall", "Might", "Must", "Has", "Have", "Had", "Was", "Were", "Been", "Being", "Does", "Did", "Do", "Is", "Are", "Am", "Been", "Being", "Your", "Our", "My", "Her", "His", "Its", "Their", "One", "Two", "Three", "First", "Next", "Last", "New", "Old", "Using", "Used", "Use", "Make", "Made", "Like", "Just", "Also", "Only", "Both", "Into", "Over", "Under", "Out", "Off", "Up", "Down"]
 )
 
 

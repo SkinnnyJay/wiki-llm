@@ -2,9 +2,11 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from "ai";
+import type { UIMessage } from "ai";
 
 import { ensureClaudeSession, getWorkspaceDir, streamAcpxClaudePrompt } from "@/lib/acpx";
 import { lastUserText } from "@/lib/chat-request";
+import { normalizeSessionName } from "@/lib/session-name";
 import { getSystemPromptForTurn } from "@/lib/system-prompt";
 import { requireWebToken } from "@/lib/web-auth";
 import {
@@ -17,28 +19,49 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 type ChatRequestBody = {
-  messages?: Parameters<typeof lastUserText>[0];
-  sessionName?: string;
+  messages?: unknown;
+  sessionName?: unknown;
 };
+
+function badRequest(error: string): Response {
+  return new Response(JSON.stringify({ error }), {
+    status: 400,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function isChatMessages(value: unknown): value is UIMessage[] {
+  return Array.isArray(value) && value.every((message) => {
+    if (!message || typeof message !== "object") return false;
+    const candidate = message as { role?: unknown; parts?: unknown };
+    return typeof candidate.role === "string" && Array.isArray(candidate.parts);
+  });
+}
 
 export async function POST(req: Request) {
   const authError = requireWebToken(req);
   if (authError) return authError;
 
-  const body = (await req.json()) as ChatRequestBody;
-  if (!body.messages || !Array.isArray(body.messages)) {
-    return new Response(JSON.stringify({ error: "Missing messages array" }), {
-      status: 400,
-      headers: { "content-type": "application/json" },
-    });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return badRequest("Invalid JSON request body");
   }
-  const sessionName = (body.sessionName ?? "web-default").trim() || "web-default";
-  const prompt = lastUserText(body.messages);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return badRequest("Invalid request body");
+  }
+  const requestBody = body as ChatRequestBody;
+  if (!isChatMessages(requestBody.messages)) {
+    return badRequest("Invalid messages array");
+  }
+  const sessionName = normalizeSessionName(requestBody.sessionName);
+  if (!sessionName) {
+    return badRequest("Invalid session name");
+  }
+  const prompt = lastUserText(requestBody.messages);
   if (!prompt) {
-    return new Response(JSON.stringify({ error: "Missing user message" }), {
-      status: 400,
-      headers: { "content-type": "application/json" },
-    });
+    return badRequest("Missing user message");
   }
 
   try {
@@ -76,7 +99,7 @@ export async function POST(req: Request) {
   }
 
   const stream = createUIMessageStream({
-    originalMessages: body.messages,
+    originalMessages: requestBody.messages,
     execute: async ({ writer }) => {
       const id = crypto.randomUUID();
       writer.write({ type: "text-start", id });

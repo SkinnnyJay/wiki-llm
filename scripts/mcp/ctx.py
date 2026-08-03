@@ -16,7 +16,8 @@ from typing import Any
 from lib.config_loader import load_config
 from lib.config_types import McpConfig, mcp_config
 from lib.knowledge_graph import get_kg_backend
-from lib.metrics import MetricsRecorder, get_metrics as factory_metrics
+from lib.metrics import MetricsRecorder
+from lib.metrics import get_metrics as factory_metrics
 from lib.paths import resolve_vault
 from lib.search import get_search_backend
 

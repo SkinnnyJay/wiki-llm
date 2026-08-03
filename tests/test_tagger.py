@@ -1,15 +1,18 @@
 # tests/test_tagger.py
 import json
+import sys
 from pathlib import Path
-import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 import pytest
+from ingest.tagger import detect_tags, merge_tags, rebuild_tag_index, register_tags
 
-from ingest.tagger import detect_tags, merge_tags, register_tags, rebuild_tag_index
 
 def test_detect_tags_from_path():
     result = detect_tags("# Some content", Path("raw/auth/decision.md"), {})
     assert "auth" in result.tags
+
 
 def test_detect_tags_from_h1():
     result = detect_tags("# Auth Migration Decision\n\nContent.", Path("raw/note.md"), {})

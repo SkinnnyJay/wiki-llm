@@ -310,7 +310,7 @@ def load_config(vault: Path) -> dict[str, Any]:
     if not path.is_file():
         return deepcopy(DEFAULTS)
     with path.open(encoding="utf-8") as f:
-        data = json.load(f)
+        data: object = json.load(f)  # pyright: ignore[reportAny] -- validated below
     if not isinstance(data, dict):
         return deepcopy(DEFAULTS)
     return deep_merge(DEFAULTS, data)

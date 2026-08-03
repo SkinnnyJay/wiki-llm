@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
 from lib.url_safety import safe_fetch, validate_https_api_host, validate_public_http_url
+
 from ingest.base import Adapter, IngestResult
 
 _FIRECRAWL_API_HOSTS = frozenset({"api.firecrawl.dev"})

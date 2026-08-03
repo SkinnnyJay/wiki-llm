@@ -131,9 +131,9 @@ python3 scripts/llm_wiki.py benchmark run lme --peer mem0 --strict-peers --limit
 | Peer | How to run | Notes |
 |------|------------|--------|
 | **mem0** | `pip install mem0ai` (see `requirements-optional.txt`) | Usually needs **`OPENAI_API_KEY`** for default embeddings. |
-| **mempalace** | Set **`MEMPALACE_BENCH_CMD`** to a shell one-liner | stdin: JSON with `sessions`, `session_ids`, `dates`, `question`, `n_fetch`, `run_idx`. stdout: `{"ranked_session_ids":["S1",...]}`. |
+| **mempalace** | Set **`MEMPALACE_BENCH_CMD`** to an executable command | Arguments use shell-like quoting but are executed without a shell. stdin: JSON with `sessions`, `session_ids`, `dates`, `question`, `n_fetch`, `run_idx`. stdout: `{"ranked_session_ids":["S1",...]}`. |
 | **claude-mem** | Set **`CLAUDE_MEM_BENCH_CMD`** | Same JSON protocol as mempalace (headless bridge for Claude Code–oriented tools). |
-| **supermemory** | Stub until a headless client is integrated | Fails health check; use **`benchmarks/peers/rubric_overrides.json`** for editorial **Data Integrity / Simplicity / Integration / Arch Maturity** scores, or rely on printed **proxy** dimensions for other peers. |
+| **supermemory** | Set **`SUPERMEMORY_BENCH_CMD`** | Same JSON stdin/stdout bridge as mempalace; the bridge owns Supermemory API credentials and request mapping. |
 
 **Metrics:** `benchmark.peer.<id>.recall_at_5`, `benchmark.peer.<id>.dimensions.<name>`, etc., in `.metrics.jsonl` when metrics are enabled. **Failures:** `<vault>/.benchmarks/peer_<id>_failures.jsonl`.
 

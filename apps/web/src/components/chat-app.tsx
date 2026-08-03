@@ -4,55 +4,27 @@ import * as React from "react";
 
 import { AgentChatPanel } from "@/components/agent-chat-panel";
 import { WorkspaceExplorer } from "@/components/workspace-explorer";
+import { DEFAULT_DESK_CONFIG, decodeDeskConfig } from "@/lib/desk-config";
+import {
+  DEFAULT_SESSION_NAME,
+  GENERATED_SESSION_ID_LENGTH,
+  RECENT_SESSION_LIMIT,
+} from "@/lib/session-name";
 import { webAuthHeaders } from "@/lib/web-token-client";
-import type { PreflightClient } from "@/types/desk";
+import type { DeskConfig } from "@/types/desk";
 
 function randomSessionName() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `thread-${crypto.randomUUID().slice(0, 8)}`;
+    return `thread-${crypto.randomUUID().slice(0, GENERATED_SESSION_ID_LENGTH)}`;
   }
-  return `thread-${Math.random().toString(16).slice(2, 10)}`;
+  return `thread-${Math.random().toString(16).slice(2, 2 + GENERATED_SESSION_ID_LENGTH)}`;
 }
 
-export type DeskConfig = {
-  workspacePath: string;
-  displayName: string;
-  vaultPath: string;
-  vaultExists: boolean;
-  vaultSetup: string;
-  acpxPermissionMode: string;
-  preflight: PreflightClient;
-};
-
-const defaultPreflight: PreflightClient = {
-  pluginRoot: null,
-  skillsResolvedFrom: null,
-  skillCount: 0,
-  skillNames: [],
-  skillsReady: false,
-  vaultSetup: "missing",
-  llmWikiBinExists: false,
-  readyForClaude: false,
-  chatAllowed: false,
-  skillGateSkipped: false,
-  issues: [],
-};
-
-const defaultDesk: DeskConfig = {
-  workspacePath: "",
-  displayName: "Loading…",
-  vaultPath: "",
-  vaultExists: false,
-  vaultSetup: "missing",
-  acpxPermissionMode: "approve-reads",
-  preflight: defaultPreflight,
-};
-
 export function ChatApp() {
-  const [desk, setDesk] = React.useState<DeskConfig>(defaultDesk);
-  const [sessionName, setSessionName] = React.useState("default");
+  const [desk, setDesk] = React.useState<DeskConfig>(DEFAULT_DESK_CONFIG);
+  const [sessionName, setSessionName] = React.useState(DEFAULT_SESSION_NAME);
   const [recentSessions, setRecentSessions] = React.useState<string[]>([
-    "default",
+    DEFAULT_SESSION_NAME,
   ]);
 
   React.useEffect(() => {
@@ -63,27 +35,13 @@ export function ChatApp() {
           method: "GET",
           headers: webAuthHeaders(),
         });
-        const data = (await res.json()) as Partial<DeskConfig> & {
-          displayName?: string;
-          preflight?: Partial<PreflightClient>;
-          vaultSetup?: string;
-        };
+        const data: unknown = await res.json();
+        const nextDesk = decodeDeskConfig(data);
+        if (!nextDesk) {
+          throw new Error("Invalid Agent Desk configuration response");
+        }
         if (cancelled) return;
-        const pf = data.preflight;
-        setDesk({
-          workspacePath: data.workspacePath ?? "",
-          displayName: data.displayName ?? "(unknown)",
-          vaultPath: data.vaultPath ?? "",
-          vaultExists: Boolean(data.vaultExists),
-          vaultSetup: data.vaultSetup ?? "missing",
-          acpxPermissionMode: data.acpxPermissionMode ?? "approve-reads",
-          preflight: {
-            ...defaultPreflight,
-            ...pf,
-            skillNames: pf?.skillNames ?? [],
-            issues: pf?.issues ?? [],
-          },
-        });
+        setDesk(nextDesk);
       } catch {
         if (!cancelled) {
           setDesk((d) => ({
@@ -103,7 +61,7 @@ export function ChatApp() {
   const bumpRecent = React.useCallback((name: string) => {
     setRecentSessions((prev) => {
       const next = [name, ...prev.filter((s) => s !== name)];
-      return next.slice(0, 24);
+      return next.slice(0, RECENT_SESSION_LIMIT);
     });
   }, []);
 

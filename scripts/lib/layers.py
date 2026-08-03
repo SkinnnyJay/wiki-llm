@@ -27,9 +27,9 @@ def _load_recent_log(vault: Path, n: int = 3) -> list[str]:
     log = vault / "wiki" / "log.md"
     if not log.exists():
         return []
-    lines = [l.strip() for l in log.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line.strip() for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
     # Find lines that look like log entries (start with - or *)
-    entries = [l.lstrip("-* ").strip() for l in lines if l.startswith(("-", "*"))]
+    entries = [line.lstrip("-* ").strip() for line in lines if line.startswith(("-", "*"))]
     return entries[-n:]
 
 
@@ -47,6 +47,7 @@ def wiki_page_for_tag(vault: Path, tag: str) -> str | None:
 
 # Back-compat private alias
 _wiki_page_for_tag = wiki_page_for_tag
+
 
 def _approx_tokens(text: str) -> int:
     """Rough token estimate (~4 chars per token) for budgeting."""

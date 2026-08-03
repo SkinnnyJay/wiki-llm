@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 # Public proxy API — no auth, works for any public tweet.

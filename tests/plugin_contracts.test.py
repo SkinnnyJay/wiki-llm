@@ -13,9 +13,9 @@ REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from ingest.adapters import ADAPTERS  # noqa: E402
-from ingest.registry import adapter_map  # noqa: E402
-from lib.sitegen import _simple_frontmatter  # noqa: E402
+from ingest.adapters import ADAPTERS
+from ingest.registry import adapter_map
+from lib.sitegen import _simple_frontmatter
 
 WIKI_SKILL = re.compile(r"\*\*(wiki-[a-z0-9-]+)\*\*")
 LLM_WIKI_INLINE = re.compile(r"`(llm-wiki\s+[^`]+)`")
@@ -44,9 +44,8 @@ def _scan_llm_wiki_tokens(text: str) -> list[str]:
 
 @pytest.fixture(scope="module")
 def top_level_cli() -> set[str]:
-    from llm_wiki import build_parser  # noqa: E402
-
-    from lib.cli_spec import top_level_subcommands  # noqa: E402
+    from lib.cli_spec import top_level_subcommands
+    from llm_wiki import build_parser
 
     return top_level_subcommands(build_parser())
 

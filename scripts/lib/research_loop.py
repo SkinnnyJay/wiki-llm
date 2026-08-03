@@ -9,9 +9,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from ingest.registry import run_ingest
+
 from lib.hooks import maybe_play_sound
 from lib.ingest_finish import post_ingest
-from ingest.registry import run_ingest
 
 
 def _yaml_load(text: str, *, path: Path, explicit_suffix: bool) -> Any:

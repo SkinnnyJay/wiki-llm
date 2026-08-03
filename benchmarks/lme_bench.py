@@ -8,7 +8,6 @@ import concurrent.futures
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 import urllib.request
@@ -22,25 +21,27 @@ _SCRIPTS = _REPO / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
+from lib.compressors import get_compressor
+from lib.config_loader import deep_merge, load_config, save_config
+
 from benchmarks.bench_harness import (
     PersistentCLIPool,
     _resolve_auto_invoke,
     append_repo_benchmark_runs_jsonl,
     build_benchmark_record_meta,
-    config_hash,
     compute_rerank_confidence,
+    config_hash,
     ensure_vault_config,
     get_benchmark_search_fn,
     ndcg_at_k,
-    record_benchmark_metrics,
     reciprocal_rank_fusion_weighted,
+    record_benchmark_metrics,
     rerank_paths_cross_encoder,
     rerank_paths_llm,
     write_benchmark_run_sidecar,
     write_benchmark_vault,
 )
-from lib.config_loader import deep_merge, load_config, save_config
-from lib.compressors import get_compressor
+
 
 # HuggingFace cleaned JSON — URL built without literal "eval" substring (lint policy).
 def _lme_hf_url() -> str:
@@ -236,7 +237,10 @@ def run_lme(
                 len(corpus_sids),
             )
             if backend == "fts5" and bcfg.get("prf_rrf", True):
-                from benchmarks.bench_harness import _bench_doc_tokens, prf_or_rrf_paths_with_and
+                from benchmarks.bench_harness import (
+                    _bench_doc_tokens,
+                    prf_or_rrf_paths_with_and,
+                )
     
                 max_tok = int(bcfg.get("tfidf_max_chars", 80000))
                 ht = bool(bcfg.get("tfidf_head_tail", True))
@@ -268,7 +272,10 @@ def run_lme(
                         k=int(bcfg.get("hybrid_k", 60)),
                     )
                 if bcfg.get("final_borda", False):
-                    from benchmarks.bench_harness import borda_merge_ranks, tfidf_corpus_rank_from_tokens
+                    from benchmarks.bench_harness import (
+                        borda_merge_ranks,
+                        tfidf_corpus_rank_from_tokens,
+                    )
     
                     pt = tfidf_corpus_rank_from_tokens(question, docs_tokens)
                     paths = borda_merge_ranks(paths, pt)

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import pytest
-
 from lib.url_safety import validate_https_api_host, validate_public_http_url
 
 
@@ -54,6 +53,16 @@ def test_https_api_host_rejects_evil_host():
     with pytest.raises(SystemExit, match="not allowed"):
         validate_https_api_host(
             "https://evil.example.com",
+            default_host="api.firecrawl.dev",
+            allowed_hosts=frozenset({"api.firecrawl.dev"}),
+            integration_name="firecrawl",
+        )
+
+
+def test_https_api_host_reports_invalid_port_as_policy_error():
+    with pytest.raises(SystemExit, match="invalid port"):
+        validate_https_api_host(
+            "https://api.firecrawl.dev:not-a-port",
             default_host="api.firecrawl.dev",
             allowed_hosts=frozenset({"api.firecrawl.dev"}),
             integration_name="firecrawl",

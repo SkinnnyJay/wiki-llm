@@ -17,7 +17,6 @@ from mcp.ctx import (
     CONFIGURE_RESTART_KEYS,
     configure_key_allowed,
     get_cfg,
-    get_kg,
     get_search,
     mcp_cfg,
     no_vault,
@@ -30,6 +29,7 @@ from mcp.ctx import (
     state_lock,
     vault_ok,
 )
+
 
 def tool_wiki_agent_diary_append(
     agent_id: str, line: str, source: str = ""

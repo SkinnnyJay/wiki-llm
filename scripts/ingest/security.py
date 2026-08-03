@@ -10,12 +10,12 @@ from typing import Any
 
 # Rule id -> regex (case-insensitive) or callable
 PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("ignore_prev_instr", re.compile(r"ignore\s+(all\s+)?(previous|prior)\s+instructions?", re.I)),
-    ("system_prompt", re.compile(r"\b(system|developer)\s*:\s*you\s+are\b", re.I)),
-    ("jailbreak_dan", re.compile(r"\bDAN\b.*\b(do anything now)\b", re.I)),
-    ("override_policy", re.compile(r"disregard\s+(your|the)\s+(rules|guidelines|policy)", re.I)),
-    ("role_hijack", re.compile(r"you\s+are\s+now\s+(in|a)\s+", re.I)),
-    ("xml_tool", re.compile(r"<\s*(system|instruction|prompt)\s*>", re.I)),
+    ("ignore_prev_instr", re.compile(r"ignore\s+(all\s+)?(previous|prior)\s+instructions?", re.IGNORECASE)),
+    ("system_prompt", re.compile(r"\b(system|developer)\s*:\s*you\s+are\b", re.IGNORECASE)),
+    ("jailbreak_dan", re.compile(r"\bDAN\b.*\b(do anything now)\b", re.IGNORECASE)),
+    ("override_policy", re.compile(r"disregard\s+(your|the)\s+(rules|guidelines|policy)", re.IGNORECASE)),
+    ("role_hijack", re.compile(r"you\s+are\s+now\s+(in|a)\s+", re.IGNORECASE)),
+    ("xml_tool", re.compile(r"<\s*(system|instruction|prompt)\s*>", re.IGNORECASE)),
 ]
 
 

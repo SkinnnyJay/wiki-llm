@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from lib.path_safety import resolve_under, resolve_under_vault
 
 
@@ -70,8 +69,8 @@ def test_grep_find_related_rejects_escape(vault: Path, tmp_path: Path) -> None:
 
 def _patch_mcp_vault(monkeypatch: pytest.MonkeyPatch, vault: Path, cfg: dict) -> None:
     """Point MCP runtime at a test vault (state lives in mcp.ctx)."""
-    import mcp.ctx as ctx
     import mcp_server as ms
+    from mcp import ctx
 
     monkeypatch.setattr(ctx, "_vault", vault)
     monkeypatch.setattr(ctx, "_cfg", cfg)

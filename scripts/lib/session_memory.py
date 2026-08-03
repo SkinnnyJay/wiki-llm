@@ -12,7 +12,7 @@ from typing import Any
 from lib.search import SearchResult, get_search_backend
 
 _ROUNDS_MARKER = "<!-- llm-wiki-memory:rounds -->"
-_FM_END = re.compile(r"^---\s*$", re.M)
+_FM_END = re.compile(r"^---\s*$", re.MULTILINE)
 _SECTION_COMPACT = "## Compact summary"
 _SECTION_AGENT = "## Agent notes"
 
@@ -275,7 +275,6 @@ def memory_list(
     session_id: str | None = None,
     tag: str | None = None,
 ) -> list[dict[str, Any]]:
-    mem_root = memory_dir(vault, cfg)
     rows: list[dict[str, Any]] = []
     for p in _resolve_sessions(vault, cfg, session_id=session_id, tag=tag):
         text = p.read_text(encoding="utf-8", errors="replace")

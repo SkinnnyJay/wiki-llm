@@ -1,17 +1,20 @@
-"""Peers without bundled Python SDK: optional shell bridge or explicit skip."""
+"""Peers without bundled Python SDK: optional command bridge or explicit skip."""
 
 from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
-from typing import Any
+from typing import Any, cast
 
 from benchmarks.peers.base import PeerCapabilities, PeerHealth
 
+EXTERNAL_PEER_TIMEOUT_SECONDS = 600
+
 
 class ExternalCmdPeerAdapter:
-    """Run ``ENV_CMD`` with JSON on stdin; expect ``{"ranked_session_ids": [...]}`` on stdout."""
+    """Run a tokenized ``ENV_CMD`` with JSON stdin and ranked-session JSON stdout."""
 
     def __init__(self, peer_id: str, *, env_var: str) -> None:
         self.peer_id = peer_id
@@ -48,7 +51,7 @@ class ExternalCmdPeerAdapter:
         question: str,
         n_fetch: int,
         run_idx: int,
-        run_cache: Any,
+        run_cache: object,
     ) -> list[str]:
         cmd = os.environ.get(self._env_var, "").strip()
         payload = {
@@ -59,68 +62,35 @@ class ExternalCmdPeerAdapter:
             "n_fetch": n_fetch,
             "run_idx": run_idx,
         }
+        try:
+            command = shlex.split(cmd)
+        except ValueError as exc:
+            raise RuntimeError(f"{self._env_var} is not a valid command: {exc}") from exc
+        if not command:
+            raise RuntimeError(f"{self._env_var} is not a valid command")
         proc = subprocess.run(
-            cmd,
-            shell=True,
+            command,
             input=json.dumps(payload),
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=EXTERNAL_PEER_TIMEOUT_SECONDS,
             env=os.environ.copy(),
         )
         if proc.returncode != 0:
             raise RuntimeError(
                 f"{self._env_var} failed rc={proc.returncode}: {(proc.stderr or proc.stdout)[:500]}"
             )
-        out = json.loads(proc.stdout.strip())
+        try:
+            decoded = cast(object, json.loads(proc.stdout.strip()))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"{self._env_var} returned invalid JSON: {exc}") from exc
+        if not isinstance(decoded, dict):
+            raise RuntimeError(f"{self._env_var} must return a JSON object")
+        out = cast(dict[str, object], decoded)
         ids = out.get("ranked_session_ids") or out.get("session_ids") or []
         if not isinstance(ids, list):
             return []
         return [str(x) for x in ids]
-
-
-class SupermemoryStubAdapter:
-    """Placeholder until an official headless client is wired; health fails without API key."""
-
-    peer_id = "supermemory"
-
-    def health(self) -> PeerHealth:
-        if os.environ.get("SUPERMEMORY_API_KEY"):
-            return PeerHealth(
-                ok=False,
-                reason="supermemory client not bundled",
-                detail="SUPERMEMORY_API_KEY is set but automated LME adapter is not implemented yet; use rubric_overrides.json for editorial scores.",
-            )
-        return PeerHealth(
-            ok=False,
-            reason="missing SUPERMEMORY_API_KEY",
-            detail="Set SUPERMEMORY_API_KEY when a client is available, or rely on editorial dimension overrides.",
-        )
-
-    def capabilities(self) -> PeerCapabilities:
-        return PeerCapabilities(
-            peer_id=self.peer_id,
-            display_name="supermemory",
-            python_sdk=False,
-            http_api=True,
-            cli=False,
-            mcp=False,
-            requires_network=True,
-            verbatim_ingest=False,
-        )
-
-    def ingest_and_query(
-        self,
-        *,
-        sessions: list[list[dict[str, Any]]],
-        session_ids: list[str],
-        dates: list[str],
-        question: str,
-        n_fetch: int,
-        run_idx: int,
-        run_cache: Any,
-    ) -> list[str]:
-        raise RuntimeError("supermemory adapter not implemented")
 
 
 class UnavailablePeerAdapter:
@@ -145,6 +115,6 @@ class UnavailablePeerAdapter:
         question: str,
         n_fetch: int,
         run_idx: int,
-        run_cache: Any,
+        run_cache: object,
     ) -> list[str]:
         raise RuntimeError(self._reason)

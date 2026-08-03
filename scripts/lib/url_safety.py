@@ -6,10 +6,18 @@ import ipaddress
 import logging
 import os
 import socket
-from typing import Any
+from email.message import Message
+from typing import Protocol, cast, runtime_checkable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
-from urllib.request import HTTPErrorProcessor, HTTPHandler, HTTPSHandler, Request, build_opener
+from urllib.request import (
+    HTTPErrorProcessor,
+    HTTPHandler,
+    HTTPSHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 
 from lib.http_defaults import DEFAULT_TIMEOUT_S, USER_AGENT
 
@@ -20,6 +28,47 @@ DEFAULT_FETCH_TIMEOUT_S = DEFAULT_TIMEOUT_S
 DEFAULT_MAX_REDIRECTS = 5
 DEFAULT_MAX_BYTES = 32 * 1024 * 1024
 DEFAULT_USER_AGENT = USER_AGENT
+READ_BLOCK_BYTES = 64 * 1024
+REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+SAFE_FETCH_ALLOW_MISSING_PEER_ENV = "LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER"
+
+
+class _FetchHeaders(Protocol):
+    """The small, stable subset of HTTP headers used by safe_fetch."""
+
+    def get(self, name: str, default: str | None = None) -> str | None: ...
+
+
+class _FetchResponse(Protocol):
+    """Response contract returned by urllib after the dynamic transport boundary."""
+
+    headers: _FetchHeaders
+    status: int | None
+    reason: str
+    fp: object | None
+
+    def __enter__(self) -> _FetchResponse: ...
+
+    def __exit__(self, *args: object) -> None: ...
+
+    def getcode(self) -> int | None: ...
+
+    def read(self, amount: int = -1) -> bytes: ...
+
+
+@runtime_checkable
+class _HasRaw(Protocol):
+    raw: object | None
+
+
+@runtime_checkable
+class _HasSocket(Protocol):
+    _sock: object | None
+
+
+@runtime_checkable
+class _PeerSocket(Protocol):
+    def getpeername(self) -> tuple[str, ...]: ...
 
 
 def validate_public_http_url(url: str, *, context: str = "URL") -> str:
@@ -139,7 +188,12 @@ def validate_https_api_host(
             f"{integration_name}: api_base_url host {host!r} is not allowed. "
             f"Use one of: {', '.join(sorted(allowed_hosts))}."
         )
-    port = parsed.port
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise SystemExit(
+            f"{integration_name}: api_base_url has an invalid port."
+        ) from exc
     if port and port != 443:
         return f"https://{host}:{port}"
     return f"https://{host}"
@@ -148,22 +202,22 @@ def validate_https_api_host(
 class _NoRedirect(HTTPErrorProcessor):
     """Return 3xx responses to the caller instead of following them."""
 
-    def http_response(self, request: Any, response: Any) -> Any:  # noqa: ANN401
+    def http_response(self, request: Request, response: object) -> object:
         return response
 
     https_response = http_response
 
 
-def _peer_ip_from_response(resp: Any) -> str | None:
+def _peer_ip_from_response(resp: _FetchResponse) -> str | None:
     """Best-effort peer IP from an urllib response (post-connect SSRF check)."""
-    fp = getattr(resp, "fp", None)
-    if fp is None:
+    fp = resp.fp
+    if not isinstance(fp, _HasRaw | _HasSocket):
         return None
-    raw = getattr(fp, "raw", None)
-    sock = getattr(raw, "_sock", None) if raw is not None else None
-    if sock is None:
-        sock = getattr(fp, "_sock", None)
-    if sock is None:
+    raw = fp.raw if isinstance(fp, _HasRaw) else None
+    sock = raw._sock if isinstance(raw, _HasSocket) else None
+    if sock is None and isinstance(fp, _HasSocket):
+        sock = fp._sock
+    if not isinstance(sock, _PeerSocket):
         return None
     try:
         peer = sock.getpeername()
@@ -174,22 +228,23 @@ def _peer_ip_from_response(resp: Any) -> str | None:
     return str(peer[0])
 
 
-def _assert_peer_allowed(resp: Any, *, context: str, url: str) -> None:
+def _assert_peer_allowed(resp: _FetchResponse, *, context: str, url: str) -> None:
     peer = _peer_ip_from_response(resp)
     if peer is None:
         allow_missing = os.environ.get(
-            "LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER", ""
+            SAFE_FETCH_ALLOW_MISSING_PEER_ENV, ""
         ).strip().lower() in ("1", "true", "yes")
         if allow_missing:
             _log.warning(
                 "safe_fetch: could not read peer IP for %r "
-                "(LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER set)",
+                "(%s set)",
                 url,
+                SAFE_FETCH_ALLOW_MISSING_PEER_ENV,
             )
             return
         raise SystemExit(
             f"{context}: could not verify connected peer IP for {url!r} "
-            "(fail closed; set LLM_WIKI_SAFE_FETCH_ALLOW_MISSING_PEER=1 only if required)"
+            f"(fail closed; set {SAFE_FETCH_ALLOW_MISSING_PEER_ENV}=1 only if required)"
         )
     if _is_blocked_ssrf_ip(peer):
         raise SystemExit(
@@ -216,20 +271,29 @@ def safe_fetch(
     Returns ``(body_bytes, final_url, content_type)``.
     Raises SystemExit on policy violations; URLError/HTTPError may propagate.
     """
+    if timeout <= 0:
+        raise ValueError("safe_fetch timeout must be greater than zero")
+    if max_redirects < 0:
+        raise ValueError("safe_fetch max_redirects cannot be negative")
+    if max_bytes <= 0:
+        raise ValueError("safe_fetch max_bytes must be greater than zero")
+
     current = validate_public_http_url(url, context=context)
     hdrs = {"User-Agent": user_agent}
     if headers:
         hdrs.update(headers)
 
-    opener = build_opener(HTTPHandler(), HTTPSHandler(), _NoRedirect())
+    # Do not honor HTTP(S)_PROXY from the ambient process environment: proxying
+    # hands URL routing to another process and defeats direct peer verification.
+    opener = build_opener(ProxyHandler({}), HTTPHandler(), HTTPSHandler(), _NoRedirect())
 
     for hop in range(max_redirects + 1):
         req = Request(current, headers=hdrs, method="GET")
         try:
-            with opener.open(req, timeout=timeout) as resp:
+            with cast(_FetchResponse, opener.open(req, timeout=timeout)) as resp:
                 _assert_peer_allowed(resp, context=context, url=current)
-                status = getattr(resp, "status", None) or resp.getcode()
-                if status in (301, 302, 303, 307, 308):
+                status = resp.status or resp.getcode()
+                if status in REDIRECT_STATUS_CODES:
                     loc = resp.headers.get("Location")
                     if not loc:
                         raise SystemExit(f"{context}: redirect without Location")
@@ -238,11 +302,17 @@ def safe_fetch(
                     current = validate_public_http_url(nxt, context=f"{context} (redirect)")
                     continue
                 if status and int(status) >= 400:
-                    raise HTTPError(current, int(status), getattr(resp, "reason", ""), resp.headers, resp)
+                    raise HTTPError(
+                        current,
+                        int(status),
+                        resp.reason,
+                        cast(Message, resp.headers),
+                        None,
+                    )
                 chunks: list[bytes] = []
                 total = 0
                 while True:
-                    block = resp.read(64 * 1024)
+                    block = resp.read(READ_BLOCK_BYTES)
                     if not block:
                         break
                     total += len(block)
@@ -255,7 +325,7 @@ def safe_fetch(
                 ct = resp.headers.get("Content-Type", "") or ""
                 return body, current, ct
         except HTTPError as e:
-            if e.code in (301, 302, 303, 307, 308):
+            if e.code in REDIRECT_STATUS_CODES:
                 loc = e.headers.get("Location") if e.headers else None
                 if not loc:
                     raise SystemExit(f"{context}: redirect without Location") from e

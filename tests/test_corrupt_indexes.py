@@ -5,8 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from lib.json_index import CorruptIndexError, load_json_object, quarantine_corrupt
+from lib.json_index import CorruptIndexError, load_json_object
 from lib.knowledge_graph import JSONFileKG
 
 

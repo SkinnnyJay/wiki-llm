@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import cast
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -15,27 +16,40 @@ if str(SCRIPT_DIR) not in sys.path:
 from lib.config_loader import DEFAULTS, load_config, save_config
 from lib.paths import plugin_root, resolve_vault
 
+from cli.arguments import (
+    BenchmarkArgs,
+    KnowledgeGraphArgs,
+    MemoryArgs,
+    MetricsArgs,
+    required_text,
+)
+
 # ── Knowledge graph CLI ──────────────────────────────────────────────────────
 
 def cmd_kg(args: argparse.Namespace) -> int:
     from lib.knowledge_graph import get_kg_backend
-    vault = resolve_vault(override=args.vault)
+
+    options = KnowledgeGraphArgs.from_namespace(args)
+    vault = resolve_vault(override=options.vault)
     cfg = load_config(vault)
     kg = get_kg_backend(vault, cfg)
-    sub = getattr(args, "kg_sub", None)
+    sub = options.command
 
     if sub == "add":
+        subject = required_text(options.subject, "subject")
+        predicate = required_text(options.predicate, "predicate")
+        object_value = required_text(options.object_value, "object")
         kg_cfg = cfg.get("knowledge_graph") or {}
         if bool(kg_cfg.get("fact_check_on_add", True)):
             from lib.fact_checker import conflicting_objects_for_predicate
 
             conflicts = conflicting_objects_for_predicate(
-                kg, args.subject, args.predicate, args.object, cfg=cfg
+                kg, subject, predicate, object_value, cfg=cfg
             )
             if conflicts:
                 print(
                     "Conflict: active triple(s) already exist for "
-                    f"{args.subject} → {args.predicate} with different object(s):",
+                    f"{subject} → {predicate} with different object(s):",
                     file=sys.stderr,
                 )
                 for t in conflicts:
@@ -47,25 +61,28 @@ def cmd_kg(args: argparse.Namespace) -> int:
                 return 1
         try:
             tid = kg.add_triple(
-                args.subject, args.predicate, args.object,
-                valid_from=getattr(args, "valid_from", None) or None,
-                source=getattr(args, "source", None) or None,
+                subject,
+                predicate,
+                object_value,
+                valid_from=options.valid_from,
+                source=options.source,
             )
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 1
-        print(f"Added: {args.subject} → {args.predicate} → {args.object}  (id: {tid})")
+        print(f"Added: {subject} → {predicate} → {object_value}  (id: {tid})")
         return 0
 
     if sub == "query":
-        results = kg.query_entity(args.entity, as_of=getattr(args, "as_of", None) or None)
-        if getattr(args, "json_out", False):
+        entity = required_text(options.entity, "entity")
+        results = kg.query_entity(entity, as_of=options.as_of)
+        if options.json_out:
             from lib.emit import emit_json
 
-            emit_json({"entity": args.entity, "facts": results, "count": len(results)})
+            emit_json({"entity": entity, "facts": results, "count": len(results)})
             return 0
         if not results:
-            print(f"No facts found for: {args.entity}")
+            print(f"No facts found for: {entity}")
             return 0
         for t in results:
             ended = f"  (ended {t['valid_until']})" if t.get("valid_until") else ""
@@ -73,18 +90,23 @@ def cmd_kg(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "invalidate":
+        subject = required_text(options.subject, "subject")
+        predicate = required_text(options.predicate, "predicate")
+        object_value = required_text(options.object_value, "object")
         ok = kg.invalidate(
-            args.subject, args.predicate, args.object,
-            ended=getattr(args, "ended", None) or None,
+            subject,
+            predicate,
+            object_value,
+            ended=options.ended,
         )
         if ok:
-            print(f"Invalidated: {args.subject} → {args.predicate} → {args.object}")
+            print(f"Invalidated: {subject} → {predicate} → {object_value}")
         else:
             print("No matching active triple found.", file=sys.stderr)
         return 1 if not ok else 0
 
     if sub == "timeline":
-        entity = getattr(args, "entity", None) or None
+        entity = options.entity
         results = kg.timeline(entity)
         if not results:
             print("No facts." if not entity else f"No facts for: {entity}")
@@ -96,7 +118,7 @@ def cmd_kg(args: argparse.Namespace) -> int:
 
     if sub == "stats":
         s = kg.stats()
-        if getattr(args, "json_out", False):
+        if options.json_out:
             from lib.emit import emit_json
 
             emit_json(s)
@@ -132,7 +154,7 @@ def cmd_kg(args: argparse.Namespace) -> int:
                 for c in conflicts
             ],
         }
-        if getattr(args, "json_out", False):
+        if options.json_out:
             emit_json(payload)
         else:
             if not conflicts:
@@ -153,13 +175,13 @@ def cmd_kg(args: argparse.Namespace) -> int:
     return 1
 
 
-def _resolve_message_preview_for_log(args: argparse.Namespace) -> tuple[str | None, int | None]:
+def _resolve_message_preview_for_log(options: MemoryArgs) -> tuple[str | None, int | None]:
     """Return (preview, exit_code). exit_code is set on fatal read errors.
 
     Prefer ``--message-preview-file`` so hooks avoid shell-quoting issues with
     quotes, newlines, or box-drawing characters in assistant messages.
     """
-    fp = getattr(args, "message_preview_file", None)
+    fp = options.message_preview_file
     if fp:
         p = Path(fp).expanduser()
         if not p.is_file():
@@ -175,7 +197,7 @@ def _resolve_message_preview_for_log(args: argparse.Namespace) -> tuple[str | No
             print("memory log: preview file exceeds 4 MiB — refusing", file=sys.stderr)
             return None, 1
         return raw.decode("utf-8", errors="replace"), None
-    inline = getattr(args, "message_preview", None)
+    inline = options.message_preview
     if inline is not None:
         return inline, None
     return os.environ.get("LLM_WIKI_MESSAGE_PREVIEW"), None
@@ -184,22 +206,23 @@ def _resolve_message_preview_for_log(args: argparse.Namespace) -> tuple[str | No
 def cmd_memory(args: argparse.Namespace) -> int:
     from lib import session_memory as mem
 
-    vault = resolve_vault(override=args.vault)
+    options = MemoryArgs.from_namespace(args)
+    vault = resolve_vault(override=options.vault)
     cfg = load_config(vault)
-    sub = getattr(args, "memory_sub", None)
+    sub = options.command
 
     def _sid() -> str:
         return mem.resolve_session_arg(
             vault,
-            session_id=getattr(args, "session_id", None),
-            current=getattr(args, "current", False),
+            session_id=options.session_id,
+            current=options.current,
         )
 
     if sub == "save":
         if not mem.memory_enabled(cfg):
             print("memory.enabled is false — skipping.", file=sys.stderr)
             return 0
-        if not getattr(args, "current", False) and not getattr(args, "session_id", None):
+        if not options.current and not options.session_id:
             print("memory save: pass --session-id or --current", file=sys.stderr)
             return 1
         try:
@@ -208,22 +231,26 @@ def cmd_memory(args: argparse.Namespace) -> int:
             print(str(e), file=sys.stderr)
             return 1
         tags = None
-        raw_tags = getattr(args, "tags", None) or ""
+        raw_tags = options.tags or ""
         if raw_tags.strip():
             tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
         meta = None
-        if getattr(args, "metadata", None):
+        if options.metadata:
             try:
-                meta = json.loads(args.metadata)
+                decoded_meta = cast(object, json.loads(options.metadata))
             except json.JSONDecodeError:
                 print("Invalid JSON for --metadata", file=sys.stderr)
                 return 1
+            if not isinstance(decoded_meta, dict):
+                print("--metadata must be a JSON object", file=sys.stderr)
+                return 1
+            meta = cast(dict[str, object], decoded_meta)
         path = mem.memory_save(
             vault,
             cfg,
             sid,
-            summary=getattr(args, "summary", None),
-            compact_summary=getattr(args, "compact_summary", None),
+            summary=options.summary,
+            compact_summary=options.compact_summary,
             tags=tags,
             metadata=meta,
         )
@@ -234,7 +261,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         if not mem.memory_enabled(cfg):
             print("memory.enabled is false — skipping.", file=sys.stderr)
             return 0
-        if not getattr(args, "current", False) and not getattr(args, "session_id", None):
+        if not options.current and not options.session_id:
             print("memory log: pass --session-id or --current", file=sys.stderr)
             return 1
         try:
@@ -242,7 +269,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         except (ValueError, FileNotFoundError) as e:
             print(str(e), file=sys.stderr)
             return 1
-        preview, err = _resolve_message_preview_for_log(args)
+        preview, err = _resolve_message_preview_for_log(options)
         if err is not None:
             return err
         path = mem.memory_log_round(
@@ -258,10 +285,10 @@ def cmd_memory(args: argparse.Namespace) -> int:
         rows = mem.memory_list(
             vault,
             cfg,
-            session_id=getattr(args, "session_filter", None),
-            tag=getattr(args, "tag", None),
+            session_id=options.session_filter,
+            tag=options.tag,
         )
-        if getattr(args, "json_out", False):
+        if options.json_out:
             print(json.dumps(rows, indent=2))
         else:
             for r in rows:
@@ -272,8 +299,8 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "show":
-        sid = getattr(args, "session_id_arg", None)
-        if getattr(args, "current", False):
+        sid = options.session_id_arg
+        if options.current:
             try:
                 sid = mem.resolve_current_session(vault)
             except (ValueError, FileNotFoundError) as e:
@@ -283,7 +310,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
             print("show: pass SESSION_ID or --current", file=sys.stderr)
             return 1
         text = mem.memory_show(vault, cfg, sid)
-        if getattr(args, "json_out", False):
+        if options.json_out:
             from lib.emit import emit_json
 
             emit_json({"session_id": sid, "content": text})
@@ -292,12 +319,12 @@ def cmd_memory(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "recall":
-        q = (getattr(args, "query", None) or "").strip()
+        q = (options.query or "").strip()
         if not q:
             print("recall: query required", file=sys.stderr)
             return 1
-        sf = getattr(args, "session_filter", None)
-        if getattr(args, "current", False):
+        sf = options.session_filter
+        if options.current:
             try:
                 sf = mem.resolve_current_session(vault)
             except (ValueError, FileNotFoundError) as e:
@@ -308,10 +335,10 @@ def cmd_memory(args: argparse.Namespace) -> int:
             cfg,
             q,
             session_id=sf,
-            tag=getattr(args, "tag", None),
-            limit=getattr(args, "limit", 5),
+            tag=options.tag,
+            limit=options.limit or 5,
         )
-        if getattr(args, "json_out", False):
+        if options.json_out:
             from lib.emit import emit_json
 
             emit_json({"results": [r.to_dict() for r in results], "count": len(results)})
@@ -328,11 +355,11 @@ def cmd_memory(args: argparse.Namespace) -> int:
             out = mem.memory_prune(
                 vault,
                 cfg,
-                session_id=getattr(args, "session_filter", None),
-                tag=getattr(args, "tag", None),
-                older_than_days=getattr(args, "older_than", None),
-                keep=getattr(args, "keep", None),
-                dry_run=getattr(args, "dry_run", False),
+                session_id=options.session_filter,
+                tag=options.tag,
+                older_than_days=options.older_than,
+                keep=options.keep,
+                dry_run=options.dry_run,
             )
         except ValueError as e:
             print(str(e), file=sys.stderr)
@@ -347,43 +374,51 @@ def cmd_memory(args: argparse.Namespace) -> int:
 
 def cmd_metrics(args: argparse.Namespace) -> int:
     from lib.metrics import MetricsRecorder
-    vault = resolve_vault(override=args.vault)
+
+    options = MetricsArgs.from_namespace(args)
+    vault = resolve_vault(override=options.vault)
     cfg = load_config(vault)
     cfg.setdefault("metrics", {})["enabled"] = True
     m = MetricsRecorder(vault, cfg)
-    sub = getattr(args, "metrics_sub", None)
+    sub = options.command
 
     if sub == "record":
-        value: float | int | str = args.value
+        key = required_text(options.key, "key")
+        raw_value = required_text(options.value, "value")
+        value: float | int | str = raw_value
         try:
-            value = int(args.value)
+            value = int(raw_value)
         except ValueError:
             try:
-                value = float(args.value)
+                value = float(raw_value)
             except ValueError:
                 pass
         meta = None
-        if getattr(args, "meta", None):
+        if options.meta:
             try:
-                meta = json.loads(args.meta)
+                decoded_meta = cast(object, json.loads(options.meta))
             except json.JSONDecodeError:
-                print(f"Invalid JSON for --meta: {args.meta}", file=sys.stderr)
+                print(f"Invalid JSON for --meta: {options.meta}", file=sys.stderr)
                 return 1
-        tags = [t.strip() for t in args.tags.split(",") if t.strip()] if getattr(args, "tags", "") else None
-        m.record(args.key, value, meta=meta, tags=tags)
-        print(f"Recorded: {args.key}={value}")
+            if not isinstance(decoded_meta, dict):
+                print("--meta must be a JSON object", file=sys.stderr)
+                return 1
+            meta = cast(dict[str, object], decoded_meta)
+        tags = [tag.strip() for tag in options.tags.split(",") if tag.strip()] if options.tags else None
+        m.record(key, value, meta=meta, tags=tags)
+        print(f"Recorded: {key}={value}")
         return 0
 
     if sub == "query":
         records = m.query(
-            key=getattr(args, "key", None),
-            since=getattr(args, "since", None),
-            limit=getattr(args, "limit", 100),
+            key=options.key,
+            since=options.since,
+            limit=options.limit or 100,
         )
         if not records:
             print("No records found.")
             return 0
-        if getattr(args, "metrics_json", False):
+        if options.json_out:
             print(json.dumps(records, indent=2))
         else:
             for rec in records:
@@ -402,17 +437,17 @@ def cmd_metrics(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "clear":
-        if not getattr(args, "yes", False):
+        if not options.yes:
             print("Use --yes to confirm clearing metrics.", file=sys.stderr)
             return 1
-        result = m.clear(before=getattr(args, "before", None))
+        result = m.clear(before=options.before)
         print(f"Removed {result['removed']} records.")
         return 0
 
     if sub == "report":
         from lib.metrics_report import build_metrics_report
 
-        out_arg = getattr(args, "metrics_report_out", None)
+        out_arg = options.report_out
         out_dir = (
             Path(out_arg).resolve()
             if out_arg
@@ -423,8 +458,8 @@ def cmd_metrics(args: argparse.Namespace) -> int:
                 vault,
                 cfg,
                 out_dir,
-                since=getattr(args, "metrics_report_since", None),
-                key=getattr(args, "metrics_report_key", None),
+                since=options.report_since,
+                key=options.report_key,
             )
         except FileNotFoundError as e:
             print(e, file=sys.stderr)
@@ -436,12 +471,12 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     if sub == "summary":
         from lib.metrics_report import build_metrics_summary
 
-        if getattr(args, "metrics_summary_json", False):
+        if options.summary_json:
             out = build_metrics_summary(
                 vault,
                 cfg,
-                since=getattr(args, "metrics_summary_since", None),
-                key=getattr(args, "metrics_summary_key", None),
+                since=options.summary_since,
+                key=options.summary_key,
                 as_json=True,
             )
             assert isinstance(out, dict)
@@ -450,8 +485,8 @@ def cmd_metrics(args: argparse.Namespace) -> int:
             text = build_metrics_summary(
                 vault,
                 cfg,
-                since=getattr(args, "metrics_summary_since", None),
-                key=getattr(args, "metrics_summary_key", None),
+                since=options.summary_since,
+                key=options.summary_key,
                 as_json=False,
             )
             assert isinstance(text, str)
@@ -464,16 +499,16 @@ def cmd_metrics(args: argparse.Namespace) -> int:
 
 def cmd_benchmark(args: argparse.Namespace) -> int:
     """Run retrieval benchmarks (LME, LoCoMo, ConvoMem) and print metrics."""
-    from lib.paths import plugin_root
 
     root = plugin_root()
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-    vault = resolve_vault(override=args.vault)
+    options = BenchmarkArgs.from_namespace(args)
+    vault = resolve_vault(override=options.vault)
     cfg = load_config(vault)
     bcfg = cfg.get("benchmark") or {}
-    sub = getattr(args, "benchmark_sub", None)
+    sub = options.command
     if not bcfg.get("enabled", True) and sub not in ("analyze", "suites"):
         print("benchmark.enabled is false in config.json", file=sys.stderr)
         return 1
@@ -485,18 +520,18 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "run":
-        raw_suite = getattr(args, "benchmark_suite", None) or "lme"
+        raw_suite = options.suite or "lme"
         suite = "lme" if raw_suite in ("lme", "longmemeval") else raw_suite
-        no_metrics = getattr(args, "benchmark_no_metrics", False)
+        no_metrics = options.no_metrics
         if no_metrics:
             cfg.setdefault("benchmark", {})["auto_record_metrics"] = False
-        compress_arg = getattr(args, "benchmark_compress", None)
+        compress_arg = options.compress
         compress = compress_arg if compress_arg is not None else bcfg.get("compress_method", "raw")
-        backend_arg = getattr(args, "benchmark_backend", None)
+        backend_arg = options.backend
         backend = backend_arg if backend_arg is not None else (bcfg.get("search") or {}).get("backend", "fts5")
-        limit = int(getattr(args, "benchmark_limit", 0) or 0)
-        data_arg = getattr(args, "benchmark_data", None)
-        top_k = int(getattr(args, "benchmark_top_k", 5) or 5)
+        limit = options.limit or 0
+        data_arg = options.data
+        top_k = options.top_k or 5
 
         backends = (
             ["fts5", "grep", "chromadb", "hybrid"]
@@ -515,8 +550,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             cache = Path(os.path.expanduser(bcfg.get("data_cache_dir", "~/.cache/llm-wiki-benchmarks")))
             data_path = Path(data_arg).resolve() if data_arg else download_dataset(cache)
 
-            peer_list = getattr(args, "benchmark_peer", None) or []
-            strict_peers = bool(getattr(args, "benchmark_strict_peers", False)) or bool(
+            peer_list = options.peers or []
+            strict_peers = options.strict_peers or bool(
                 (bcfg.get("peers") or {}).get("strict", False)
             )
             if peer_list:
@@ -586,10 +621,10 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     if sub == "report":
         from lib.metrics_report import load_metrics_records
 
-        since = getattr(args, "benchmark_since", None)
+        since = options.since
         records = load_metrics_records(vault, cfg, since=since, limit=0)
         bench = [r for r in records if str(r.get("key", "")).startswith("benchmark.")]
-        if getattr(args, "benchmark_json", False):
+        if options.json_out:
             print(json.dumps(bench[-2000:], indent=2))
             return 0
         for r in bench[-50:]:
@@ -599,7 +634,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     if sub == "history":
         from lib.metrics_report import load_metrics_records
 
-        hist_limit = int(getattr(args, "benchmark_history_limit", 30))
+        hist_limit = options.history_limit or 30
         records = load_metrics_records(vault, cfg, limit=0)
         bench = [r for r in records if str(r.get("key", "")).startswith("benchmark.")]
         bench = bench[-hist_limit:]
@@ -617,8 +652,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
-        ia = int(getattr(args, "benchmark_compare_a", -2))
-        ib = int(getattr(args, "benchmark_compare_b", -1))
+        ia = options.compare_a if options.compare_a is not None else -2
+        ib = options.compare_b if options.compare_b is not None else -1
         ra = rows[ia]
         rb = rows[ib]
         out = {
@@ -637,20 +672,23 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         return 0
 
     if sub == "analyze":
-        from benchmarks.lme_bench import analyze_lme_failures_log, format_lme_failures_analysis
+        from benchmarks.lme_bench import (
+            analyze_lme_failures_log,
+            format_lme_failures_analysis,
+        )
 
-        suite = getattr(args, "benchmark_analyze_suite", "lme") or "lme"
+        suite = options.analyze_suite or "lme"
         if suite != "lme":
             print("benchmark analyze: only --suite lme is supported", file=sys.stderr)
             return 1
-        raw_path = getattr(args, "benchmark_failures_path", None)
+        raw_path = options.failures_path
         if raw_path:
             fail_path = Path(str(raw_path)).resolve()
         else:
             results_dir = vault / str(bcfg.get("results_dir") or ".benchmarks")
             fail_path = results_dir / "lme_failures.jsonl"
         summary = analyze_lme_failures_log(fail_path)
-        if getattr(args, "benchmark_analyze_json", False):
+        if options.analyze_json:
             print(json.dumps(summary, indent=2, default=str))
         else:
             print(format_lme_failures_analysis(summary), end="")
@@ -699,7 +737,7 @@ def cmd_interactive_configure() -> int:
         cfg.setdefault("mcp", {})["enabled"] = v == "y"
 
     sb_cur = (cfg.get("mcp") or {}).get("search_backend", "fts5")
-    print(f"  Search backend: fts5 (ranked) | grep (simple) | chromadb (semantic) | hybrid (FTS+Chroma RRF)")
+    print("  Search backend: fts5 (ranked) | grep (simple) | chromadb (semantic) | hybrid (FTS+Chroma RRF)")
     sb = input(f"  Search backend [{sb_cur}]: ").strip().lower()
     if sb in ("fts5", "grep", "chromadb", "hybrid"):
         cfg.setdefault("mcp", {})["search_backend"] = sb
@@ -712,7 +750,7 @@ def cmd_interactive_configure() -> int:
         cfg.setdefault("knowledge_graph", {})["enabled"] = v == "y"
 
     kb_cur = (cfg.get("knowledge_graph") or {}).get("backend", "json")
-    print(f"  KG backend: json (simple file) | sqlite (temporal queries)")
+    print("  KG backend: json (simple file) | sqlite (temporal queries)")
     kb = input(f"  KG backend [{kb_cur}]: ").strip().lower()
     if kb in ("json", "sqlite"):
         cfg.setdefault("knowledge_graph", {})["backend"] = kb
@@ -720,4 +758,3 @@ def cmd_interactive_configure() -> int:
     save_config(vault, cfg)
     print("\nSaved.")
     return 0
-

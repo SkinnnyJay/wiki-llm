@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 
 from lib.convo_miner import process_convo_file
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 

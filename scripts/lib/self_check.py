@@ -7,7 +7,6 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from lib.config_loader import load_config
 from lib.paths import plugin_root, resolve_vault

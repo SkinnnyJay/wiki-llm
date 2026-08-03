@@ -6,11 +6,10 @@ import os
 from pathlib import Path
 from typing import Any
 
-from benchmarks.peers.base import PeerAdapter, PeerHealth
+from benchmarks.peers.base import PeerAdapter
 from benchmarks.peers.mem0_adapter import Mem0PeerAdapter
 from benchmarks.peers.stubs import (
     ExternalCmdPeerAdapter,
-    SupermemoryStubAdapter,
     UnavailablePeerAdapter,
 )
 
@@ -53,6 +52,11 @@ def get_peer_adapter(peer_id: str, *, cfg: dict[str, Any]) -> PeerAdapter:
         )
 
     if pid == "supermemory":
-        return SupermemoryStubAdapter()
+        if os.environ.get("SUPERMEMORY_BENCH_CMD"):
+            return ExternalCmdPeerAdapter("supermemory", env_var="SUPERMEMORY_BENCH_CMD")
+        return UnavailablePeerAdapter(
+            "supermemory",
+            "set SUPERMEMORY_BENCH_CMD to a JSON stdin/stdout bridge for the Supermemory API",
+        )
 
     return UnavailablePeerAdapter(peer_id, f"unknown peer: {peer_id}")

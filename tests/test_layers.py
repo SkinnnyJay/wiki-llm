@@ -1,8 +1,12 @@
 # tests/test_layers.py
 import json
+import sys
 from pathlib import Path
-import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 from lib.layers import build_wake_up, update_claude_md
+
 
 def _make_vault(tmp_path):
     vault = tmp_path / "v"

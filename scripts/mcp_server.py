@@ -27,7 +27,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from lib.mcp_cli import MCP_DISABLED_MESSAGE, mcp_enabled
 from lib.version import __version__
 from mcp import ctx as _ctx
-from mcp.tools_kg import (
+from mcp.tools_kg import (  # noqa: F401 - public compatibility aliases
     tool_wiki_find_connections,
     tool_wiki_kg_add,
     tool_wiki_kg_invalidate,
@@ -37,7 +37,7 @@ from mcp.tools_kg import (
     tool_wiki_kg_timeline,
     tool_wiki_kg_traverse,
 )
-from mcp.tools_read import (
+from mcp.tools_read import (  # noqa: F401 - public compatibility aliases
     tool_memory_list,
     tool_memory_recall,
     tool_memory_show,
@@ -60,7 +60,7 @@ from mcp.tools_read import (
     tool_wiki_wake_up,
 )
 from mcp.tools_registry import READ_ONLY_TOOL_NAMES, TOOLS
-from mcp.tools_write import (
+from mcp.tools_write import (  # noqa: F401 - public compatibility aliases
     tool_memory_log,
     tool_memory_prune,
     tool_memory_save,

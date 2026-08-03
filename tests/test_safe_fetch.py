@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.request import ProxyHandler
 
 import pytest
-
 from lib.url_safety import safe_fetch, validate_public_http_url
 
 
@@ -57,7 +57,7 @@ class _FakeResp:
     def __enter__(self) -> _FakeResp:
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         return None
 
 
@@ -113,6 +113,32 @@ def test_safe_fetch_ok_no_redirect(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "text/plain" in ct
 
 
+def test_safe_fetch_disables_ambient_proxy_routing(monkeypatch: pytest.MonkeyPatch) -> None:
+    handlers: tuple[object, ...] = ()
+
+    class _Opener:
+        def open(self, req: Any, timeout: float = 0) -> _FakeResp:
+            return _FakeResp(body=b"hello")
+
+    def fake_build_opener(*configured_handlers: object) -> _Opener:
+        nonlocal handlers
+        handlers = configured_handlers
+        return _Opener()
+
+    monkeypatch.setattr("lib.url_safety.build_opener", fake_build_opener)
+    monkeypatch.setattr(
+        "lib.url_safety.socket.getaddrinfo",
+        lambda *_args, **_kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:8080")
+
+    safe_fetch("https://example.com/x")
+
+    proxy_handlers = [handler for handler in handlers if isinstance(handler, ProxyHandler)]
+    assert len(proxy_handlers) == 1
+    assert proxy_handlers[0].proxies == {}
+
+
 def test_validate_still_blocks_file() -> None:
     with pytest.raises(SystemExit, match="only http"):
         validate_public_http_url("file:///etc/passwd")
@@ -133,6 +159,19 @@ def test_safe_fetch_rejects_oversized_body(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr("lib.url_safety.socket.getaddrinfo", fake_gai)
     with pytest.raises(SystemExit, match="max_bytes"):
         safe_fetch("https://example.com/big", max_bytes=10)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"timeout": 0}, "timeout"),
+        ({"max_redirects": -1}, "max_redirects"),
+        ({"max_bytes": 0}, "max_bytes"),
+    ],
+)
+def test_safe_fetch_rejects_invalid_limits(kwargs: dict[str, int], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        safe_fetch("https://example.com/x", **kwargs)
 
 
 def test_safe_fetch_fails_closed_without_peer(monkeypatch: pytest.MonkeyPatch) -> None:

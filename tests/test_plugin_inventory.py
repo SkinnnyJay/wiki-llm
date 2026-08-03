@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.skill_eval_cases import SKILL_EVALS, SKILL_EVAL_EXCLUDE
+from tests.skill_eval_cases import SKILL_EVAL_EXCLUDE, SKILL_EVALS
 
 REPO = Path(__file__).resolve().parent.parent
 

@@ -139,7 +139,9 @@ SKILL_EVALS: list[dict[str, Any]] = [
             "In one sentence: what is raw preparation for in llm-wiki? "
             "Your reply must contain the letters RAW as substring."
         ),
-        "timeout": 90,
+        # Claude occasionally needs more than the normal eval window to start this
+        # plugin context; keep the semantic assertion while avoiding a false timeout.
+        "timeout": 180,
         "check_output": ["raw"],
     },
     {

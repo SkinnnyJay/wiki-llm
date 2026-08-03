@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 
 def _diary_path(vault: Path, agent_id: str) -> Path:

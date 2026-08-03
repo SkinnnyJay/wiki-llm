@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 

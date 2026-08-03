@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-from typing import Any
 
 
 def exchange_pairs_from_lines(
@@ -20,7 +18,6 @@ def exchange_pairs_from_lines(
         s = line.strip()
         if not s:
             continue
-        low = s[:12].lower()
         is_user = any(s.startswith(m) for m in user_markers)
         is_asst = any(s.startswith(m) for m in assistant_markers)
         if is_user:

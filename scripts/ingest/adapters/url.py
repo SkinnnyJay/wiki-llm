@@ -9,6 +9,7 @@ from urllib.error import URLError
 
 from lib.paths import raw_destination
 from lib.url_safety import DEFAULT_MAX_BYTES, safe_fetch
+
 from ingest.base import Adapter, IngestResult
 
 

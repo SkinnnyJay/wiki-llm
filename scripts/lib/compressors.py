@@ -178,7 +178,7 @@ class ExtractCompressor:
     max_topics: int = 3
 
     def compress(self, text: str, *, metadata: dict[str, Any] | None = None) -> str:
-        meta = metadata or {}
+        del metadata  # Kept for the shared compressor interface.
         # Topics: word freq
         words = re.findall(r"[a-zA-Z][a-zA-Z_-]{2,}", text[:8000])
         freq: dict[str, int] = {}

@@ -35,11 +35,22 @@ npm run dev         # binds 127.0.0.1:3000
 
 Open `http://127.0.0.1:3000` (not a LAN/public bind by default).
 
+For a production-style local check (no Claude/acpx invocation), run:
+
+```bash
+npm run build
+npm run test:http
+```
+
+`test:http` starts the built server on a temporary loopback port and verifies the
+token, host, and invalid-request boundaries. It does not send a valid chat turn
+or require credentials for Claude.
+
 `ACP_WEB_TOKEN` is **required**. `/api/chat` and `/api/config` reject missing or invalid tokens (SHA-256 + `crypto.timingSafeEqual`), and reject non-loopback `Host` / `X-Forwarded-Host`. The browser sends the matching `NEXT_PUBLIC_ACP_WEB_TOKEN` as `Authorization: Bearer …` / `X-ACP-Web-Token` (visible in the client bundle — localhost desk only).
 
 ## How it works
 
-- **POST `/api/chat`** — Requires a valid web token, then resolves the wiki-llm plugin (`skills/wiki-setup/SKILL.md`) and vault state before starting Claude. If skills cannot be found, returns **503** until you set `LLM_WIKI_PLUGIN_ROOT` or `ACP_WORKSPACE` correctly; override with `ACP_WEB_SKIP_SKILL_CHECK=1` (not recommended). Then ensures `acpx claude sessions ensure --name …` and streams `npx acpx@latest --format json --cwd $ACP_WORKSPACE claude -s <session> --file <prompt>`. Each turn’s system payload includes **installed skill names** and paths so the model follows the same workflows as **`skills/*/SKILL.md`**.
+- **POST `/api/chat`** — Requires a valid web token and a well-formed message array plus a simple session identifier (`A-Z`, `a-z`, digits, `.`, `_`, `-`; 64 characters maximum) before resolving the wiki-llm plugin (`skills/wiki-setup/SKILL.md`) and vault state. If skills cannot be found, returns **503** until you set `LLM_WIKI_PLUGIN_ROOT` or `ACP_WORKSPACE` correctly; override with `ACP_WEB_SKIP_SKILL_CHECK=1` (not recommended). Then ensures `acpx claude sessions ensure --name …` and streams `npx acpx@latest --format json --cwd $ACP_WORKSPACE claude -s <session> --file <prompt>`. Each turn’s system payload includes **installed skill names** and paths so the model follows the same workflows as **`skills/*/SKILL.md`**.
 - **GET `/api/config`** — Same token gate. Workspace display name, vault path, vault setup state, and plugin **preflight** (skill count, paths) for the sidebar.
 
 Session names map to acpx `-s` parallel sessions; the UI keeps a lightweight “recent threads” list in memory (resets on refresh).

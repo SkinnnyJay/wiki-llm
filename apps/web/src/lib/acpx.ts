@@ -5,8 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { AcpxJsonEvent } from "@/types/acpx";
+import type { AcpxPermissionMode } from "@/types/desk";
+import { DEFAULT_ACPX_PERMISSION_MODE } from "@/types/desk";
 import { buildFullSystemPrompt, composeAcpxPromptFileBody } from "@/lib/system-prompt";
 import type { WikiPreflight } from "@/lib/wiki-preflight";
+
+const ACPX_STDERR_TAIL_CHARS = 32_768;
 
 function npxBinary(): string {
   return process.platform === "win32" ? "npx.cmd" : "npx";
@@ -23,11 +27,18 @@ function acpxArgs(): string[] {
  * Set `ACP_ACPX_PERMISSION_MODE=approve-all` or `deny-all` to override.
  */
 export function acpxPermissionFlags(): string[] {
-  const mode =
-    process.env.ACP_ACPX_PERMISSION_MODE?.trim().toLowerCase() ?? "approve-reads";
+  const mode = getAcpxPermissionMode(process.env.ACP_ACPX_PERMISSION_MODE);
   if (mode === "approve-all") return ["--approve-all"];
   if (mode === "deny-all") return ["--deny-all"];
   return ["--approve-reads"];
+}
+
+/** Map the environment value to ACP's supported permission vocabulary. */
+export function getAcpxPermissionMode(value: string | undefined): AcpxPermissionMode {
+  const mode = value?.trim().toLowerCase();
+  if (mode === "approve-all") return mode;
+  if (mode === "deny-all") return mode;
+  return DEFAULT_ACPX_PERMISSION_MODE;
 }
 
 export function getWorkspaceDir(): string {
@@ -135,10 +146,10 @@ export async function* streamAcpxClaudePrompt(options: {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  const stderrChunks: string[] = [];
+  let stderrTail = "";
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => {
-    stderrChunks.push(chunk);
+    stderrTail = `${stderrTail}${chunk}`.slice(-ACPX_STDERR_TAIL_CHARS);
   });
 
   const rl = createInterface({ input: child.stdout });
@@ -167,7 +178,7 @@ export async function* streamAcpxClaudePrompt(options: {
   await rm(dir, { recursive: true, force: true });
 
   if (code !== 0) {
-    const tail = stderrChunks.join("").trim();
+    const tail = stderrTail.trim();
     throw new Error(
       tail || `acpx exited with code ${code}`,
     );

@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 import re
 from pathlib import Path
 from typing import Any
-
 
 # Matches a YAML frontmatter block that contains ONLY llm_wiki_* keys
 _SOLO_LLM_BLOCK = re.compile(

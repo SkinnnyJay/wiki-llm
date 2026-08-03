@@ -13,8 +13,8 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from ingest.adapters import ADAPTERS  # noqa: E402
-from lib.config_loader import DEFAULTS  # noqa: E402
+from ingest.adapters import ADAPTERS
+from lib.config_loader import DEFAULTS
 
 
 def _vault(tmp_path: Path) -> Path:

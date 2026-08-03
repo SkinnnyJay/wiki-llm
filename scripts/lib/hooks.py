@@ -39,9 +39,7 @@ def maybe_play_sound(cfg: dict[str, Any], event: str) -> None:
     if not allow_any:
         ok = False
         p = Path(exe)
-        if p.is_absolute() and os.path.isfile(exe) and os.access(exe, os.X_OK):
-            ok = True
-        elif os.path.basename(exe) in _SOUND_CMD_ALLOWLIST:
+        if p.is_absolute() and os.path.isfile(exe) and os.access(exe, os.X_OK) or os.path.basename(exe) in _SOUND_CMD_ALLOWLIST:
             ok = True
         if not ok:
             print(

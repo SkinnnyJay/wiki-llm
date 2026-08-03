@@ -14,14 +14,13 @@ if str(SCRIPTS) not in sys.path:
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from benchmarks.lme_bench import (
-    _classify_lme_failure,
-    _gold_sid_in_paths,
-    analyze_lme_failures_log,
-    format_lme_failures_analysis,
-)
+from lib.compressors import get_compressor
+from lib.rank_fusion import reciprocal_rank_fusion
+from lib.search import prepare_fts5_match_query
+
 from benchmarks.bench_harness import (
     _bench_doc_tokens,
+    _excerpt_for_llm_rerank,
     _parse_rerank_doc_indices,
     _strip_rerank_model_output,
     adaptive_should_run_llm_rerank,
@@ -33,11 +32,13 @@ from benchmarks.bench_harness import (
     reciprocal_rank_fusion_weighted,
     rerank_paths_llm,
     tfidf_corpus_rank_from_tokens,
-    _excerpt_for_llm_rerank,
 )
-from lib.compressors import get_compressor
-from lib.rank_fusion import reciprocal_rank_fusion
-from lib.search import prepare_fts5_match_query
+from benchmarks.lme_bench import (
+    _classify_lme_failure,
+    _gold_sid_in_paths,
+    analyze_lme_failures_log,
+    format_lme_failures_analysis,
+)
 
 
 def test_recall_at_k_hit():

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict, cast
 
-
 StorageKey = Literal[
     "search_db",
     "kg_db",

@@ -3,23 +3,35 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from lib.raw_markdown import autofix_raw_markdown, raw_file_path, validate_raw_markdown
 
 
+class RawValidationResult(TypedDict):
+    """Stable validation result shared by CLI presentation and MCP JSON output."""
+
+    ok: bool
+    valid: bool
+    error: str | None
+    rel: str
+    path: str
+    path_obj: Path | None
+    issues: list[str]
+    autofix_applied: list[str]
+    skipped: str | None
+
+
 def normalize_raw_relpath(path_arg: str) -> str:
     s = path_arg.replace("\\", "/").strip().lstrip("/")
-    if s.startswith("raw/"):
-        s = s[4:]
+    s = s.removeprefix("raw/")
     return s
 
 
 def raw_memory_rel_prefix(cfg: dict[str, Any]) -> str:
     mem_dir = (cfg.get("memory") or {}).get("dir", "raw/memory")
     mem_rel = str(Path(mem_dir).as_posix().replace("\\", "/")).strip("/")
-    if mem_rel.startswith("raw/"):
-        mem_rel = mem_rel[4:]
+    mem_rel = mem_rel.removeprefix("raw/")
     return mem_rel
 
 
@@ -29,7 +41,7 @@ def validate_raw_file_result(
     path_arg: str,
     *,
     autofix: bool = False,
-) -> dict[str, Any]:
+) -> RawValidationResult:
     """
     Validate one file under raw/. Optionally apply deterministic autofix first.
     Returns a dict suitable for MCP JSON; CLI prints based on the same fields.
@@ -69,6 +81,7 @@ def validate_raw_file_result(
         return {
             "ok": True,
             "valid": True,
+            "error": None,
             "skipped": "session memory",
             "rel": rel,
             "path": f"raw/{rel}",
@@ -89,6 +102,7 @@ def validate_raw_file_result(
     return {
         "ok": ok,
         "valid": ok,
+        "error": None,
         "rel": rel,
         "path": f"raw/{rel}",
         "path_obj": path,

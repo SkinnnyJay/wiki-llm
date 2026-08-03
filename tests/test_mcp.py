@@ -6,10 +6,8 @@ import builtins
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -87,6 +85,21 @@ class TestFTS5Search:
         assert status["backend"] == "fts5"
         assert status["indexed_pages"] == 3
 
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            {"performance": "not-a-mapping"},
+            {"performance": {"sqlite": "not-a-mapping"}},
+        ],
+    )
+    def test_malformed_performance_config_uses_defaults(self, vault, cfg):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.search import FTS5SearchBackend
+
+        backend = FTS5SearchBackend(vault, cfg)
+
+        assert backend.search("auth")
+
     def test_find_related(self, vault):
         sys.path.insert(0, str(SCRIPTS))
         from lib.search import FTS5SearchBackend
@@ -115,6 +128,21 @@ class TestGrepSearch:
         results = backend.search("auth", scope="wiki")
         assert all(r.path.startswith("wiki/") for r in results)
 
+    def test_regex_metacharacters_are_literal_in_stdlib_fallback(self, vault):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.search import GrepSearchBackend
+
+        (vault / "wiki" / "literal.md").write_text(
+            "# Literal\nThe configured pattern is (a+)+$ exactly.\n",
+            encoding="utf-8",
+        )
+        backend = GrepSearchBackend(vault)
+        backend._has_rg = False
+
+        results = backend.search("(a+)+$")
+
+        assert [result.path for result in results] == ["wiki/literal.md"]
+
     def test_index_status(self, vault):
         sys.path.insert(0, str(SCRIPTS))
         from lib.search import GrepSearchBackend
@@ -136,6 +164,7 @@ class TestRawValidate:
         cfg = load_config(vault)
         r = validate_raw_file_result(vault, cfg, "notes.md", autofix=False)
         assert r["valid"] is True
+        assert r["error"] is None
         assert r["path"] == "raw/notes.md"
         assert not r.get("issues")
 
@@ -174,6 +203,14 @@ class TestGetSearchBackend:
         cfg = {"mcp": {"search_backend": "grep"}}
         backend = get_search_backend(vault, cfg)
         assert backend.index_status()["backend"] == "grep"
+
+    def test_malformed_mcp_config_defaults_to_fts5(self, vault):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.search import get_search_backend
+
+        backend = get_search_backend(vault, {"mcp": "not-a-mapping"})
+
+        assert backend.index_status()["backend"] == "fts5"
 
     def test_chromadb_falls_back_to_grep_when_submodule_import_fails(self, vault, monkeypatch):
         """If ChromaDBSearchBackend cannot be imported, factory uses GrepSearchBackend."""
@@ -291,8 +328,8 @@ class TestSQLiteKnowledgeGraph:
 
     def test_add_query_invalidate(self, sqlite_vault):
         sys.path.insert(0, str(SCRIPTS))
-        from lib.knowledge_graph import get_kg_backend
         from lib.config_loader import load_config
+        from lib.knowledge_graph import get_kg_backend
 
         cfg = load_config(sqlite_vault)
         kg = get_kg_backend(sqlite_vault, cfg)
@@ -309,8 +346,8 @@ class TestSQLiteKnowledgeGraph:
 
     def test_rebuild(self, sqlite_vault):
         sys.path.insert(0, str(SCRIPTS))
-        from lib.knowledge_graph import get_kg_backend
         from lib.config_loader import load_config
+        from lib.knowledge_graph import get_kg_backend
 
         cfg = load_config(sqlite_vault)
         kg = get_kg_backend(sqlite_vault, cfg)
@@ -572,6 +609,48 @@ class TestMCPHttpBridge:
                 time.sleep(0.05)
         raise AssertionError("HTTP MCP server did not become ready")
 
+    def test_post_rejects_non_object_json_rpc_request(self, vault):
+        import socket
+        import threading
+        import time
+        import urllib.error
+        import urllib.request
+
+        cfg = json.loads((vault / "config.json").read_text(encoding="utf-8"))
+        cfg.setdefault("mcp", {})["sse_allow_empty_token"] = True
+        (vault / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+
+        def run():
+            sys.path.insert(0, str(SCRIPTS))
+            from mcp_sse import run_sse_server
+
+            run_sse_server(vault, port=port, host="127.0.0.1")
+
+        threading.Thread(target=run, daemon=True).start()
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/",
+            data=b"[]",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        for _ in range(50):
+            try:
+                urllib.request.urlopen(req, timeout=2)
+            except urllib.error.HTTPError as error:
+                assert error.code == 400
+                body = json.loads(error.read().decode())
+                assert body["error"]["code"] == -32600
+                assert body["error"]["message"] == "JSON-RPC request must be an object"
+                return
+            except (urllib.error.URLError, ConnectionRefusedError, OSError):
+                time.sleep(0.05)
+        raise AssertionError("HTTP MCP server did not reject a non-object request")
+
 
 class TestMCPNotifications:
     """JSON-RPC notifications: no response on stdio; HTTP 204."""
@@ -748,10 +827,10 @@ class TestMCPHardening:
         )
         code = (
             "import sys\n"
-            f"sys.path.insert(0, {repr(str(SCRIPTS))})\n"
+            f"sys.path.insert(0, {str(SCRIPTS)!r})\n"
             "from pathlib import Path\n"
             "from mcp_sse import run_sse_server\n"
-            f"run_sse_server(Path({repr(str(v))}), port=19991, host='0.0.0.0')\n"
+            f"run_sse_server(Path({str(v)!r}), port=19991, host='0.0.0.0')\n"
         )
         proc = subprocess.run(
             [sys.executable, "-c", code],
@@ -948,6 +1027,21 @@ class TestMetrics:
         m = MetricsRecorder(vault, cfg)
         m.record("before_limit", 1)
         assert len(m.query()) <= 1
+
+    @pytest.mark.parametrize(
+        "cfg",
+        [
+            {"metrics": "not-a-mapping"},
+            {"metrics": {"enabled": True, "max_file_size_mb": -1}},
+        ],
+    )
+    def test_malformed_metrics_configuration_is_safe(self, vault, cfg):
+        sys.path.insert(0, str(SCRIPTS))
+        from lib.metrics import MetricsRecorder
+
+        recorder = MetricsRecorder(vault, cfg)
+
+        assert isinstance(recorder.stats(), dict)
 
 
 # ---------------------------------------------------------------------------

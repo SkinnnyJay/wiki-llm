@@ -10,7 +10,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from cli import mcp_commands  # noqa: E402
+from cli import mcp_commands
 
 
 def test_mcp_install_writes_plugin_cursor_config_and_preserves_servers(
@@ -44,3 +44,32 @@ def test_mcp_install_requires_force_for_explicit_project(tmp_path: Path, monkeyp
     args = argparse.Namespace(vault=None, project=project, force=False)
     assert mcp_commands._mcp_install(args) == 2
     assert not (project / ".cursor" / "mcp.json").exists()
+
+
+def test_mcp_install_refuses_invalid_existing_server_map(tmp_path: Path, monkeypatch) -> None:
+    plugin = tmp_path / "plugin"
+    plugin.mkdir()
+    monkeypatch.setattr(mcp_commands, "plugin_root", lambda: plugin)
+    cursor_config = plugin / ".cursor" / "mcp.json"
+    cursor_config.parent.mkdir()
+    cursor_config.write_text('{"mcpServers": []}', encoding="utf-8")
+
+    result = mcp_commands._mcp_install(
+        argparse.Namespace(vault=None, project=None, force=True)
+    )
+
+    assert result == 2
+    assert json.loads(cursor_config.read_text(encoding="utf-8")) == {"mcpServers": []}
+
+
+def test_mcp_install_rejects_non_path_project_value(tmp_path: Path, monkeypatch) -> None:
+    plugin = tmp_path / "plugin"
+    plugin.mkdir()
+    monkeypatch.setattr(mcp_commands, "plugin_root", lambda: plugin)
+
+    result = mcp_commands._mcp_install(
+        argparse.Namespace(vault=None, project=object(), force=True)
+    )
+
+    assert result == 2
+    assert not (plugin / ".cursor" / "mcp.json").exists()

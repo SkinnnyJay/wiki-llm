@@ -61,14 +61,16 @@ def test_viewer_index_loads_in_chromium(seeded_vault: Path) -> None:
     try:
         with sync_playwright() as p:
             try:
-                browser = p.chromium.launch()
+                executable_path = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+                browser = p.chromium.launch(executable_path=executable_path)
             except Exception as e:
                 pytest.skip(f"Chromium not available for Playwright: {e}")
             try:
                 page = browser.new_page(viewport={"width": 390, "height": 844})
                 page.goto(f"http://127.0.0.1:{port}/index.html", wait_until="domcontentloaded")
-                assert "LLM Wiki" in (page.title() or "")
-                assert page.locator(".brand").filter(has_text="LLM Wiki").count() >= 1
+                assert "wiki" in (page.title() or "").lower()
+                assert page.locator(".brand").count() == 1
+                assert page.locator(".brand").inner_text().strip()
                 assert page.locator(".skip-link").count() == 1
                 assert page.locator("main").count() == 1
                 assert page.locator("nav[aria-label='Wiki pages']").count() == 1

@@ -273,7 +273,7 @@ def claude_runner() -> Any:
         cmd.extend(["--", prompt])
         return subprocess.run(
             cmd,
-            cwd=str(REPO),
+            cwd=str(vault),
             env=env,
             stdin=subprocess.DEVNULL,
             capture_output=True,
@@ -326,7 +326,9 @@ def codex_runner() -> Any:
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
-            timeout=timeout,
+            # Codex startup and workspace discovery are slower than Claude in CI;
+            # retain case-specific minimums without turning healthy calls into flakes.
+            timeout=max(timeout, int(os.environ.get("CODEX_SKILL_EVAL_MIN_TIMEOUT", "180"))),
         )
 
     return _run

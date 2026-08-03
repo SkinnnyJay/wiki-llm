@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 DEFAULT_MODEL = "claude-sonnet-4-5-20250929"

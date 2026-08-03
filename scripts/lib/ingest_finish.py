@@ -7,8 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from ingest import security as secscan
-from ingest.dedup import check_duplicate, content_hash, register_hash, strip_llm_wiki_keys
+from ingest.dedup import (
+    check_duplicate,
+    content_hash,
+    register_hash,
+    strip_llm_wiki_keys,
+)
 from ingest.tagger import detect_tags, merge_tags, register_tags
+
 from lib import git as vgit
 from lib.hooks import maybe_play_sound
 

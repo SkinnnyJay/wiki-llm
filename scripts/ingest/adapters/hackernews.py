@@ -12,10 +12,11 @@ from urllib.request import Request, urlopen
 
 from lib.http_defaults import USER_AGENT
 from lib.paths import raw_destination
+
 from ingest.base import Adapter, IngestResult
 
 HN_API = "https://hacker-news.firebaseio.com/v0"
-_ITEM_URL = re.compile(r"https?://news\.ycombinator\.com/item\?id=(\d+)", re.I)
+_ITEM_URL = re.compile(r"https?://news\.ycombinator\.com/item\?id=(\d+)", re.IGNORECASE)
 # Firebase can throttle bursty clients; small pause between requests in comments mode.
 _HN_REQUEST_GAP_S = 0.12
 _REQUEST_TIMEOUT_S = 20

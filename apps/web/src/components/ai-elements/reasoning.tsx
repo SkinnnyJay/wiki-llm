@@ -70,11 +70,12 @@ export const Reasoning = memo(
     // Track if defaultOpen was explicitly set to false (to prevent auto-open)
     const isExplicitlyClosed = defaultOpen === false;
 
-    const [isOpen, setIsOpen] = useControllableState<boolean>({
+    const controllableOpenState = {
       defaultProp: resolvedDefaultOpen,
-      onChange: onOpenChange,
-      prop: open,
-    });
+      ...(onOpenChange ? { onChange: onOpenChange } : {}),
+      ...(open !== undefined ? { prop: open } : {}),
+    };
+    const [isOpen, setIsOpen] = useControllableState<boolean>(controllableOpenState);
     const [duration, setDuration] = useControllableState<number | undefined>({
       defaultProp: undefined,
       prop: durationProp,

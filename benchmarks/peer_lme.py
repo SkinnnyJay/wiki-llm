@@ -7,6 +7,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lib.config_loader import deep_merge
+from lib.metrics import MetricsRecorder
+
 from benchmarks.bench_harness import build_benchmark_record_meta, config_hash, ndcg_at_k
 from benchmarks.lme_bench import _load_lme_data
 from benchmarks.peers import (
@@ -16,8 +19,6 @@ from benchmarks.peers import (
 )
 from benchmarks.peers.mem0_adapter import Mem0PeerAdapter
 from benchmarks.peers.registry import default_peer_cache_root
-from lib.config_loader import deep_merge
-from lib.metrics import MetricsRecorder
 
 
 def _avg(xs: list[float]) -> float:

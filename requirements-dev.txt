@@ -1,3 +1,4 @@
 # Development / CI — plugin tests (see pytest.ini)
 pytest>=9,<10
 basedpyright>=1.39
+ruff>=0.16,<0.17

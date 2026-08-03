@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from lib.paths import raw_destination
 from lib.url_safety import validate_public_http_url
+
 from ingest.adapters.url import _strip_html
 from ingest.base import Adapter, IngestResult
 
